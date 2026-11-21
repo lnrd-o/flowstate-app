@@ -71,7 +71,23 @@ export const CH = Object.freeze({
   methodRespond: 'method:respond',           // (runId, nodeId, response) -> void   response: {approve:boolean} for checkpoint/command confirmation, {answer:string} for ask-user
   methodStop: 'method:stop',                 // (runId) -> void
   methodRunState: 'method:run-state',        // (projectId) -> RunState|null   (active or last run)
+  // ---- Phase 4: in-app sign-in, custom title bar ----
+  // Sign-in. claude: `claude auth login [--claudeai|--console|--sso] [--email e]` over PIPES (prints the URL + 'Paste code here' prompt);
+  // agy: no login subcommand - signing in = launching `agy` with NO args (interactive TUI: 'Log in with Google' / 'Gemini Enterprise'),
+  // so it runs in a PTY (@lydell/node-pty) and the renderer shows it in xterm.js.
+  loginStart: 'login:start',                 // (agent:'claude'|'agy', opts?:{kind?:'claudeai'|'console'|'sso', email?:string, cols?:number, rows?:number}) -> {ok, mode:'pipe'|'pty'}   one session per agent; a second start cancels the first
+  loginInput: 'login:input',                 // (agent, data:string) -> void   claude: a pasted code (backend appends the newline); agy: raw keystrokes for the PTY
+  loginResize: 'login:resize',               // (agent, cols, rows) -> void   (pty only)
+  loginCancel: 'login:cancel',               // (agent) -> void   kills the process tree
+  loginStatus: 'login:status',               // () -> LoginStatus   fresh check (claude: `claude auth status` JSON; agy: `agy models` output not asking to sign in)
+  loginLogout: 'login:logout',               // (agent) -> {ok, error?}   claude: `claude auth logout`; agy: {ok:false, error:'use-terminal'} (use /logout inside the agy terminal)
+  // Custom title bar / window
+  windowInfo: 'window:info',                 // () -> {platform:'win32'|'darwin'|'linux', maximized:boolean, overlay:boolean, controlsInset:{left:number,right:number}, fullscreen:boolean}
+  windowSetTheme: 'window:set-theme',        // ({color:string '#rrggbb', symbolColor:string '#rrggbb', height:number}) -> void   recolours the native window-controls overlay (win/linux) live when the theme changes
+  windowAction: 'window:action',             // ('minimize'|'toggle-maximize'|'close') -> void
   // push channels (main -> renderer)
+  evLogin: 'ev:login',                       // {agent, kind:'url'|'prompt'|'data'|'status'|'done'|'error', url?, text?, data?, loggedIn?, ok?}   see LoginEvent
+  evWindow: 'ev:window',                     // {maximized:boolean, fullscreen:boolean}
   evMethod: 'ev:method',                     // {projectId, state: RunState}   on every node transition
   evAgent: 'ev:agent',                       // {projectId, event}
   evHealth: 'ev:health',                     // Health   (pushed on change; VPN polling every 10 s)
@@ -81,6 +97,18 @@ export const CH = Object.freeze({
   evRemote: 'ev:remote',                     // {projectId, running, info?}
 });
 
+// Phase 4 types (JSDoc):
+//   LoginStatus = { claude:{ loggedIn:boolean, authMethod?:string, email?:string }, agy:{ loggedIn:boolean } }   Health.agy also gains `loggedIn:boolean|null` (null = unknown / agy missing)
+//   LoginEvent  = { agent, kind:'url', url }                    first https URL seen in the output (claude: from stdout; agy: from the ANSI-stripped PTY text). `url` is only ever
+//                                                               emitted to the renderer; opening it in the browser is done by the renderer through window.open / main's allow-list
+//                                                               (security.js) - hosts: claude.com, claude.ai, anthropic.com, platform.claude.com, console.anthropic.com, accounts.google.com, *.google.com, *.googleapis.com
+//               | { agent, kind:'prompt', text }                claude only: the CLI is asking for a pasted code (stdout line containing 'Paste code')
+//               | { agent, kind:'data', data }                  agy only: raw PTY output chunk (feed to xterm.write)
+//               | { agent, kind:'status', loggedIn }            emitted when a periodic check (every 2 s while a session is open) flips the state
+//               | { agent, kind:'done', ok, loggedIn }          process exited or sign-in detected; the session is closed (agy PTY is killed 1 s after loggedIn turns true)
+//               | { agent, kind:'error', text }
+//   Platform notes: sign-in never reads or stores credentials; tokens stay in the CLIs' own stores.
+//
 // Phase 3 types (JSDoc):
 //   RunState = { runId, projectId, methodologyId, status:'running'|'waiting'|'done'|'error'|'stopped', vars:object,
 //                current: nodeId|null, startedAt, endedAt?, error?: string,
@@ -121,5 +149,7 @@ export const API_SHAPE = Object.freeze({
   remote: ['status', 'start', 'stop'],
   history: ['get', 'clear'],
   method: ['list', 'get', 'save', 'delete', 'record', 'import', 'export', 'run', 'respond', 'stop', 'runState'],
-  subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod'],
+  login: ['start', 'input', 'resize', 'cancel', 'status', 'logout'],
+  window: ['info', 'setTheme', 'action'],
+  subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod', 'onLogin', 'onWindow'],
 });
