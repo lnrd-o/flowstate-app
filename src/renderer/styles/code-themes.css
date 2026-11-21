@@ -1,0 +1,84 @@
+/* FlowState code themes for highlight.js classes. Apply with <html data-code-theme="NAME">.
+   Each theme sets palette variables (--c-*) plus --code-bg/--code-header-bg; shared rules at the bottom. */
+
+/* defaults: vs-dark in dark app theme, github-light in light app theme */
+:root, [data-code-theme="vs-dark"] {
+  --c-fg: #d4d4d4; --c-comment: #6a9955; --c-keyword: #569cd6; --c-string: #ce9178; --c-number: #b5cea8;
+  --c-title: #dcdcaa; --c-builtin: #4ec9b0; --c-attr: #9cdcfe; --c-variable: #9cdcfe; --c-type: #4ec9b0;
+  --c-meta: #c586c0; --c-literal: #569cd6; --c-tag: #569cd6; --c-name: #569cd6; --c-regexp: #d16969; --c-symbol: #d7ba7d;
+  --c-add: #b5cea8; --c-del: #ce9178; --c-punct: #d4d4d4;
+}
+[data-code-theme="vs-dark"] { --code-bg: #1e1e1e; --code-header-bg: #252526; }
+
+[data-theme="light"]:not([data-code-theme]), [data-code-theme="github-light"] {
+  --c-fg: #24292f; --c-comment: #6e7781; --c-keyword: #cf222e; --c-string: #0a3069; --c-number: #0550ae;
+  --c-title: #8250df; --c-builtin: #953800; --c-attr: #0550ae; --c-variable: #953800; --c-type: #953800;
+  --c-meta: #0550ae; --c-literal: #0550ae; --c-tag: #116329; --c-name: #116329; --c-regexp: #0a3069; --c-symbol: #0550ae;
+  --c-add: #116329; --c-del: #82071e; --c-punct: #24292f;
+}
+[data-theme="light"]:not([data-code-theme]), [data-code-theme="github-light"] { --code-bg: #f6f8fa; --code-header-bg: #eaeef2; }
+
+[data-code-theme="github-dark"] {
+  --code-bg: #0d1117; --code-header-bg: #161b22;
+  --c-fg: #c9d1d9; --c-comment: #8b949e; --c-keyword: #ff7b72; --c-string: #a5d6ff; --c-number: #79c0ff;
+  --c-title: #d2a8ff; --c-builtin: #ffa657; --c-attr: #79c0ff; --c-variable: #ffa657; --c-type: #ffa657;
+  --c-meta: #79c0ff; --c-literal: #79c0ff; --c-tag: #7ee787; --c-name: #7ee787; --c-regexp: #a5d6ff; --c-symbol: #79c0ff;
+  --c-add: #aff5b4; --c-del: #ffdcd7; --c-punct: #c9d1d9;
+}
+
+[data-code-theme="dracula"] {
+  --code-bg: #282a36; --code-header-bg: #21222c;
+  --c-fg: #f8f8f2; --c-comment: #7f8bb8; --c-keyword: #ff79c6; --c-string: #f1fa8c; --c-number: #bd93f9;
+  --c-title: #50fa7b; --c-builtin: #8be9fd; --c-attr: #50fa7b; --c-variable: #f8f8f2; --c-type: #8be9fd;
+  --c-meta: #ffb86c; --c-literal: #bd93f9; --c-tag: #ff79c6; --c-name: #ff79c6; --c-regexp: #ff5555; --c-symbol: #bd93f9;
+  --c-add: #50fa7b; --c-del: #ff5555; --c-punct: #f8f8f2;
+}
+
+[data-code-theme="one-dark"] {
+  --code-bg: #282c34; --code-header-bg: #21252b;
+  --c-fg: #abb2bf; --c-comment: #7f848e; --c-keyword: #c678dd; --c-string: #98c379; --c-number: #d19a66;
+  --c-title: #61afef; --c-builtin: #e6c07b; --c-attr: #d19a66; --c-variable: #e06c75; --c-type: #e6c07b;
+  --c-meta: #61afef; --c-literal: #56b6c2; --c-tag: #e06c75; --c-name: #e06c75; --c-regexp: #56b6c2; --c-symbol: #56b6c2;
+  --c-add: #98c379; --c-del: #e06c75; --c-punct: #abb2bf;
+}
+
+[data-code-theme="solarized-dark"] {
+  --code-bg: #002b36; --code-header-bg: #073642;
+  --c-fg: #93a1a1; --c-comment: #657b83; --c-keyword: #859900; --c-string: #2aa198; --c-number: #d33682;
+  --c-title: #268bd2; --c-builtin: #b58900; --c-attr: #b58900; --c-variable: #cb4b16; --c-type: #b58900;
+  --c-meta: #cb4b16; --c-literal: #2aa198; --c-tag: #268bd2; --c-name: #268bd2; --c-regexp: #dc322f; --c-symbol: #d33682;
+  --c-add: #859900; --c-del: #dc322f; --c-punct: #93a1a1;
+}
+
+[data-code-theme="monokai"] {
+  --code-bg: #272822; --code-header-bg: #1e1f1c;
+  --c-fg: #f8f8f2; --c-comment: #8f8b73; --c-keyword: #f92672; --c-string: #e6db74; --c-number: #ae81ff;
+  --c-title: #a6e22e; --c-builtin: #66d9ef; --c-attr: #a6e22e; --c-variable: #fd971f; --c-type: #66d9ef;
+  --c-meta: #fd971f; --c-literal: #ae81ff; --c-tag: #f92672; --c-name: #f92672; --c-regexp: #e6db74; --c-symbol: #ae81ff;
+  --c-add: #a6e22e; --c-del: #f92672; --c-punct: #f8f8f2;
+}
+
+/* shared highlight.js rules */
+.hljs { color: var(--c-fg); background: transparent; display: block; }
+.hljs-comment, .hljs-quote { color: var(--c-comment); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-template-tag { color: var(--c-keyword); }
+.hljs-string, .hljs-template-variable, .hljs-selector-attr { color: var(--c-string); }
+.hljs-number { color: var(--c-number); }
+.hljs-title, .hljs-function, .hljs-title.function_, .hljs-section { color: var(--c-title); }
+.hljs-title.class_, .hljs-type, .hljs-class .hljs-title { color: var(--c-type); }
+.hljs-built_in, .hljs-bullet { color: var(--c-builtin); }
+.hljs-attr, .hljs-attribute, .hljs-property { color: var(--c-attr); }
+.hljs-variable, .hljs-params, .hljs-link { color: var(--c-variable); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--c-meta); }
+.hljs-literal { color: var(--c-literal); }
+.hljs-tag { color: var(--c-punct); }
+.hljs-tag .hljs-name, .hljs-name { color: var(--c-tag); }
+.hljs-selector-id, .hljs-selector-class, .hljs-selector-pseudo { color: var(--c-title); }
+.hljs-symbol, .hljs-subst { color: var(--c-symbol); }
+.hljs-regexp { color: var(--c-regexp); }
+.hljs-operator { color: var(--c-keyword); }
+.hljs-punctuation { color: var(--c-punct); }
+.hljs-addition { color: var(--c-add); background: var(--diff-add-bg); display: inline-block; width: 100%; }
+.hljs-deletion { color: var(--c-del); background: var(--diff-del-bg); display: inline-block; width: 100%; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }

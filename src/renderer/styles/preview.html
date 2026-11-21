@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlowState style preview</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="layout.css">
+<link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="code-themes.css">
+<style>
+  body { overflow: auto; }
+  .pv { background: var(--bg); color: var(--text); padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  .pv h2 { font-size: 16px; margin-bottom: 4px; }
+  .themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  .sample { padding: 12px; background: var(--bg); color: var(--text); }
+  .sample .code-block { margin: 0; }
+  .app-demo { height: 420px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .app-demo .app { height: 100%; }
+</style>
+</head>
+<body>
+<!-- No JS: the whole page is shown twice, once per app theme, by nesting data-theme wrappers. -->
+
+<div class="pv" data-theme="dark">
+  <h2>DARK app theme</h2>
+  <div class="app-demo">
+    <div class="banner banner--danger"><span class="banner__text">VPN detected. Disconnect and use a regular network.</span><span class="banner__actions"><button class="btn btn--sm">Recheck</button></span></div>
+    <div class="app">
+      <nav class="rail"><div class="rail__logo">F</div><button class="rail__btn is-active" title="Projects">P</button><button class="rail__btn" title="Prompts">T</button><div class="rail__spacer"></div><button class="rail__btn" title="Settings">S</button></nav>
+      <aside class="sidebar">
+        <div class="sidebar__header">
+          <button class="workspace-switcher"><span class="workspace-switcher__avatar">F</span><span class="grow truncate">FlowState</span></button>
+          <div class="search-box"><input class="input" placeholder="Search..."><span class="kbd">Ctrl K</span></div>
+        </div>
+        <div class="sidebar__scroll">
+          <div class="nav-section-label">Projects</div>
+          <button class="nav-item is-active"><span class="nav-item__label">ClaudeClient</span><span class="nav-item__dot nav-item__dot--green"></span><span class="nav-item__count">3</span></button>
+          <button class="nav-item"><span class="nav-item__label">dashboards</span><span class="nav-item__dot nav-item__dot--amber"></span></button>
+          <div class="nav-section-label">Manage</div>
+          <button class="nav-item"><span class="nav-item__label">Prompts</span><span class="nav-item__count">6</span></button>
+        </div>
+        <div class="sidebar__footer"><div class="row"><span class="dot dot--green"></span><span class="muted">Connected</span></div><div class="user-chip"><span class="user-chip__avatar">L</span><span>Leo</span></div></div>
+      </aside>
+      <main class="main">
+        <div class="topbar"><span class="topbar__crumbs">Projects <span class="sep">/</span></span><span class="topbar__title">ClaudeClient</span><span class="badge badge--green"><span class="badge__dot"></span>Idle</span>
+          <div class="topbar__actions"><button class="btn btn--ghost btn--sm">Undo turn</button><button class="btn btn--primary btn--sm">New session</button></div></div>
+        <div class="chat">
+          <div class="chat-scroll"><div class="chat-scroll__inner">
+            <div class="msg msg--user"><div class="msg__body">Fix the failing test in utils.</div></div>
+            <div class="msg msg--assistant"><div class="msg__meta">Assistant</div><div class="msg__body md"><p>Found it. Use <code>trim()</code> before comparing.</p></div>
+              <div class="tool-card is-open"><button class="tool-card__header"><span class="tool-card__name">Edit</span><span class="tool-card__summary">src/utils.js</span><span class="badge badge--green">Done</span></button><div class="tool-card__body">- a == b
++ a.trim() == b</div></div></div>
+            <div class="permission-card"><div class="permission-card__title">Permission needed</div><div class="permission-card__detail">Bash: npm test</div><div class="permission-card__actions"><button class="btn btn--sm">Deny</button><button class="btn btn--primary btn--sm">Approve</button></div></div>
+          </div></div>
+          <div class="composer-wrap"><div class="composer-wrap__inner"><div class="composer"><textarea class="composer__input" rows="1" placeholder="Message Claude..."></textarea><div class="composer__toolbar"><div class="segmented"><button class="segmented__item is-active">Claude</button><button class="segmented__item">AGY</button></div><select class="select select--sm" style="width:auto"><option>Plan only</option></select><span class="composer__spacer"></span><button class="composer__send">&gt;</button></div></div></div></div>
+        </div>
+      </main>
+      <div class="splitter"></div>
+      <aside class="artifacts"><div class="artifacts__header"><div class="pill-tabs"><button class="pill-tab is-active">Preview</button><button class="pill-tab">Files</button><button class="pill-tab">Git</button></div></div>
+        <div class="artifacts__body"><div class="empty-state"><div class="empty-state__title">Nothing here yet</div><div class="empty-state__text">Files created by the agent show up here.</div></div></div></aside>
+    </div>
+  </div>
+
+  <h2>Components</h2>
+  <div class="row wrap">
+    <button class="btn">Default</button><button class="btn btn--primary">Primary</button><button class="btn btn--ghost">Ghost</button><button class="btn btn--danger">Danger</button><button class="btn btn--sm">Small</button><button class="btn" disabled>Disabled</button>
+    <span class="badge">Neutral</span><span class="badge badge--green"><span class="badge__dot"></span>Green</span><span class="badge badge--amber">Amber</span><span class="badge badge--red">Red</span><span class="badge badge--purple">Purple</span><span class="badge badge--muted">Muted</span>
+    <label class="toggle"><input type="checkbox" checked><span class="toggle__track"></span><span>Toggle</span></label>
+    <span class="spinner"></span><span class="kbd">Ctrl</span><span class="kbd">K</span>
+  </div>
+  <div class="row wrap"><input class="input" style="width:200px" placeholder="Input"><select class="select" style="width:160px"><option>Select</option></select><div class="pill-tabs"><button class="pill-tab is-active">One</button><button class="pill-tab">Two</button></div></div>
+  <div class="grid-stats">
+    <div class="stat-card"><div class="stat-card__label">Runs</div><div class="stat-card__value">128</div><div class="stat-card__sub stat-card__sub--up">+12% this week</div></div>
+    <div class="stat-card"><div class="stat-card__label">Commits</div><div class="stat-card__value">42</div><div class="stat-card__sub">last 30 days</div></div>
+    <div class="card"><div class="card__header"><span class="card__title">Activity</span></div><div class="bars"><div class="bars__bar" style="height:40%"></div><div class="bars__bar" style="height:70%"></div><div class="bars__bar is-active" style="height:95%"></div><div class="bars__bar" style="height:55%"></div></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card card--flush"><div class="list-row"><div class="list-row__main"><div class="list-row__title">ClaudeClient</div><div class="list-row__sub">C:\Users\leo\Code\ClaudeClient</div></div><span class="badge badge--green">Active</span></div><div class="list-row"><div class="list-row__main"><div class="list-row__title">dashboards</div><div class="list-row__sub">Last opened yesterday</div></div><span class="badge badge--amber">Paused</span></div></div>
+    <div class="card"><div class="stepper"><div class="stepper__step is-done"><span class="stepper__num">1</span>Welcome</div><div class="stepper__step is-active"><span class="stepper__num">2</span>Folder</div><div class="stepper__step"><span class="stepper__num">3</span>Agent</div></div><div class="progress" style="margin-top:12px"><div class="progress__bar" style="width:40%"></div></div></div>
+  </div>
+  <div style="position:relative;height:120px"><div class="menu" style="position:relative"><button class="menu__item">Rename</button><div class="menu__sep"></div><button class="menu__item menu__item--danger">Delete</button></div></div>
+  <div class="toast toast--success" style="max-width:300px">Settings saved</div>
+  <div class="card"><div class="md"><h3>Markdown</h3><p>Paragraph with <code>inline code</code> and a <a href="#">link</a>.</p><ul><li>One</li><li>Two</li></ul><blockquote><p>Quote</p></blockquote><table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table></div>
+    <div class="code-block code-block--lines" style="margin-top:12px"><div class="code-block__header"><span class="code-block__lang">diff</span><button class="btn btn--ghost btn--sm">Copy</button></div><pre><code class="hljs"><span class="line">keep</span><span class="line diff-add">+ added</span><span class="line diff-del">- removed</span></code></pre></div></div>
+</div>
+
+<div class="pv" data-theme="light">
+  <h2>LIGHT app theme</h2>
+  <div class="row wrap">
+    <button class="btn">Default</button><button class="btn btn--primary">Primary</button><button class="btn btn--ghost">Ghost</button><button class="btn btn--danger">Danger</button>
+    <span class="badge badge--green"><span class="badge__dot"></span>Green</span><span class="badge badge--amber">Amber</span><span class="badge badge--red">Red</span><span class="badge badge--purple">Purple</span>
+    <div class="pill-tabs"><button class="pill-tab is-active">One</button><button class="pill-tab">Two</button></div>
+    <div class="segmented"><button class="segmented__item is-active">Claude</button><button class="segmented__item">AGY</button></div>
+  </div>
+  <div class="grid-stats"><div class="stat-card"><div class="stat-card__label">Runs</div><div class="stat-card__value">128</div><div class="stat-card__sub stat-card__sub--up">+12%</div></div>
+  <div class="permission-card"><div class="permission-card__title">Permission needed</div><div class="permission-card__detail">Bash: npm test</div></div></div>
+  <div class="msg msg--user"><div class="msg__body">User bubble</div></div>
+</div>
+
+<div class="pv" data-theme="dark"><h2>Code themes (dark surface)</h2><div class="themes" id="dark-themes">
+  <div class="sample" data-code-theme="vs-dark"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">vs-dark</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-selector-class">.btn</span> { <span class="hljs-attr">color</span>: red }
+<span class="hljs-meta">#!/usr/bin/env node</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+  <div class="sample" data-code-theme="github-dark"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">github-dark</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-selector-class">.btn</span> { <span class="hljs-attr">color</span>: red }
+<span class="hljs-meta">#!/usr/bin/env node</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+  <div class="sample" data-code-theme="dracula"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">dracula</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-selector-class">.btn</span> { <span class="hljs-attr">color</span>: red }
+<span class="hljs-meta">#!/usr/bin/env node</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+  <div class="sample" data-code-theme="one-dark"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">one-dark</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-selector-class">.btn</span> { <span class="hljs-attr">color</span>: red }
+<span class="hljs-meta">#!/usr/bin/env node</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+  <div class="sample" data-code-theme="solarized-dark"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">solarized-dark</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-selector-class">.btn</span> { <span class="hljs-attr">color</span>: red }
+<span class="hljs-meta">#!/usr/bin/env node</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+  <div class="sample" data-code-theme="monokai"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">monokai</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-selector-class">.btn</span> { <span class="hljs-attr">color</span>: red }
+<span class="hljs-meta">#!/usr/bin/env node</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+</div></div>
+
+<div class="pv" data-theme="light"><h2>Code themes (light surface)</h2><div class="themes">
+  <div class="sample" data-code-theme="github-light"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">github-light</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>) {
+  <span class="hljs-keyword">const</span> n = <span class="hljs-number">42</span>, s = <span class="hljs-string">"hi"</span>, ok = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">console</span>.<span class="hljs-property">log</span>(s + name);
+}
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"x"</span>&gt;</span>
+<span class="hljs-addition">+ added line</span>
+<span class="hljs-deletion">- deleted line</span></code></pre></div></div>
+  <div class="sample" data-code-theme="dracula"><div class="code-block"><div class="code-block__header"><span class="code-block__lang">dracula (override on light)</span></div><pre><code class="hljs"><span class="hljs-comment">// sample</span>
+<span class="hljs-keyword">const</span> s = <span class="hljs-string">"hi"</span>, n = <span class="hljs-number">42</span>;</code></pre></div></div>
+</div></div>
+</body>
+</html>

@@ -1,0 +1,184 @@
+/* FlowState design tokens. Dark is default (:root); light via <html data-theme="light">. ASCII only. */
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #141417;
+  --bg-panel: #1b1b1f;
+  --bg-card: #202025;
+  --bg-elev: #26262c;
+  --bg-input: #18181c;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.08);
+  --bg-overlay: rgba(6, 6, 8, 0.62);
+
+  /* borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* text */
+  --text: #ececf1;
+  --text-2: #9a9aa6;
+  --text-3: #868693; /* tertiary: large/auxiliary text, still >= 4.5:1 on panels */
+
+  /* accent */
+  --accent: #7c5cff;
+  --accent-hover: #8f74ff;
+  --accent-btn: #6c47ff;       /* filled button bg (white text >= 4.5:1) */
+  --accent-btn-hover: #7a58ff;
+  --accent-soft: rgba(124, 92, 255, 0.16);
+  --accent-text: #a995ff;      /* accent used as text on dark surfaces */
+  --on-accent: #ffffff;
+
+  /* status */
+  --green: #3ecf6e;
+  --green-soft: rgba(62, 207, 110, 0.14);
+  --green-text: #5fe08d;
+  --amber: #f5a524;
+  --amber-soft: rgba(245, 165, 36, 0.14);
+  --amber-text: #f7b94f;
+  --red: #ef5350;
+  --red-soft: rgba(239, 83, 80, 0.14);
+  --red-text: #f47f7c;
+  --blue: #4da3ff;
+  --blue-soft: rgba(77, 163, 255, 0.14);
+  --blue-text: #78b9ff;
+
+  --focus: #a995ff;
+  --selection: rgba(124, 92, 255, 0.35);
+  --scrollbar: rgba(255, 255, 255, 0.14);
+  --scrollbar-hover: rgba(255, 255, 255, 0.26);
+
+  /* code */
+  --code-bg: #121215;
+  --code-header-bg: #19191d;
+  --code-inline-bg: rgba(255, 255, 255, 0.08);
+  --diff-add-bg: rgba(62, 207, 110, 0.14);
+  --diff-del-bg: rgba(239, 83, 80, 0.14);
+
+  /* radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;   /* controls */
+  --radius-lg: 12px;  /* cards */
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* spacing (4px grid) */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* type */
+  --font-sans: Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, "Liberation Mono", monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 30px;
+  --lh-tight: 1.25;
+  --lh-base: 1.5;
+  --lh-loose: 1.65;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55);
+
+  /* z-index */
+  --z-base: 1;
+  --z-splitter: 5;
+  --z-sticky: 10;
+  --z-banner: 20;
+  --z-menu: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+
+  /* motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 280ms;
+  --transition: var(--dur) var(--ease);
+
+  /* sizes */
+  --rail-w: 52px;
+  --sidebar-w: 264px;
+  --artifacts-w: 420px;
+  --artifacts-min-w: 280px;
+  --splitter-w: 6px;
+  --topbar-h: 48px;
+  --control-h: 32px;
+  --control-h-sm: 26px;
+  --chat-max-w: 760px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f4f4f7;
+  --bg-panel: #ffffff;
+  --bg-card: #ffffff;
+  --bg-elev: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(20, 20, 30, 0.05);
+  --bg-active: rgba(20, 20, 30, 0.09);
+  --bg-overlay: rgba(20, 20, 30, 0.42);
+
+  --border: rgba(20, 20, 30, 0.09);
+  --border-strong: rgba(20, 20, 30, 0.18);
+
+  --text: #1a1a20;
+  --text-2: #565662;
+  --text-3: #6b6b78;
+
+  --accent: #6c47ff;
+  --accent-hover: #5b37ee;
+  --accent-btn: #6c47ff;
+  --accent-btn-hover: #5b37ee;
+  --accent-soft: rgba(108, 71, 255, 0.11);
+  --accent-text: #5b37ee;
+  --on-accent: #ffffff;
+
+  --green: #1faa55;
+  --green-soft: rgba(31, 170, 85, 0.13);
+  --green-text: #0e6e34;
+  --amber: #d98a00;
+  --amber-soft: rgba(217, 138, 0, 0.14);
+  --amber-text: #8f5a00;
+  --red: #d93a36;
+  --red-soft: rgba(217, 58, 54, 0.11);
+  --red-text: #b4231f;
+  --blue: #1f7fe0;
+  --blue-soft: rgba(31, 127, 224, 0.11);
+  --blue-text: #14609f;
+
+  --focus: #6c47ff;
+  --selection: rgba(108, 71, 255, 0.22);
+  --scrollbar: rgba(20, 20, 30, 0.2);
+  --scrollbar-hover: rgba(20, 20, 30, 0.36);
+
+  --code-bg: #f6f6f9;
+  --code-header-bg: #ececf1;
+  --code-inline-bg: rgba(20, 20, 30, 0.07);
+  --diff-add-bg: rgba(31, 170, 85, 0.15);
+  --diff-del-bg: rgba(217, 58, 54, 0.13);
+
+  --shadow-sm: 0 1px 2px rgba(20, 20, 40, 0.08);
+  --shadow-md: 0 6px 18px rgba(20, 20, 40, 0.12);
+  --shadow-lg: 0 18px 48px rgba(20, 20, 40, 0.2);
+}

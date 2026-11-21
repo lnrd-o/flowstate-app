@@ -8,7 +8,9 @@
 //   { type: 'tool-result', id, name?, output?, isError? }
 //   { type: 'permission-request', id, tool, input }    UNVERIFIED for claude (control_request), see docs/spikes.md
 //   { type: 'result',      ok, text?, costUsd?, durationMs?, usage? }
-//   { type: 'error',       kind: 'auth'|'api'|'process'|'parse', message }
+//   { type: 'error',       kind: 'auth'|'api'|'process'|'parse', message, stderr?, code? }
+// Backend extras: session.warning === 'always-proceed' (agy); result.stopped === true (user pressed stop);
+// permission-denied { id, tool, reason, message }; rate-limit { status, windows }.
 
 export const EVENT_TYPES = Object.freeze([
   'session', 'text-delta', 'text', 'tool-use', 'tool-result', 'permission-request', 'permission-denied',
