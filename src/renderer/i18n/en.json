@@ -105,7 +105,7 @@
     "vpn": "VPN detected. Disconnect and use a regular network to reach Claude.",
     "claudeMissing": "Claude CLI was not found. Set its path in Settings.",
     "notLoggedIn": "Claude is not signed in. Sign in from the Claude CLI, then recheck.",
-    "agyAlwaysProceed": "AGY is running in always-proceed mode: changes are applied without asking.",
+    "agyAlwaysProceed": "AGY applies file changes without asking in this mode. Switch to Plan only to review changes first.",
     "recheck": "Recheck",
     "openSettings": "Open settings",
     "dismiss": "Dismiss",

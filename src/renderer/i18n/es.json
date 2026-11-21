@@ -105,7 +105,7 @@
     "vpn": "Se detect\u00f3 una VPN. Descon\u00e9ctala y usa una red normal para llegar a Claude.",
     "claudeMissing": "No se encontr\u00f3 la CLI de Claude. Indica su ruta en Ajustes.",
     "notLoggedIn": "Claude no tiene sesi\u00f3n iniciada. Inicia sesi\u00f3n desde la CLI de Claude y vuelve a comprobar.",
-    "agyAlwaysProceed": "AGY est\u00e1 en modo siempre continuar: los cambios se aplican sin preguntarte.",
+    "agyAlwaysProceed": "AGY aplica los cambios en archivos sin preguntarte en este modo. Cambia a Solo planificar para revisarlos antes.",
     "recheck": "Volver a comprobar",
     "openSettings": "Abrir ajustes",
     "dismiss": "Descartar",

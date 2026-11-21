@@ -23,8 +23,9 @@ export function computeBanners(project, health, chat) {
   if (project && health && project.autoCommit && health.git && !health.git.found) {
     out.push({ id: 'git-missing', level: 'warn', text: t('banner.gitMissing'), actions: ['install:git', 'recheck'] });
   }
-  if (project && project.agent === 'agy') out.push({ id: 'agy-proceed', level: 'warn', text: t('banner.agyAlwaysProceed'), actions: ['dismiss'] });
-  else if (chat && chat.alwaysProceed) out.push({ id: 'agy-proceed', level: 'warn', text: t('banner.agyAlwaysProceed'), actions: ['dismiss'] });
+  // agy applies edits without asking in every mode except 'plan' (verified: --mode plan blocks writes; agy's own
+  // init label "always-proceed" is unreliable, so the banner depends on the project's mode, not on that label).
+  if (project && project.agent === 'agy' && project.mode !== 'plan') out.push({ id: 'agy-proceed', level: 'warn', text: t('banner.agyAlwaysProceed'), actions: ['dismiss'] });
   return out.filter((b) => !dismissed.has(b.id));
 }
 

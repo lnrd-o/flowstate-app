@@ -10,9 +10,12 @@ import { AgyAdapter } from './agy.js';
 export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history }) {
   const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter() };
   const running = new Map(); // projectId -> handle | null (starting)
+  const committing = new Map(); // projectId -> Promise (auto-commit after a finished turn)
+  const finished = new Set(); // projectIds whose current turn already emitted result/error (process may still be exiting)
 
   return {
-    status: (projectId) => ({ running: running.has(projectId) }),
+    // "running" also covers the post-turn auto-commit so the methodology runner never races it.
+    status: (projectId) => ({ running: running.has(projectId) || committing.has(projectId) }),
 
     /** agent/mode: optional per-turn override (methodology runner); the stored project is never changed by it. */
     async send({ projectId, text, agent, mode }) {
@@ -24,6 +27,18 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       if (mode !== undefined) project.mode = mode;
       if (switched) project.sessionId = null; // a session belongs to one agent
       if (typeof text !== 'string' || !text.trim()) throw new TypeError('text must be a non-empty string');
+      // A follow-up sent while the previous turn's auto-commit is still running waits for it (instead of being rejected).
+      // Likewise when the previous turn already emitted its result/error but its process has not exited yet.
+      for (let i = 0; i < 20; i++) {
+        if (committing.has(projectId)) { await committing.get(projectId); continue; }
+        const h = running.get(projectId);
+        if (h && finished.has(projectId)) {
+          await Promise.race([Promise.resolve(h.done).catch(() => {}), new Promise((res) => setTimeout(res, 5000))]);
+          if (running.get(projectId) === h) break; // did not exit in time: fall through to the 'already running' error
+          continue;
+        }
+        break;
+      }
       if (running.has(projectId)) throw new Error('Agent already running for this project');
       const adapter = ad[project.agent];
       if (!adapter) throw new Error(`Unknown agent: ${project.agent}`);
@@ -34,25 +49,30 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         if (!launcher) throw new Error(`${project.agent} executable not found`);
         handle = adapter.run({
           project, text, launcher, spawn, kill,
-          emit: (event) => emit(projectId, event),
+          emit: (event) => {
+            if (event?.type === 'result' || event?.type === 'error') finished.add(projectId);
+            emit(projectId, event);
+          },
           onSession: (sessionId) => {
             if (!switched && projects.get(projectId)?.sessionId !== sessionId) projects.update(projectId, { sessionId });
           },
         });
       } catch (e) {
         running.delete(projectId);
+        finished.delete(projectId);
         throw e;
       }
       running.set(projectId, handle);
       try { history?.recordUser(projectId, text); } catch { /* best effort */ }
-      handle.done.then(async (r) => {
-        // Keep the project "running" until the auto-commit finishes: the methodology runner polls status() and a
-        // following git-commit node must not race this commit (index.lock / 'nothing to commit').
-        try {
-          if (r.ok && project.autoCommit) {
-            try { await git?.autoCommit(project.path, text); } catch { /* best effort */ }
-          }
-        } finally { running.delete(projectId); }
+      handle.done.then((r) => {
+        running.delete(projectId);
+        finished.delete(projectId);
+        if (r.ok && project.autoCommit && git) {
+          // Tracked in `committing` (same tick as the delete above, so status() never flickers to idle).
+          const p = Promise.resolve().then(() => git.autoCommit(project.path, text)).catch(() => { /* best effort */ })
+            .finally(() => { committing.delete(projectId); });
+          committing.set(projectId, p);
+        }
       });
       return { turnId: crypto.randomUUID() };
     },
