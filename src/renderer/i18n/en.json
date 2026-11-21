@@ -21,7 +21,10 @@
     "toggleSidebar": "Toggle sidebar",
     "toggleArtifacts": "Toggle artifacts pane",
     "connected": "Connected",
-    "offline": "Offline"
+    "offline": "Offline",
+    "comingSoon": "Coming soon",
+    "comingSoonText": "this section is on its way.",
+    "noMatches": "No projects match your search"
   },
   "chat": {
     "emptyTitle": "What are we building today?",
@@ -45,7 +48,11 @@
     "deny": "Deny",
     "approved": "Approved",
     "denied": "Denied",
-    "scrollToBottom": "Jump to latest"
+    "scrollToBottom": "Jump to latest",
+    "approveRetry": "Approve & retry",
+    "approveRetryConfirm": "Switch this project to \"Accept edits\" mode and send your last request again?",
+    "approveRetryNote": "Permission granted: you may now make the edits. Please retry the request above.",
+    "undoConfirm": "Undo the last turn? The changes the agent made will be reverted with git."
   },
   "composer": {
     "placeholder": "Message {agent}...",
@@ -53,7 +60,11 @@
     "stop": "Stop",
     "hint": "Enter to send, Shift+Enter for a new line",
     "attach": "Attach file",
-    "promptPicker": "Insert prompt template"
+    "promptPicker": "Insert prompt template",
+    "disabledNoProject": "Select or create a project to start.",
+    "disabledVpn": "Sending is disabled while a VPN is active. Disconnect it and recheck.",
+    "disabledMissing": "{agent} CLI was not found. Set its path in Settings.",
+    "disabledLogin": "Claude is not signed in. Sign in from the Claude CLI and recheck."
   },
   "project": {
     "title": "Project",
@@ -129,7 +140,8 @@
     "agyPath": "AGY CLI path",
     "autoLaunch": "Launch FlowState at login",
     "restartWalkthrough": "Run the setup walkthrough again",
-    "saved": "Settings saved"
+    "saved": "Settings saved",
+    "pathHint": "Leave empty to detect automatically."
   },
   "walkthrough": {
     "title": "Set up your project",
@@ -153,7 +165,15 @@
     "agentText": "Pick the agent and the permission mode.",
     "gitText": "Enable git so every change is versioned and can be undone.",
     "templateText": "Start from a template or a methodology.",
-    "doneText": "All set. Send your first prompt!"
+    "doneText": "All set. Send your first prompt!",
+    "folderRequired": "Choose a project folder to continue.",
+    "hint": {
+      "claude": "Install Claude Code from claude.ai/code and sign in.",
+      "agy": "Optional: install the Antigravity CLI (agy).",
+      "node": "Install Node.js from nodejs.org.",
+      "git": "Install Git from git-scm.com to version changes.",
+      "python": "Optional: install Python from python.org."
+    }
   },
   "prompts": {
     "title": "Prompt templates",

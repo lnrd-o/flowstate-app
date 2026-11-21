@@ -63,10 +63,10 @@ test('claude adapter event flow via fake agent (stdin closed after result)', asy
   assert.ok(r.ok);
 });
 
-test('agy adapter event flow + always-proceed warning', async () => {
+test('agy adapter event flow (init label always-proceed is not surfaced as a warning)', async () => {
   const { events, sessions, r } = await runAdapter(new AgyAdapter(), 'agy', { mode: 'default' });
   assert.deepEqual(events.map((e) => e.type), ['session', 'text-delta', 'tool-use', 'tool-result', 'result']);
-  assert.equal(events[0].warning, 'always-proceed');
+  assert.equal(events[0].warning, undefined);
   assert.equal(events[1].text, 'echo: hello');
   assert.deepEqual(sessions, ['fake-conv-1']);
   assert.ok(r.ok);

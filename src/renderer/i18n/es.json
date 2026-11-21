@@ -21,7 +21,10 @@
     "toggleSidebar": "Mostrar u ocultar barra lateral",
     "toggleArtifacts": "Mostrar u ocultar panel de artefactos",
     "connected": "Conectado",
-    "offline": "Sin conexi\u00f3n"
+    "offline": "Sin conexi\u00f3n",
+    "comingSoon": "Pr\u00f3ximamente",
+    "comingSoonText": "esta secci\u00f3n llegar\u00e1 pronto.",
+    "noMatches": "Ning\u00fan proyecto coincide con la b\u00fasqueda"
   },
   "chat": {
     "emptyTitle": "\u00bfQu\u00e9 vamos a construir hoy?",
@@ -45,7 +48,11 @@
     "deny": "Rechazar",
     "approved": "Aprobado",
     "denied": "Rechazado",
-    "scrollToBottom": "Ir al final"
+    "scrollToBottom": "Ir al final",
+    "approveRetry": "Aprobar y reintentar",
+    "approveRetryConfirm": "\u00bfCambiar este proyecto al modo \"Aceptar ediciones\" y volver a enviar tu \u00faltima petici\u00f3n?",
+    "approveRetryNote": "Permiso concedido: ya puedes hacer las ediciones. Reintenta la petici\u00f3n anterior.",
+    "undoConfirm": "\u00bfDeshacer el \u00faltimo turno? Los cambios del agente se revertir\u00e1n con git."
   },
   "composer": {
     "placeholder": "Escr\u00edbele a {agent}...",
@@ -53,7 +60,11 @@
     "stop": "Detener",
     "hint": "Enter para enviar, Shift+Enter para salto de l\u00ednea",
     "attach": "Adjuntar archivo",
-    "promptPicker": "Insertar plantilla de prompt"
+    "promptPicker": "Insertar plantilla de prompt",
+    "disabledNoProject": "Elige o crea un proyecto para empezar.",
+    "disabledVpn": "El env\u00edo est\u00e1 desactivado mientras haya una VPN activa. Descon\u00e9ctala y vuelve a comprobar.",
+    "disabledMissing": "No se encontr\u00f3 la CLI de {agent}. Indica su ruta en Ajustes.",
+    "disabledLogin": "Claude no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n desde la CLI de Claude y vuelve a comprobar."
   },
   "project": {
     "title": "Proyecto",
@@ -129,7 +140,8 @@
     "agyPath": "Ruta de la CLI de AGY",
     "autoLaunch": "Iniciar FlowState al iniciar sesi\u00f3n",
     "restartWalkthrough": "Repetir la gu\u00eda de configuraci\u00f3n",
-    "saved": "Ajustes guardados"
+    "saved": "Ajustes guardados",
+    "pathHint": "D\u00e9jalo vac\u00edo para detectarlo autom\u00e1ticamente."
   },
   "walkthrough": {
     "title": "Configura tu proyecto",
@@ -153,7 +165,15 @@
     "agentText": "Elige el agente y el modo de permisos.",
     "gitText": "Activa git para que cada cambio quede versionado y se pueda deshacer.",
     "templateText": "Empieza con una plantilla o una metodolog\u00eda.",
-    "doneText": "Todo listo. \u00a1Env\u00eda tu primer prompt!"
+    "doneText": "Todo listo. \u00a1Env\u00eda tu primer prompt!",
+    "folderRequired": "Elige una carpeta de proyecto para continuar.",
+    "hint": {
+      "claude": "Instala Claude Code desde claude.ai/code e inicia sesi\u00f3n.",
+      "agy": "Opcional: instala la CLI de Antigravity (agy).",
+      "node": "Instala Node.js desde nodejs.org.",
+      "git": "Instala Git desde git-scm.com para versionar los cambios.",
+      "python": "Opcional: instala Python desde python.org."
+    }
   },
   "prompts": {
     "title": "Plantillas de prompt",

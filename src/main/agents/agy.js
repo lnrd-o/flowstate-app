@@ -18,10 +18,10 @@ export class AgyAdapter extends AgentAdapter {
     ];
   }
 
+  // Verified on agy 1.5.14: init always reports permission_mode 'always-proceed' in print mode, but we always
+  // pass --mode and `--mode plan` really blocked a file write (it wrote a plan instead). So that label is not
+  // a trustworthy signal and no warning is raised. See docs/spikes.md.
   augment(ev) {
-    if (ev.type === 'session' && ev.permissionMode === 'always-proceed') {
-      return { ...ev, warning: 'always-proceed' };
-    }
     return ev;
   }
 }

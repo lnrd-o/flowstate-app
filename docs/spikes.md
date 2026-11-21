@@ -21,6 +21,7 @@ Re-run with `npm run spike:claude` / `npm run spike:agy` (set `CLAUDE_EXE` to th
 - **Headless protocol works:** `agy --output-format stream-json -p=<prompt>`. Note: `-p` consumes the next token as its prompt, so the prompt must be attached (`-p=...`). `--input-format stream-json` is documented for multi-turn over stdin (not yet exercised).
 - **Different schema from claude:** `{"event":"init"|"step_update"|"result", ...}`; session id is `conversation_id`. Streaming text arrives as `step_update` / `agent_response` / `ACTIVE` with `text_delta`; tools as `step_type:"tool"` with `ACTIVE` (tool_name, parameters) then `DONE` (output summary, duration).
 - **Safety finding:** in print mode `init.permission_mode` was **`always-proceed`** — it wrote `hello.txt` with no prompt. FlowState must show this clearly, default agy projects to `--mode plan`/`accept-edits` or `--sandbox` where possible, and warn on `always-proceed`.
+- **Correction (Phase 1, agy 1.5.14):** the `always-proceed` label in `init` is reported regardless of `--mode`. With `--mode plan` agy did NOT write `probe.txt`; it produced a plan file instead. FlowState therefore always passes `--mode` and does not show a warning based on that label. `accept-edits` was not probed for blocking behaviour.
 - **Other surface:** `--continue`, `--conversation <id>`, `--remote-control`, `remote-control start|status|stop` daemon, `--sandbox`, `--mode`, and an `acp` stdio server (Agent Client Protocol) as the likely route for interactive permission prompts. ACP not yet spiked.
 
 ## Decisions
