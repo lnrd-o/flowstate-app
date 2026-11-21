@@ -11,7 +11,8 @@
 //   { type: 'error',       kind: 'auth'|'api'|'process'|'parse', message }
 
 export const EVENT_TYPES = Object.freeze([
-  'session', 'text-delta', 'text', 'tool-use', 'tool-result', 'permission-request', 'result', 'error',
+  'session', 'text-delta', 'text', 'tool-use', 'tool-result', 'permission-request', 'permission-denied',
+  'rate-limit', 'result', 'error',
 ]);
 
 /** Map one parsed claude stream-json object to zero or more normalised events. */
@@ -42,7 +43,12 @@ export function normalizeClaude(j) {
         out.push({ type: 'tool-result', id: c.tool_use_id, output, isError: !!c.is_error });
       }
     }
-  } else if (j.type === 'control_request' && j.request?.subtype === 'can_use_tool') {
+  } else if (j.type === 'system' && j.subtype === 'permission_denied') {
+    // Real capture: headless default mode auto-denies writes (reasons: safetyCheck, workingDir).
+    out.push({ type: 'permission-denied', id: j.tool_use_id, tool: j.tool_name, reason: j.decision_reason_type, message: j.message });
+  } else if (j.type === 'rate_limit_event') {
+    out.push({ type: 'rate-limit', status: j.rate_limit_info?.status, windows: j.rate_limit_info?.unifiedWindows });
+  } else if (j.type === 'control_request'&& j.request?.subtype === 'can_use_tool') {
     out.push({ type: 'permission-request', id: j.request_id, tool: j.request.tool_name, input: j.request.input });
   } else if (j.type === 'result') {
     out.push({

@@ -26,6 +26,13 @@ test('claude: assistant text + tool_use, user tool_result', () => {
   assert.deepEqual(r[0], { type: 'tool-result', id: 't1', output: 'ok', isError: false });
 });
 
+test('claude: permission_denied and rate_limit_event (real captures)', () => {
+  const d = normalizeClaude({ type: 'system', subtype: 'permission_denied', tool_name: 'Write', tool_use_id: 't9', decision_reason_type: 'workingDir', message: 'm' });
+  assert.deepEqual(d[0], { type: 'permission-denied', id: 't9', tool: 'Write', reason: 'workingDir', message: 'm' });
+  const r = normalizeClaude({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed', unifiedWindows: { five_hour: { utilization: 0.15 } } } });
+  assert.equal(r[0].type, 'rate-limit');
+});
+
 test('claude: result maps ok from is_error', () => {
   assert.equal(normalizeClaude({ type: 'result', is_error: true, result: 'x' })[0].ok, false);
   assert.equal(normalizeClaude({ type: 'result', is_error: false, result: 'x', total_cost_usd: 0.01 })[0].costUsd, 0.01);
