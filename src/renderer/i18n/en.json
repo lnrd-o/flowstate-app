@@ -135,6 +135,7 @@
     "theme": "Theme",
     "themeDark": "Dark",
     "themeLight": "Light",
+    "themeGold": "Dark Gold",
     "codeTheme": "Code theme",
     "claudePath": "Claude CLI path",
     "agyPath": "AGY CLI path",

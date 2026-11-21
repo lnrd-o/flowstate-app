@@ -18,7 +18,7 @@ const store = createStore(createInitialState());
 
 function applyAppearance(settings) {
   const root = document.documentElement;
-  root.dataset.theme = settings.theme === 'light' ? 'light' : 'dark';
+  root.dataset.theme = ['light', 'gold'].includes(settings.theme) ? settings.theme : 'dark';
   if (settings.codeTheme) root.dataset.codeTheme = settings.codeTheme;
   else delete root.dataset.codeTheme;
 }

@@ -4,7 +4,7 @@ import { t, onChange } from '../lib/i18n.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { openDialog } from './modal.js';
 
-export const CODE_THEMES = ['vs-dark', 'github-dark', 'github-light', 'dracula', 'one-dark', 'solarized-dark', 'monokai'];
+export const CODE_THEMES = ['vs-dark', 'github-dark', 'github-light', 'dracula', 'one-dark', 'solarized-dark', 'monokai', 'gold-dark'];
 
 const SAMPLE = [
   '```js',
@@ -42,9 +42,16 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     lang.addEventListener('change', () => actions.updateSettings({ language: lang.value }));
 
     const theme = h('select', { class: 'select', id: 'set-theme' },
-      h('option', { value: 'dark', text: t('settings.themeDark') }), h('option', { value: 'light', text: t('settings.themeLight') }));
+      h('option', { value: 'dark', text: t('settings.themeDark') }), h('option', { value: 'light', text: t('settings.themeLight') }), h('option', { value: 'gold', text: t('settings.themeGold') }));
     theme.value = s.theme;
-    theme.addEventListener('change', () => actions.updateSettings({ theme: theme.value }));
+    theme.addEventListener('change', () => {
+      // Pair the matching code palette: Dark Gold <-> gold-dark (only swaps the untouched defaults).
+      const cur = code.value;
+      if (theme.value === 'gold' && cur === 'github-dark') code.value = 'gold-dark';
+      else if (theme.value !== 'gold' && cur === 'gold-dark') code.value = 'github-dark';
+      if (code.value !== cur) code.dispatchEvent(new Event('change'));
+      actions.updateSettings({ theme: theme.value });
+    });
 
     const code = h('select', { class: 'select', id: 'set-code-theme' },
       ...CODE_THEMES.map((c) => h('option', { value: c, text: c })));

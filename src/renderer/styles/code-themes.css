@@ -50,6 +50,15 @@
   --c-add: #859900; --c-del: #dc322f; --c-punct: #93a1a1;
 }
 
+/* gold-dark: warm palette that matches the Dark Gold app theme */
+[data-code-theme="gold-dark"] {
+  --code-bg: #110f0b; --code-header-bg: #17140e;
+  --c-fg: #e8e1d0; --c-comment: #8a8168; --c-keyword: #e6c562; --c-string: #9fd3a8; --c-number: #e3a46f;
+  --c-title: #f0d98a; --c-builtin: #d6b36a; --c-attr: #e3a46f; --c-variable: #e8e1d0; --c-type: #d6b36a;
+  --c-meta: #b8a3d8; --c-literal: #e3a46f; --c-tag: #e6c562; --c-name: #e6c562; --c-regexp: #9fd3a8; --c-symbol: #e3a46f;
+  --c-add: #a8d08d; --c-del: #e57f78; --c-punct: #bdb49d;
+}
+
 [data-code-theme="monokai"] {
   --code-bg: #272822; --code-header-bg: #1e1f1c;
   --c-fg: #f8f8f2; --c-comment: #8f8b73; --c-keyword: #f92672; --c-string: #e6db74; --c-number: #ae81ff;

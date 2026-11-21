@@ -135,6 +135,7 @@
     "theme": "Tema",
     "themeDark": "Oscuro",
     "themeLight": "Claro",
+    "themeGold": "Oscuro Dorado",
     "codeTheme": "Tema de c\u00f3digo",
     "claudePath": "Ruta de la CLI de Claude",
     "agyPath": "Ruta de la CLI de AGY",

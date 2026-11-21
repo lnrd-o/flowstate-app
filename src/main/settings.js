@@ -28,7 +28,7 @@ export function readJson(file, fallback, fsx = fs) {
 
 const TYPES = {
   language: (v) => v === 'en' || v === 'es',
-  theme: (v) => v === 'dark' || v === 'light',
+  theme: (v) => v === 'dark' || v === 'light' || v === 'gold',
   codeTheme: (v) => typeof v === 'string' && v.length > 0 && v.length < 64,
   claudePath: (v) => v === null || (typeof v === 'string' && path.isAbsolute(v)),
   agyPath: (v) => v === null || (typeof v === 'string' && path.isAbsolute(v)),

@@ -1,0 +1,45 @@
+/* FlowState "Dark Gold" theme: dark warm-black surfaces with gold details.
+   Activated with <html data-theme="gold">. Must load AFTER tokens.css (same specificity as :root).
+   Contrast (computed): gold button #d4af37 with --on-accent #1a1400 ~ 8.8:1; --accent-text #e6c562 on --bg-panel > 9:1;
+   --text-3 #948c7a on --bg-card > 4.5:1. ASCII only. */
+[data-theme="gold"] {
+  color-scheme: dark;
+
+  /* surfaces: warm near-black */
+  --bg: #121110;
+  --bg-panel: #181613;
+  --bg-card: #1e1b17;
+  --bg-elev: #26221c;
+  --bg-input: #15130f;
+  --bg-hover: rgba(255, 236, 190, 0.05);
+  --bg-active: rgba(255, 236, 190, 0.09);
+  --bg-overlay: rgba(8, 7, 5, 0.66);
+
+  /* borders: faint gold hairlines */
+  --border: rgba(230, 197, 98, 0.10);
+  --border-strong: rgba(230, 197, 98, 0.22);
+
+  /* text: warm ivory */
+  --text: #f1ece0;
+  --text-2: #b0a994;
+  --text-3: #948c7a;
+
+  /* accent: gold (filled buttons use dark text) */
+  --accent: #d4af37;
+  --accent-hover: #e6c35c;
+  --accent-btn: #d4af37;
+  --accent-btn-hover: #e3c250;
+  --accent-soft: rgba(212, 175, 55, 0.14);
+  --accent-text: #e6c562;
+  --on-accent: #1a1400;
+
+  --focus: #e6c562;
+  --selection: rgba(212, 175, 55, 0.32);
+  --scrollbar: rgba(230, 197, 98, 0.20);
+  --scrollbar-hover: rgba(230, 197, 98, 0.34);
+
+  /* code surfaces */
+  --code-bg: #100f0c;
+  --code-header-bg: #17150f;
+  --code-inline-bg: rgba(230, 197, 98, 0.10);
+}

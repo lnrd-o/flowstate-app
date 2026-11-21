@@ -6,7 +6,7 @@
 //   Agent    = 'claude' | 'agy'
 //   Project  = { id, name, path, agent, mode, sessionId|null, lastOpened: ISO, autoCommit: boolean }
 //   Mode     = 'default' | 'acceptEdits' | 'plan'   (agy mapping: default->accept-edits, acceptEdits->accept-edits, plan->plan)
-//   Settings = { language:'en'|'es', theme:'dark'|'light', codeTheme, claudePath|null, agyPath|null,
+//   Settings = { language:'en'|'es', theme:'dark'|'light'|'gold', codeTheme, claudePath|null, agyPath|null,
 //                lastProjectId|null, autoLaunch:boolean, walkthroughDone:boolean }
 //   Event    = normalised event from src/shared/events.js, wrapped: { projectId, event }
 //   Health   = { claude:{found,path,version,loggedIn}, agy:{found,path,version}, node:{found,version},
