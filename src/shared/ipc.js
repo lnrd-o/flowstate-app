@@ -59,7 +59,20 @@ export const CH = Object.freeze({
   // chat history
   historyGet: 'history:get',                 // (projectId) -> HistoryRecord[]   (last 500)
   historyClear: 'history:clear',             // (projectId) -> void
+  // ---- Phase 3: methodologies (model + validator in src/shared/methodology.js) ----
+  methodList: 'method:list',                 // () -> MethodSummary[]  {id, source, name, description, tags, nodeCount, varCount, updatedAt}   (bundled methodologies/*.json + userData/methodologies/*.json; user overrides bundled by id)
+  methodGet: 'method:get',                   // (id) -> Methodology
+  methodSave: 'method:save',                 // (Methodology) -> Methodology   (validateMethodology must pass; saved as source:'user'; updates updatedAt)
+  methodDelete: 'method:delete',             // (id) -> void   (user methodologies only)
+  methodRecord: 'method:record',             // (projectId, {name?, fromTs?, toTs?}) -> Methodology draft (NOT saved; source:'recorded'; built from chat history, see recorder rules)
+  methodImport: 'method:import',             // () -> Methodology|null   (native open dialog for a .json file; validated; returned as a draft, not saved)
+  methodExport: 'method:export',             // (id) -> {path}|null   (native save dialog)
+  methodRun: 'method:run',                   // (projectId, methodologyId, vars) -> {runId}   (one active run per project; vars validated against declared vars)
+  methodRespond: 'method:respond',           // (runId, nodeId, response) -> void   response: {approve:boolean} for checkpoint/command confirmation, {answer:string} for ask-user
+  methodStop: 'method:stop',                 // (runId) -> void
+  methodRunState: 'method:run-state',        // (projectId) -> RunState|null   (active or last run)
   // push channels (main -> renderer)
+  evMethod: 'ev:method',                     // {projectId, state: RunState}   on every node transition
   evAgent: 'ev:agent',                       // {projectId, event}
   evHealth: 'ev:health',                     // Health   (pushed on change; VPN polling every 10 s)
   evFiles: 'ev:files',                       // {projectId, changed: string[]}   debounced 300 ms, rel paths
@@ -67,6 +80,20 @@ export const CH = Object.freeze({
   evInstall: 'ev:install',                   // {id, kind:'log'|'done'|'error', text?}
   evRemote: 'ev:remote',                     // {projectId, running, info?}
 });
+
+// Phase 3 types (JSDoc):
+//   RunState = { runId, projectId, methodologyId, status:'running'|'waiting'|'done'|'error'|'stopped', vars:object,
+//                current: nodeId|null, startedAt, endedAt?, error?: string,
+//                nodes: { [nodeId]: { state:'pending'|'running'|'waiting'|'done'|'error'|'skipped'|'warn', message?, startedAt?, endedAt? } },
+//                waiting?: { nodeId, kind:'checkpoint'|'ask-user'|'command-confirm', text, command?: {exe,args} } }
+//   Recorder rules (method:record): each user history record starts a 'prompt' node (text = the user text; the project's name/path are
+//   replaced by {{projectName}}/{{projectPath}}); consecutive turns are chained by edges; for each turn the tools used / files touched are
+//   summarised into the node's `note` string (extra field, ignored by the runner); a turn followed by an auto-commit becomes a 'git-commit'
+//   node; a final 'checkpoint' node is NOT added. Vars: one declared 'text' var per distinct {{...}} left in text. IDs n1..nN.
+//   Runner rules: a single linear walk from the start node (conditions pick yes/no); 'prompt' sends via the project's agent adapter
+//   (node.agent/mode override the project's for that turn only) and waits for 'result'; result.ok===false => node error and run stops;
+//   'command' ALWAYS waits for a command-confirm response; checkpoint {approve:false} => run 'stopped'; 'artifact' missing => node 'warn' and continue;
+//   one active run per project; run state is pushed on every transition and persisted to userData/runs/<projectId>.json (last run only).
 
 // Phase 2 types (JSDoc):
 //   Template = { id, source:'default'|'user', name:{en,es}, description:{en,es}, tags:string[], body:string,
@@ -93,5 +120,6 @@ export const API_SHAPE = Object.freeze({
   auth: ['login'],
   remote: ['status', 'start', 'stop'],
   history: ['get', 'clear'],
-  subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote'],
+  method: ['list', 'get', 'save', 'delete', 'record', 'import', 'export', 'run', 'respond', 'stop', 'runState'],
+  subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod'],
 });
