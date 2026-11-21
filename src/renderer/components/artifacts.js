@@ -4,6 +4,10 @@ import { t } from '../lib/i18n.js';
 import { activeProject } from '../lib/store.js';
 import { readStore, writeStore } from '../lib/storage.js';
 import { confirmDialog } from './modal.js';
+import { lastTouchedFile } from '../lib/touched.js';
+import { createFileViewer } from './file-viewer.js';
+import { mountFilesTab } from './files-tab.js';
+import { mountDashboardTab } from './dashboard-tab.js';
 
 export const WIDTH_KEY = 'flowstate.artifactsWidth';
 export const COLLAPSED_KEY = 'flowstate.artifactsCollapsed';
@@ -15,11 +19,11 @@ export function clampWidth(w, min, viewport) {
   return Math.round(Math.min(Math.max(w, min), max));
 }
 
-export function mountArtifacts({ aside, splitter, app, store, actions }) {
+export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   const tabsEl = h('div', { class: 'pill-tabs', attrs: { role: 'tablist' } });
   const closeBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm artifacts__close', type: 'button' }, icon('x'));
   closeBtn.addEventListener('click', () => actions.toggleArtifacts());
-  const body = h('div', { class: 'artifacts__body', attrs: { role: 'tabpanel' } });
+  const body = h('div', { class: 'artifacts__body' });
   aside.append(h('div', { class: 'artifacts__header' }, tabsEl, closeBtn), body);
 
   const minW = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--artifacts-min-w'), 10) || 280;
@@ -72,27 +76,38 @@ export function mountArtifacts({ aside, splitter, app, store, actions }) {
   });
   splitter.addEventListener('dblclick', () => actions.toggleArtifacts());
 
+  const tabEls = new Map();
   function renderTabs(s) {
     clear(tabsEl);
+    const p = activeProject(s);
+    const dashRunning = !!(p && s.dashboard[p.id] && s.dashboard[p.id].running);
     for (const id of TABS) {
       const on = s.artifactsTab === id;
-      tabsEl.append(h('button', {
-        class: 'pill-tab' + (on ? ' is-active' : ''), type: 'button', text: t('artifacts.' + id),
-        attrs: { role: 'tab', 'aria-selected': String(on), tabindex: on ? '0' : '-1' },
-        on: { click: () => { store.set({ artifactsTab: id }); if (id === 'git') actions.refreshGit(); } },
-      }));
+      const b = h('button', {
+        class: 'pill-tab' + (on ? ' is-active' : ''), type: 'button', id: 'art-tab-' + id,
+        attrs: { role: 'tab', 'aria-selected': String(on), 'aria-controls': 'art-panel-' + id, tabindex: on ? '0' : '-1' },
+        on: { click: () => selectTab(id) },
+      }, h('span', { class: 'truncate', text: t('artifacts.' + id) }),
+      id === 'dashboard' && dashRunning ? h('span', { class: 'tab-live', title: t('dashboard.running') }, h('span', { class: 'dot dot--green', attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('dashboard.running') })) : null);
+      tabEls.set(id, b);
+      tabsEl.append(b);
     }
     closeBtn.setAttribute('aria-label', t('nav.toggleArtifacts'));
     closeBtn.title = t('nav.toggleArtifacts');
     splitter.setAttribute('aria-label', t('nav.toggleArtifacts'));
   }
+  function selectTab(id) {
+    store.set({ artifactsTab: id });
+    if (id === 'git') actions.refreshGit();
+  }
   tabsEl.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
     const s = store.get();
     const i = TABS.indexOf(s.artifactsTab);
-    const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
-    store.set({ artifactsTab: next });
-    if (next === 'git') actions.refreshGit();
+    const next = e.key === 'Home' ? TABS[0] : e.key === 'End' ? TABS[TABS.length - 1]
+      : TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+    selectTab(next);
     const el = tabsEl.querySelector('[aria-selected="true"]');
     if (el) el.focus();
   });
@@ -127,28 +142,58 @@ export function mountArtifacts({ aside, splitter, app, store, actions }) {
     return wrap;
   }
 
+  // Persistent panels (so the dashboard iframe and tree state survive tab switches).
+  const panel = (id) => h('div', { class: 'artifacts__panel', id: 'art-panel-' + id, attrs: { role: 'tabpanel', 'aria-labelledby': 'art-tab-' + id } });
+  const panels = Object.fromEntries(TABS.map((id) => [id, panel(id)]));
+  body.append(...TABS.map((id) => panels[id]));
+  const previewViewer = createFileViewer({ api, emptyIcon: 'file', emptyTitle: () => t('preview.emptyTitle'), emptyText: () => t('preview.emptyText') });
+  panels.preview.append(previewViewer.el);
+  const filesTab = mountFilesTab(panels.files, { store, api, actions });
+  const dashTab = mountDashboardTab(panels.dashboard, { store, api, actions });
+
+  function syncPreview() {
+    const s = store.get();
+    const p = activeProject(s);
+    if (!p) { previewViewer.clear(); return; }
+    const chat = s.chats[p.id];
+    const rel = lastTouchedFile(chat ? chat.messages : [], p.path);
+    if (!rel) { if (previewViewer.projectId() !== p.id || previewViewer.current()) previewViewer.clear(); return; }
+    previewViewer.show(p.id, rel);
+  }
+
   let sig = '';
   function render() {
     const s = store.get();
     const p = activeProject(s);
-    const signature = JSON.stringify([s.artifactsTab, p && p.id, p && s.git[p.id]]) + t('artifacts.title');
-    if (signature === sig) return;
-    sig = signature;
-    renderTabs(s);
-    clear(body);
-    if (s.artifactsTab === 'git' && p) {
-      body.append(renderGit(s, p));
-    } else {
-      body.append(h('div', { class: 'empty-state' },
-        h('div', { class: 'empty-state__icon' }, icon(s.artifactsTab === 'files' ? 'folder' : s.artifactsTab === 'dashboard' ? 'layers' : 'file', 'icon--lg')),
-        h('div', { class: 'empty-state__title', text: t('artifacts.empty') }),
-        h('div', { class: 'empty-state__text', text: t('artifacts.emptyText') })));
+    const dash = p && s.dashboard[p.id];
+    const signature = JSON.stringify([s.artifactsTab, p && p.id, p && s.git[p.id], dash && [dash.running, dash.url]]) + t('artifacts.title');
+    if (signature !== sig) {
+      sig = signature;
+      renderTabs(s);
+      for (const id of TABS) panels[id].hidden = id !== s.artifactsTab;
+      if (s.artifactsTab === 'git') {
+        panels.git.replaceChildren(p ? renderGit(s, p) : h('div', { class: 'empty-state' },
+          h('div', { class: 'empty-state__title', text: t('files.noProject') })));
+      }
+      if (s.artifactsTab === 'files') filesTab.render();
+      if (s.artifactsTab === 'dashboard') dashTab.render();
     }
-    body.setAttribute('aria-label', t('artifacts.' + s.artifactsTab));
+    if (s.artifactsTab === 'preview') syncPreview();
   }
   store.subscribe((s, prev) => {
-    if (s.artifactsTab !== prev.artifactsTab || s.activeProjectId !== prev.activeProjectId || s.git !== prev.git) render();
+    if (s.artifactsTab !== prev.artifactsTab || s.activeProjectId !== prev.activeProjectId || s.git !== prev.git
+      || s.dashboard !== prev.dashboard || s.projects !== prev.projects) render();
+    if (s.dashboard !== prev.dashboard && s.artifactsTab === 'dashboard') dashTab.render();
+    if (s.chats !== prev.chats && s.artifactsTab === 'preview') syncPreview();
   });
   render();
-  return { update: () => { sig = ''; render(); } };
+  return {
+    update() { sig = ''; render(); previewViewer.update(); filesTab.update(); dashTab.update(); },
+    onFiles(evt) {
+      filesTab.onFiles(evt);
+      const p = activeProject(store.get());
+      if (p && evt && evt.projectId === p.id && previewViewer.current()) previewViewer.refresh();
+    },
+    dashboard: dashTab,
+  };
 }

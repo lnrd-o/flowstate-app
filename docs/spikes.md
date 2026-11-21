@@ -35,3 +35,11 @@ Re-run with `npm run spike:claude` / `npm run spike:agy` (set `CLAUDE_EXE` to th
 - [ ] `--remote-control` behaviour for both CLIs; agy `remote-control` daemon lifecycle.
 - [ ] agy `--input-format stream-json` multi-turn; `--conversation` resume; ACP permission flow.
 - [ ] `node-pty` prebuilt works inside Electron (terminal tab).
+
+## remote-control (claude)
+Phase 2 smoke test (claude 2.1.328, piped stdio, no TTY): `claude remote-control --name flowstate-smoke --permission-mode default` started in a fresh scratch folder.
+- It exited within the 15 s window with code 1 and a single stderr line: `Error: Workspace not trusted. Please run `claude` in <dir> first to review and accept the workspace trust dialog.` Process was gone afterwards (verified with tasklist).
+- So `remote-control` refuses folders that never went through the interactive trust dialog (headless `-p` runs skip that dialog, so FlowState projects are often untrusted). FlowState maps this to `start() -> {running:false, error:'workspace-not-trusted', info}`; the user has to run `claude` once in the project folder and accept the trust prompt.
+- NOT verified: whether a trusted folder works over pipes or needs a TTY (a second run against an already-trusted real folder was not performed: it would register a live remote session). The code handles it anyway: early exit with tty/terminal/raw-mode text maps to `error:'needs-terminal'` and falls back to a visible console window (`cmd /c start`), where Stop is unsupported (user closes the window).
+- `agy remote-control status` on this machine prints `Daemon status: not registered` / `Instance name: not assigned yet...`. `start` flags: `--name`, `--session` (login-scoped). The daemon was NOT started for real. The `running` status wording is unverified, so parseAgyStatus treats "not registered/running/started", "stopped" and "inactive" as not running and otherwise looks for running/active/started/registered.
+- Policy: managed claude children are killed on app quit and on project removal; the agy daemon is left running on quit (login-scoped, machine-wide), and only stopped on project removal if FlowState started it.

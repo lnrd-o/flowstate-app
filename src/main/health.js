@@ -153,19 +153,22 @@ export function createHealth({
 /** Polls health; full tool detection every `fullEvery` ticks, VPN/reachability each tick. Pushes only on change. */
 export function createHealthPoller({ health, onChange, intervalMs = 10000, fullEvery = 6, setIntervalFn = setInterval, clearIntervalFn = clearInterval }) {
   let last = null; let lastKey = '';
-  let tick = 0; let busy = false; let timer = null;
+  let tick = 0; let inflight = null; let timer = null;
 
-  async function poll() {
-    if (busy) return last;
-    busy = true;
-    try {
-      const doFull = !last || tick % fullEvery === 0;
-      tick++;
-      const next = doFull ? await health.check() : { ...last, ...(await health.dynamic()) };
-      const key = JSON.stringify(next);
-      if (key !== lastKey) { last = next; lastKey = key; onChange?.(next); }
-      return last;
-    } finally { busy = false; }
+  async function run(force) {
+    const doFull = force || !last || tick % fullEvery === 0;
+    tick++;
+    const next = doFull ? await health.check() : { ...last, ...(await health.dynamic()) };
+    const key = JSON.stringify(next);
+    if (key !== lastKey) { last = next; lastKey = key; onChange?.(next); }
+    return last;
+  }
+
+  // Concurrent callers share the in-flight check (previously a caller arriving during the first poll got null).
+  function poll(force = false) {
+    if (inflight) return inflight;
+    inflight = run(force).finally(() => { inflight = null; });
+    return inflight;
   }
 
   return {

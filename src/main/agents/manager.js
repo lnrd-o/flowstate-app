@@ -5,9 +5,9 @@ import { AgyAdapter } from './agy.js';
 /**
  * Owns one running child per project. Deps are injected:
  *  projects {get, update}, resolveLauncher(agent) -> Promise<{command, baseArgs?}|null>, emit(projectId, event),
- *  git {autoCommit}, spawn, kill.
+ *  git {autoCommit}, spawn, kill, history {recordUser}.
  */
-export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters }) {
+export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history }) {
   const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter() };
   const running = new Map(); // projectId -> handle | null (starting)
 
@@ -38,6 +38,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         throw e;
       }
       running.set(projectId, handle);
+      try { history?.recordUser(projectId, text); } catch { /* best effort */ }
       handle.done.then(async (r) => {
         running.delete(projectId);
         if (r.ok && project.autoCommit) {

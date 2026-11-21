@@ -7,7 +7,7 @@ export const CSP = [
   "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",
-  "frame-src 'none'",
+  "frame-src http://127.0.0.1:*",
 ].join('; ');
 
 export const EXTERNAL_ALLOW = ['claude.ai', 'anthropic.com', 'github.com', 'nodejs.org', 'git-scm.com', 'python.org', 'google.com'];
@@ -19,6 +19,11 @@ export function isAllowedExternal(url, allow = EXTERNAL_ALLOW) {
   if (u.protocol !== 'https:' || u.username || u.password) return false;
   const h = u.hostname.toLowerCase();
   return allow.some((d) => h === d || h.endsWith(`.${d}`));
+}
+
+/** CSP is applied to the app UI only; framed dashboards (Streamlit on 127.0.0.1) keep their own headers. */
+export function shouldApplyCsp(url) {
+  return typeof url === 'string' && url.startsWith('file://');
 }
 
 export function isInternalUrl(url) {

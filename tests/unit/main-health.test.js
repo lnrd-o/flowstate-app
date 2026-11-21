@@ -89,3 +89,15 @@ test('poller pushes only on change', async () => {
   assert.deepEqual(seen[1], { a: 1, vpn: true });
   assert.equal(full, 1);
 });
+
+test('poller: a caller arriving during the first in-flight poll gets the result, not null (e2e regression)', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const health = { check: async () => { await gate; return { ok: true }; }, dynamic: async () => ({}) };
+  const p = createHealthPoller({ health, onChange: () => {} });
+  const first = p.poll();
+  const second = p.poll(); // concurrent
+  release();
+  assert.deepEqual(await first, { ok: true });
+  assert.deepEqual(await second, { ok: true });
+});

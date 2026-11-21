@@ -64,6 +64,12 @@ const ICONS = {
   shield: [['path', { d: 'M12 2 4 5v6c0 5 3.4 9.5 8 11 4.6-1.5 8-6 8-11V5z' }], ['path', { d: 'M12 8v4M12 16h.01' }]],
   clock: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 7v5l3 2' }]],
   arrowDown: [['path', { d: 'M12 5v14M5 12l7 7 7-7' }]],
+  more: [['circle', { cx: 12, cy: 5, r: 1 }], ['circle', { cx: 12, cy: 12, r: 1 }], ['circle', { cx: 12, cy: 19, r: 1 }]],
+  play: [['path', { d: 'M6 4l14 8-14 8z' }]],
+  trash: [['path', { d: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5' }]],
+  external: [['path', { d: 'M14 4h6v6M20 4 10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5' }]],
+  download: [['path', { d: 'M12 4v11M7 11l5 5 5-5M5 20h14' }]],
+  link: [['path', { d: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' }]],
   refresh: [['path', { d: 'M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8' }], ['path', { d: 'M21 4v5h-5M3 20v-5h5' }]],
 };
 

@@ -42,6 +42,10 @@ export function createInitialState() {
     git: {},
     search: '',
     artifactsTab: 'preview',
+    templates: [],
+    selectedTemplate: null,
+    dashboard: {}, // projectId -> dashboard.status result
+    remote: {}, // projectId -> { running, info, supported, busy }
     sidebarCollapsed: false,
     artifactsCollapsed: false,
   };

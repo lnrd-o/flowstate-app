@@ -10,6 +10,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test \"tests/unit/**/*.test.js\"",
+    "e2e": "node tests/e2e/smoke.mjs",
     "vendor": "node scripts/vendor.js",
     "spike:claude": "node spikes/capture.js claude",
     "spike:agy": "node spikes/capture.js agy"

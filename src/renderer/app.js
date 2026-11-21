@@ -2,7 +2,10 @@
 import { getApi, isMockApi } from './lib/api.js';
 import { setLanguage, detectLanguage, onChange, t } from './lib/i18n.js';
 import { createStore, createInitialState, activeProject } from './lib/store.js';
-import { reduceEvent, addUserMessage, failTurn, resolvePermission } from './lib/events.js';
+import { reduceEvent, addUserMessage, failTurn, resolvePermission, createChatState } from './lib/events.js';
+import { replayHistory, dedupeLive } from './lib/history.js';
+import { installJobs, dashboardJobs, WINGET_IDS } from './lib/install-state.js';
+import { openInstallDialog } from './components/install-dialog.js';
 import { h } from './lib/dom.js';
 import { readStore, writeStore } from './lib/storage.js';
 import { mountRail, mountSidebar } from './components/sidebar.js';
@@ -11,7 +14,7 @@ import { mountBanners } from './components/banners.js';
 import { mountArtifacts, COLLAPSED_KEY } from './components/artifacts.js';
 import { openSettingsDialog } from './components/settings-dialog.js';
 import { openWalkthrough } from './components/walkthrough.js';
-import { confirmDialog, toast } from './components/modal.js';
+import { confirmDialog, toast, openDialog } from './components/modal.js';
 
 const api = getApi();
 const store = createStore(createInitialState());
@@ -36,11 +39,51 @@ async function refreshGit(projectId) {
 
 const ui = {};
 
+const histLoaded = new Set();
+const histBuffer = new Map(); // projectId -> live events received while history loads
+
+/** Load persisted history once per project, replay it through the reducer, then apply buffered live events. */
+async function loadHistory(pid, force) {
+  if (!force && histLoaded.has(pid)) return;
+  histLoaded.add(pid);
+  histBuffer.set(pid, []);
+  let records = [];
+  try { records = (api.history && (await api.history.get(pid))) || []; } catch { records = []; }
+  const buffered = histBuffer.get(pid) || [];
+  histBuffer.delete(pid);
+  const existing = store.get().chats[pid];
+  if (!existing || !existing.messages.length) {
+    let running = false;
+    try { running = !!(api.agent.status && (await api.agent.status(pid)).running); } catch { running = false; }
+    store.updateChat(pid, () => {
+      let st = replayHistory(records);
+      for (const ev of dedupeLive(records, buffered)) st = reduceEvent(st, ev);
+      return { ...st, running: running || (buffered.length > 0 && !buffered.some((e) => e && e.type === 'result')) };
+    });
+  } else {
+    for (const ev of buffered) store.updateChat(pid, (c) => reduceEvent(c, ev));
+  }
+  if (store.get().activeProjectId === pid && ui.main) ui.main.chat.stickToBottom();
+}
+
+function setRemote(pid, patch) {
+  store.set((s) => ({ remote: { ...s.remote, [pid]: { running: false, supported: true, ...(s.remote[pid] || {}), ...patch } } }));
+}
+
+/** Everything that follows "this project is now the active one". */
+function openProject(id) {
+  refreshGit(id);
+  try { if (api.files && api.files.watch) Promise.resolve(api.files.watch(id)).catch(() => {}); } catch { /* backend not ready */ }
+  loadHistory(id);
+  actions.refreshRemote(id);
+  actions.refreshDashboard(id);
+}
+
 const actions = {
   async selectProject(id) {
     store.set({ activeProjectId: id, view: 'project' });
     persistLastProject(id);
-    refreshGit(id);
+    openProject(id);
   },
   setView(view) {
     if (view === 'project' && !store.get().activeProjectId && store.get().projects[0]) {
@@ -48,6 +91,148 @@ const actions = {
       return;
     }
     store.set({ view });
+    if (view === 'prompts') actions.loadTemplates();
+  },
+  // ---- prompt library ----
+  async loadTemplates() {
+    try {
+      const list = api.prompts ? await api.prompts.list() : [];
+      store.set({ templates: Array.isArray(list) ? list : [] });
+    } catch {
+      toast(t('prompts.loadFailed'), 'error');
+    }
+  },
+  selectTemplate(id) { store.set({ selectedTemplate: id }); },
+  async openTemplate(id) {
+    store.set({ view: 'prompts', selectedTemplate: id });
+    await actions.loadTemplates();
+    if (!store.get().templates.some((x) => x.id === id)) store.set({ selectedTemplate: null });
+  },
+  useInChat(text) {
+    if (!activeProject(store.get())) { toast(t('prompts.useNeedsProject'), 'warn'); return; }
+    store.set({ view: 'project' });
+    ui.main.composer.setText(text);
+    toast(t('prompts.insertedInComposer'), 'success');
+  },
+  // ---- project menu ----
+  renameProject(id) {
+    const p = store.get().projects.find((x) => x.id === id);
+    if (!p) return;
+    const input = h('input', { class: 'input', id: 'rename-input', type: 'text', value: p.name, maxLength: 80 });
+    const err = h('div', { class: 'field__error', hidden: true, attrs: { role: 'alert' }, text: t('menu.nameRequired') });
+    const cancel = h('button', { class: 'btn', type: 'button', text: t('common.cancel') });
+    const ok = h('button', { class: 'btn btn--primary', type: 'button', text: t('common.save') });
+    const dlg = openDialog({
+      title: t('menu.rename'), footer: [cancel, ok],
+      body: h('div', { class: 'field' }, h('label', { class: 'field__label', for: 'rename-input', text: t('project.name') }), input, err),
+    });
+    const save = async () => {
+      const name = input.value.trim();
+      if (!name) { err.hidden = false; input.focus(); return; }
+      dlg.close('ok');
+      if (name !== p.name) await actions.updateProject(id, { name });
+    };
+    cancel.addEventListener('click', () => dlg.close('cancel'));
+    ok.addEventListener('click', save);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+    input.select();
+  },
+  async removeProject(id) {
+    const p = store.get().projects.find((x) => x.id === id);
+    if (!p) return;
+    const ok = await confirmDialog({ title: t('menu.remove'), message: t('menu.removeConfirm', { name: p.name }), confirmLabel: t('menu.remove'), danger: true });
+    if (!ok) return;
+    try { await api.projects.remove(id); } catch { toast(t('errors.generic'), 'error'); return; }
+    const rest = store.get().projects.filter((x) => x.id !== id);
+    const wasActive = store.get().activeProjectId === id;
+    store.set((s) => {
+      const chats = { ...s.chats }; delete chats[id];
+      return { projects: rest, chats, activeProjectId: wasActive ? (rest[0] ? rest[0].id : null) : s.activeProjectId };
+    });
+    histLoaded.delete(id);
+    if (wasActive) { if (rest[0]) { persistLastProject(rest[0].id); openProject(rest[0].id); } else persistLastProject(null); }
+    toast(t('menu.removed', { name: p.name }), 'success');
+  },
+  async clearHistory(id) {
+    const ok = await confirmDialog({ title: t('history.clear'), message: t('history.clearConfirm'), confirmLabel: t('history.clear'), danger: true });
+    if (!ok) return;
+    try { if (api.history) await api.history.clear(id); } catch { toast(t('errors.generic'), 'error'); return; }
+    store.updateChat(id, () => createChatState());
+    toast(t('history.cleared'), 'success');
+  },
+  // ---- remote control ----
+  async refreshRemote(pid) {
+    try {
+      const r = await api.remote.status(pid);
+      setRemote(pid, { running: !!r.running, info: r.info || '', supported: r.supported !== false, busy: false });
+    } catch {
+      setRemote(pid, { running: false, supported: false, busy: false });
+    }
+  },
+  async toggleRemote(pid) {
+    const p = store.get().projects.find((x) => x.id === pid);
+    const cur = store.get().remote[pid] || { running: false, supported: true };
+    if (!p || cur.busy || cur.supported === false) return;
+    if (!cur.running) {
+      const msg = t('remote.confirm') + (p.agent === 'agy' ? '\n\n' + t('remote.confirmAgy') : '');
+      const ok = await confirmDialog({ title: t('remote.confirmTitle'), message: msg, confirmLabel: t('remote.enable') });
+      if (!ok) return;
+    }
+    setRemote(pid, { busy: true });
+    try {
+      const r = cur.running ? await api.remote.stop(pid) : await api.remote.start(pid);
+      if (!cur.running && r && r.supported === false) {
+        setRemote(pid, { running: false, supported: false, busy: false });
+        toast(t('remote.notSupported'), 'warn', 7000);
+        return;
+      }
+      setRemote(pid, { running: !!(r && r.running), info: (r && r.info) || '', busy: false });
+      if (!cur.running && !(r && r.running)) toast(t('remote.startFailed'), 'error');
+    } catch (e) {
+      setRemote(pid, { busy: false });
+      toast(t('remote.error', { message: (e && e.message) || t('errors.generic') }), 'error', 7000);
+    }
+  },
+  // ---- dashboard ----
+  setDashboard(pid, st) { store.set((s) => ({ dashboard: { ...s.dashboard, [pid]: st } })); },
+  async refreshDashboard(pid) {
+    try { actions.setDashboard(pid, await api.dashboard.status(pid)); } catch {
+      actions.setDashboard(pid, { python: { found: false, version: null }, venv: false, deps: false, running: false, url: null, app: null, apps: [] });
+    }
+  },
+  // ---- prerequisites / auth ----
+  async installPrereq(id, { dialog = true } = {}) {
+    if (installJobs.get(id).running) return false;
+    const ok = await confirmDialog({
+      title: t('prereq.installTitle', { name: t('health.' + id) }),
+      message: t('prereq.installConfirm', { name: t('health.' + id), pkg: WINGET_IDS[id] || id }),
+      confirmLabel: t('prereq.install'),
+    });
+    if (!ok) return false;
+    installJobs.start(id);
+    if (dialog) openInstallDialog(id);
+    let good = false;
+    try {
+      const r = await api.prereq.install(id);
+      good = !(r && r.ok === false);
+      if (r && r.log && !installJobs.get(id).lines.length) installJobs.log(id, r.log);
+      installJobs.finish(id, good ? null : t('prereq.failed'));
+    } catch (e) {
+      installJobs.finish(id, (e && e.message) || t('prereq.failed'));
+    }
+    await actions.recheckHealth();
+    if (id === 'python') actions.refreshDashboard(store.get().activeProjectId);
+    toast(good ? t('prereq.installedToast', { name: t('health.' + id) }) : t('prereq.failed'), good ? 'success' : 'error');
+    return good;
+  },
+  async signIn(agent) {
+    try {
+      const r = await api.auth.login(agent);
+      if (r && r.ok === false) toast(t('auth.loginFailed'), 'error');
+      else toast(t('auth.loginStarted'), 'success', 10000);
+    } catch (e) {
+      toast((e && e.message) || t('auth.loginFailed'), 'error');
+    }
   },
   async updateProject(id, patch) {
     try {
@@ -168,7 +353,7 @@ function buildShell() {
   ui.sidebar = mountSidebar(sidebar, deps);
   ui.main = mountMain(main, deps);
   ui.banners = mountBanners(bannerSlot, deps);
-  ui.artifacts = mountArtifacts({ aside: artifacts, splitter, app, store, actions });
+  ui.artifacts = mountArtifacts({ aside: artifacts, splitter, app, store, api, actions });
   store.subscribe((s, prev) => {
     if (s.sidebarCollapsed !== prev.sidebarCollapsed || s.artifactsCollapsed !== prev.artifactsCollapsed) syncLayout(app);
   });
@@ -195,14 +380,32 @@ async function boot() {
   lastPersisted = last ? last.id : null;
 
   buildShell();
-  if (last) refreshGit(last.id);
+  if (last) openProject(last.id);
+  actions.loadTemplates();
 
   api.health.check().then((health) => store.set({ health })).catch(() => {});
   api.onHealth((health) => store.set({ health }));
   api.onAgentEvent(({ projectId, event }) => {
+    if (histBuffer.has(projectId)) { histBuffer.get(projectId).push(event); return; }
     store.updateChat(projectId, (c) => reduceEvent(c, event));
     if (event && event.type === 'result') refreshGit(projectId);
   });
+
+  if (api.onFiles) api.onFiles((evt) => ui.artifacts.onFiles(evt));
+  if (api.onRemote) api.onRemote(({ projectId, running, info }) => setRemote(projectId, { running: !!running, info: info || '', busy: false }));
+  if (api.onInstall) {
+    api.onInstall(({ id, kind, text }) => {
+      if (kind === 'log' || kind === 'error') installJobs.log(id, text);
+    });
+  }
+  if (api.onDashboard) {
+    api.onDashboard(({ projectId, kind, text, status }) => {
+      if (kind === 'log' || kind === 'error') { if (dashboardJobs.get(projectId).running) dashboardJobs.log(projectId, text); }
+      if (kind === 'error') toast(text || t('errors.generic'), 'error');
+      if (kind === 'status' && status && typeof status === 'object') actions.setDashboard(projectId, status);
+      if (kind === 'done' || (kind === 'status' && !status)) actions.refreshDashboard(projectId);
+    });
+  }
 
   onChange((l) => {
     document.title = t('app.name');

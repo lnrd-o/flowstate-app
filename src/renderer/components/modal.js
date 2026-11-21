@@ -91,12 +91,12 @@ export function confirmDialog({ title, message, confirmLabel, danger = false }) 
 
 let toastStack = null;
 /** Transient status message. kind: 'success' | 'error' | 'warn' | undefined */
-export function toast(message, kind) {
+export function toast(message, kind, ms = 4000) {
   if (!toastStack) {
     toastStack = h('div', { class: 'toast-stack' });
     document.body.appendChild(toastStack);
   }
   const el = h('div', { class: 'toast' + (kind ? ' toast--' + kind : ''), attrs: { role: 'status' }, text: message });
   toastStack.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
+  setTimeout(() => el.remove(), ms);
 }

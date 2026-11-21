@@ -1,6 +1,7 @@
 // Composer: autosize textarea, agent switch, mode select, send/stop, disabled hints.
 import { h, icon, radioKeys } from '../lib/dom.js';
-import { t } from '../lib/i18n.js';
+import { t, getLanguage } from '../lib/i18n.js';
+import { pickLang, filterTemplates, render as renderTemplate, defaultValues } from '../lib/templates.js';
 import { activeProject } from '../lib/store.js';
 
 const MODES = ['default', 'acceptEdits', 'plan'];
@@ -44,7 +45,48 @@ export function mountComposer(root, { store, api, actions }) {
     input,
     h('div', { class: 'composer__toolbar' }, segmented, modeSelect, h('span', { class: 'composer__spacer' }), send));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
-  root.append(h('div', { class: 'composer-wrap__inner' }, composer, hint));
+  const slash = h('div', { class: 'menu slash-menu', id: 'slash-menu', hidden: true, attrs: { role: 'listbox', 'aria-label': t('composer.promptPicker') } });
+  root.append(h('div', { class: 'composer-wrap__inner' }, slash, composer, hint));
+  input.setAttribute('aria-controls', 'slash-menu');
+  input.setAttribute('aria-expanded', 'false');
+
+  // '/' shortcut: first char opens a template picker.
+  let slashItems = [];
+  let slashIndex = 0;
+  const slashOpen = () => !slash.hidden;
+  function closeSlash() {
+    slash.hidden = true; slashItems = [];
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  }
+  function paintSlash() {
+    slash.replaceChildren(...slashItems.map((tpl, i) => h('div', {
+      class: 'menu__item slash-item' + (i === slashIndex ? ' is-active' : ''), id: 'slash-opt-' + i,
+      attrs: { role: 'option', 'aria-selected': String(i === slashIndex) },
+      on: { mousedown: (e) => { e.preventDefault(); chooseSlash(tpl); }, mouseenter: () => { slashIndex = i; paintSlash(); } },
+    }, h('span', { class: 'slash-item__name truncate', text: pickLang(tpl.name, getLanguage()) || tpl.id }),
+    h('span', { class: 'slash-item__hint faint xs', text: (tpl.vars || []).length ? t('composer.slashForm') : t('composer.slashInsert') }))));
+    input.setAttribute('aria-activedescendant', 'slash-opt-' + slashIndex);
+    const act = slash.querySelector('.is-active');
+    if (act) act.scrollIntoView({ block: 'nearest' });
+  }
+  function updateSlash() {
+    const v = input.value;
+    if (!v.startsWith('/') || v.includes('\n') || input.disabled) { if (slashOpen()) closeSlash(); return; }
+    slashItems = filterTemplates(store.get().templates, v.slice(1).trim(), getLanguage()).slice(0, 8);
+    slashIndex = Math.min(slashIndex, Math.max(0, slashItems.length - 1));
+    slash.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    if (!slashItems.length) { slash.replaceChildren(h('div', { class: 'faint small slash-empty', text: t('composer.slashNone') })); return; }
+    paintSlash();
+  }
+  function chooseSlash(tpl) {
+    closeSlash();
+    if ((tpl.vars || []).length) { input.value = ''; autosize(); actions.openTemplate(tpl.id); return; }
+    input.value = renderTemplate(tpl.body, defaultValues(tpl.vars), tpl.vars);
+    autosize(); input.focus();
+  }
+
 
   function autosize() {
     input.style.height = 'auto';
@@ -63,8 +105,14 @@ export function mountComposer(root, { store, api, actions }) {
     actions.send(text);
   }
 
-  input.addEventListener('input', autosize);
+  input.addEventListener('input', () => { autosize(); updateSlash(); });
+  input.addEventListener('blur', () => { if (slashOpen()) closeSlash(); });
   input.addEventListener('keydown', (e) => {
+    if (slashOpen() && slashItems.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashIndex = (slashIndex + (e.key === 'ArrowDown' ? 1 : slashItems.length - 1)) % slashItems.length; paintSlash(); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); chooseSlash(slashItems[slashIndex]); return; }
+    }
+    if (e.key === 'Escape' && slashOpen()) { e.preventDefault(); closeSlash(); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       submit();
@@ -121,5 +169,13 @@ export function mountComposer(root, { store, api, actions }) {
       || isRunning(s) !== isRunning(prev)) render();
   });
   render();
-  return { update: render, focus: () => input.focus() };
+  return {
+    update: render,
+    focus: () => input.focus(),
+    setText(text) {
+      input.value = text; autosize(); input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      closeSlash();
+    },
+  };
 }

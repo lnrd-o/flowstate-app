@@ -7,7 +7,15 @@ import { createGit } from './git.js';
 import { createHealth, createHealthPoller } from './health.js';
 import { createAgentManager } from './agents/manager.js';
 import { registerIpc } from './ipc.js';
-import { CSP, isAllowedExternal, isInternalUrl } from './security.js';
+import { CSP, isAllowedExternal, isInternalUrl, shouldApplyCsp } from './security.js';
+import { createPrompts } from './prompts.js';
+import { createFiles } from './files.js';
+import { createDashboards } from './dashboards.js';
+import { createPrereq } from './prereq.js';
+import { createAuth } from './auth.js';
+import { createRemote } from './remote.js';
+import { createHistory } from './history.js';
+import { CH } from '../shared/ipc.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let win = null;
@@ -29,21 +37,35 @@ if (!app.requestSingleInstanceLock()) {
     applyLogin(settings.get());
 
     let ipc;
+    const history = createHistory({ dir });
     const agents = createAgentManager({
-      projects, git,
-      emit: (id, ev) => ipc.pushAgentEvent(id, ev),
+      projects, git, history,
+      emit: (id, ev) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); },
       resolveLauncher: async (agent) => {
         const p = agent === 'agy' ? await health.findAgy() : await health.findClaude();
         return p ? { command: p } : null;
       },
     });
     const poller = createHealthPoller({ health, onChange: (h) => ipc.pushHealth(h) });
+    const getProject = (id) => projects.get(id);
+    const push = (ch) => (payload) => ipc.push(ch, payload);
+    const prompts = createPrompts({ userDir: dir });
+    const files = createFiles({ getProject, shell, push: push(CH.evFiles) });
+    const dashboards = createDashboards({ getProject, push: push(CH.evDashboard) });
+    const prereq = createPrereq({ push: push(CH.evInstall), recheck: () => poller.poll(true) });
+    const auth = createAuth({ health });
+    const remote = createRemote({
+      getProject, push: push(CH.evRemote),
+      findExe: (agent) => (agent === 'agy' ? health.findAgy() : health.findClaude()),
+    });
     ipc = registerIpc({
       ipcMain, dialog, settings, projects, agents, git, health: poller,
+      prompts, files, dashboards, prereq, auth, remote, history,
       getWindow: () => win, onSettings: applyLogin,
     });
 
     session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
+      if (!shouldApplyCsp(details.url)) { cb({}); return; }
       cb({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [CSP] } });
     });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
@@ -66,7 +88,9 @@ if (!app.requestSingleInstanceLock()) {
     win.loadFile(path.join(here, '..', 'renderer', 'index.html'));
     win.webContents.once('did-finish-load', () => poller.start());
 
-    app.on('before-quit', () => { poller.stop(); agents.stopAll(); });
+    app.on('before-quit', () => {
+      poller.stop(); agents.stopAll(); dashboards.stopAll(); remote.stopAll(); files.closeWatcher();
+    });
   });
 
   app.on('window-all-closed', () => app.quit());

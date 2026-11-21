@@ -16,6 +16,8 @@ const MOCK_REPLY = [
   '2;\nconsole.log(answer);\n```\n\nDone.',
 ];
 
+import { createPhase2 } from './mock-phase2.js';
+
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
   let settings = {
@@ -31,17 +33,20 @@ export function createMockApi() {
   const agentSubs = new Set();
   const healthSubs = new Set();
   const running = new Map();
-  const emit = (projectId, event) => agentSubs.forEach((cb) => cb({ projectId, event }));
+  const flags = { pythonInstalled: false, gitInstalled: false, nodeInstalled: false, loggedIn: false };
+  let p2 = null;
+  const emit = (projectId, event) => { if (p2) p2.record(projectId, event); agentSubs.forEach((cb) => cb({ projectId, event })); };
 
   const health = () => ({
-    claude: { found: !/#noclaude/.test(location.hash), path: 'C:\\bin\\claude.exe', version: '2.1.0', loggedIn: !/#nologin/.test(location.hash) },
+    claude: { found: !/#noclaude/.test(location.hash), path: 'C:\\bin\\claude.exe', version: '2.1.0', loggedIn: p2.flagsHealth().loggedIn },
     agy: { found: true, path: 'C:\\bin\\agy.exe', version: '0.9.2' },
-    node: { found: true, version: '22.1.0' },
-    git: { found: true, version: '2.45.0' },
-    python: { found: false, version: null },
+    node: p2.flagsHealth().node,
+    git: p2.flagsHealth().git,
+    python: p2.flagsHealth().python,
     vpn: { active: /#vpn/.test(location.hash), adapters: /#vpn/.test(location.hash) ? ['Corp VPN'] : [] },
     anthropicReachable: !/#vpn/.test(location.hash),
   });
+  p2 = createPhase2({ projects: () => projects, emitAgent: emit, flags });
   window.addEventListener('hashchange', () => healthSubs.forEach((cb) => cb(health())));
 
   function runTurn(projectId, text) {
@@ -58,6 +63,10 @@ export function createMockApi() {
     at(t, () => emit(projectId, { type: 'tool-use', id: 'tool1', name: 'Edit', input: { file_path: 'src/utils.js', old_string: 'a == b', new_string: 'a.trim() === b.trim()' } }));
     t += 900;
     at(t, () => emit(projectId, { type: 'tool-result', id: 'tool1', output: 'File edited successfully.' }));
+    t += 150;
+    at(t, () => emit(projectId, { type: 'tool-use', id: 'toolw', name: 'Write', input: { file_path: proj.path + '\\artifacts\\report.md', content: '# Weekly report' } }));
+    t += 300;
+    at(t, () => { emit(projectId, { type: 'tool-result', id: 'toolw', output: 'File created successfully.' }); p2.emitFiles(projectId, ['artifacts/report.md', 'src/utils.js']); });
     t += 150;
     at(t, () => emit(projectId, { type: 'tool-use', id: 'tool2', name: 'Bash', input: { command: 'npm test' } }));
     t += 700;
@@ -102,7 +111,7 @@ export function createMockApi() {
       pickFolder: async () => 'C:\\Users\\leo\\Code\\NewProject',
     },
     agent: {
-      send: async ({ projectId, text }) => { runTurn(projectId, text); return { turnId: 't' + Date.now() }; },
+      send: async ({ projectId, text }) => { p2.onUserSend(projectId, text); runTurn(projectId, text); return { turnId: 't' + Date.now() }; },
       stop: async (projectId) => {
         const r = running.get(projectId);
         if (r) r.timers.forEach(clearTimeout);
@@ -116,6 +125,11 @@ export function createMockApi() {
       status: async () => ({ isRepo: true, branch: 'main', dirty: 3 }),
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
+    ...p2.api,
+    onFiles: p2.subscribe.onFiles,
+    onDashboard: p2.subscribe.onDashboard,
+    onInstall: p2.subscribe.onInstall,
+    onRemote: p2.subscribe.onRemote,
     onAgentEvent: (cb) => { agentSubs.add(cb); return () => agentSubs.delete(cb); },
     onHealth: (cb) => { healthSubs.add(cb); return () => healthSubs.delete(cb); },
   };

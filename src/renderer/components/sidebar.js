@@ -2,6 +2,7 @@
 import { h, icon, clear } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { filterProjects } from '../lib/store.js';
+import { openProjectMenu } from './project-menu.js';
 
 export function mountRail(el, { store, actions }) {
   const render = () => {
@@ -69,14 +70,21 @@ export function mountSidebar(el, { store, actions }) {
     for (const p of list) {
       const running = !!(s.chats[p.id] && s.chats[p.id].running);
       const active = s.view === 'project' && p.id === s.activeProjectId;
-      scroll.append(h('button', {
+      const kebab = h('button', {
+        class: 'btn btn--ghost btn--icon btn--sm nav-kebab', type: 'button',
+        attrs: { 'aria-label': t('menu.projectActions', { name: p.name }), title: t('menu.projectActions', { name: p.name }), 'aria-haspopup': 'menu', 'aria-expanded': 'false' },
+      }, icon('more'));
+      kebab.addEventListener('click', (e) => { e.stopPropagation(); openProjectMenu(kebab, p.id, { store, actions }); });
+      const item = h('button', {
         class: 'nav-item' + (active ? ' is-active' : ''), type: 'button', title: p.path,
         attrs: active ? { 'aria-current': 'true' } : null,
         on: { click: () => actions.selectProject(p.id) },
       },
       h('span', { class: 'nav-item__icon' }, icon('folder')),
       h('span', { class: 'nav-item__label truncate', text: p.name }),
-      running ? h('span', { class: 'nav-item__dot nav-item__dot--green', attrs: { role: 'img', 'aria-label': t('agent.running') }, title: t('agent.running') }) : null));
+      running ? h('span', { class: 'nav-item__dot nav-item__dot--green', attrs: { role: 'img', 'aria-label': t('agent.running') }, title: t('agent.running') }) : null);
+      item.addEventListener('contextmenu', (e) => { e.preventDefault(); openProjectMenu(kebab, p.id, { store, actions }); });
+      scroll.append(h('div', { class: 'nav-row' }, item, kebab));
     }
     scroll.append(
       h('button', { class: 'btn btn--sm new-project-btn', type: 'button', on: { click: () => actions.openWalkthrough() } },

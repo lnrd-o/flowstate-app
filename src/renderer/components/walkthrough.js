@@ -2,6 +2,10 @@
 import { h, radioKeys } from '../lib/dom.js';
 import { t, onChange } from '../lib/i18n.js';
 import { openDialog } from './modal.js';
+import { installJobs } from '../lib/install-state.js';
+import { createLogBox } from './log-box.js';
+
+const INSTALLABLE = ['git', 'node', 'python'];
 
 export const STEPS = ['welcome', 'prerequisites', 'folder', 'agent', 'git', 'done'];
 
@@ -36,7 +40,12 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
     title: t('walkthrough.title'), body, footer: [], size: 'lg',
     onClose: () => { unsub(); if (!finished) actions.walkthroughClosed(); },
   });
-  const unsub = onChange(() => render());
+  let logBoxes = [];
+  const runningNow = () => INSTALLABLE.map((i) => installJobs.get(i).running).join();
+  let lastRunning = runningNow();
+  const unsubLang = onChange(() => render());
+  const unsubJobs = installJobs.subscribe(() => { const r = runningNow(); if (r !== lastRunning) { lastRunning = r; if (STEPS[step] === 'prerequisites') { health = store.get().health; render(); } } });
+  const unsub = () => { unsubLang(); unsubJobs(); logBoxes.forEach((l) => l.destroy()); };
 
   async function runCheck() {
     checking = true; render();
@@ -69,12 +78,24 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
     const text = h('p', { text: t('walkthrough.' + id + 'Text') });
     if (id === 'welcome') return [h('h3', { class: 'wt__h', text: t('app.name') }), text, h('p', { class: 'muted', text: t('app.tagline') })];
     if (id === 'prerequisites') {
-      const rows = prereqRows(health).map((r) => h('div', { class: 'list-row' },
-        h('div', { class: 'list-row__main' },
-          h('div', { class: 'list-row__title', text: t('health.' + r.id) }),
-          h('div', { class: 'list-row__sub' }, r.ok ? (r.version || t('health.found')) : t('walkthrough.hint.' + r.id)),
-          r.extra ? h('div', { class: 'list-row__sub', text: t('health.' + r.extra) }) : null),
-        h('span', { class: 'badge ' + (r.ok ? 'badge--green' : 'badge--red') }, h('span', { class: 'badge__dot' }), r.ok ? t('health.found') : t('health.missing'))));
+      const rows = prereqRows(health).map((r) => {
+        const acts = [];
+        if (!r.ok && INSTALLABLE.includes(r.id)) {
+          acts.push(h('button', { class: 'btn btn--sm', type: 'button', disabled: installJobs.get(r.id).running, text: t('prereq.install'),
+            on: { click: async () => { await actions.installPrereq(r.id, { dialog: false }); health = store.get().health; render(); } } }));
+        }
+        if (!r.ok && (r.id === 'claude' || r.id === 'agy')) acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.browseSettings'), on: { click: () => actions.openSettings() } }));
+        if (r.ok && r.extra === 'notLoggedIn') acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.signIn'), on: { click: () => actions.signIn('claude') } }));
+        return h('div', { class: 'list-row' },
+          h('div', { class: 'list-row__main list-row__main--wrap' },
+            h('div', { class: 'list-row__title', text: t('health.' + r.id) }),
+            h('div', { class: 'list-row__sub list-row__sub--wrap' }, r.ok ? (r.version || t('health.found')) : t('walkthrough.hint.' + r.id)),
+            r.extra ? h('div', { class: 'list-row__sub', text: t('health.' + r.extra) }) : null,
+            acts.length ? h('div', { class: 'row wrap gap-1 list-row__acts' }, ...acts) : null),
+          h('span', { class: 'badge ' + (r.ok ? 'badge--green' : 'badge--red') }, h('span', { class: 'badge__dot' }), r.ok ? t('health.found') : t('health.missing')));
+      });
+      logBoxes.forEach((l) => l.destroy());
+      logBoxes = INSTALLABLE.map((i) => createLogBox(installJobs, i, { lines: 5 }));
       const vpn = health && health.vpn.active;
       return [text,
         checking || !health ? h('div', { class: 'row muted' }, h('span', { class: 'spinner' }), t('common.loading')) : h('div', { class: 'card card--flush' }, ...rows),
@@ -82,6 +103,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
           h('span', { class: 'badge ' + (vpn ? 'badge--red' : 'badge--green') }, h('span', { class: 'badge__dot' }), vpn ? t('health.vpnActive') : t('health.vpnInactive')),
           h('span', { class: 'badge ' + (health.anthropicReachable ? 'badge--green' : 'badge--red') }, h('span', { class: 'badge__dot' }),
             t('health.anthropic') + ': ' + (health.anthropicReachable ? t('health.reachable') : t('health.unreachable')))) : null,
+        ...logBoxes.map((l) => l.el),
         h('div', null, h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.recheck'), disabled: checking, on: { click: runCheck } }))];
     }
     if (id === 'folder') {
