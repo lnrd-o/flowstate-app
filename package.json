@@ -2,14 +2,14 @@
   "name": "flowstate",
   "productName": "FlowState",
   "version": "0.1.0",
-  "description": "FlowState â€” a desktop GUI for Claude Code and Antigravity CLIs",
+  "description": "FlowState - a desktop GUI for Claude Code and Antigravity CLIs",
   "main": "src/main/main.js",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/unit",
+    "test": "node --test \"tests/unit/**/*.test.js\"",
     "spike:claude": "node spikes/capture.js claude",
     "spike:agy": "node spikes/capture.js agy"
   },
@@ -17,4 +17,3 @@
     "node": ">=20"
   }
 }
-
