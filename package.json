@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "flowstate",
   "productName": "FlowState",
   "version": "0.1.0",
@@ -10,10 +10,19 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test \"tests/unit/**/*.test.js\"",
+    "vendor": "node scripts/vendor.js",
     "spike:claude": "node spikes/capture.js claude",
     "spike:agy": "node spikes/capture.js agy"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.18",
+    "highlight.js": "^11.12.0",
+    "marked": "^18.2.1"
   }
 }
