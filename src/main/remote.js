@@ -2,11 +2,12 @@
 //  claude: managed long-lived child `claude remote-control --name <project> --permission-mode <mode>` in the project cwd.
 //  agy:    `agy remote-control start --session --name <project>` registers a LOGIN-SCOPED daemon (machine-wide, one
 //          instance name); stop = `agy remote-control stop`; status = `agy remote-control status`.
-// Fallback (claude only): if the CLI needs a real terminal, open a visible console window running it. A console
-// window cannot be stopped from FlowState (stop() returns an explanatory error), the user closes the window.
+// Fallback (claude only): if the CLI needs a real terminal, open a visible terminal window running it (cmd on Windows,
+// Terminal.app on macOS, a terminal emulator on Linux; see terminal.js). FlowState cannot stop that window; the user closes it.
 import { spawn as nodeSpawn } from 'node:child_process';
 import { runCommand } from './run.js';
-import { killTree } from './agents/base.js';
+import { killTree, childSpawnOptions } from './agents/base.js';
+import { openTerminal } from './terminal.js';
 
 const MODES = { default: 'default', acceptEdits: 'acceptEdits', plan: 'plan' };
 const MAX_INFO_LINES = 40;
@@ -39,7 +40,7 @@ export function parseAgyStatus(text) {
 }
 
 export function createRemote({
-  getProject, findExe, spawn = nodeSpawn, kill = killTree, run = runCommand, push = () => {}, settleMs = 2500,
+  getProject, findExe, spawn = nodeSpawn, kill = killTree, run = runCommand, push = () => {}, settleMs = 2500, platform = process.platform,
 } = {}) {
   const claudeRuns = new Map(); // projectId -> {child, lines, consoleOnly}
   const agyOwners = new Set();  // projects whose start() registered the daemon
@@ -52,11 +53,7 @@ export function createRemote({
   const emit = (projectId, running, info) => push({ projectId, running, ...(info ? { info } : {}) });
 
   async function openConsole(exe, args, title) {
-    await new Promise((resolve, reject) => {
-      const c = spawn('cmd.exe', ['/c', 'start', title, exe, ...args], { detached: true, windowsHide: false, stdio: 'ignore', shell: false });
-      c.once('error', reject);
-      c.once('spawn', () => { c.unref?.(); resolve(); });
-    });
+    await openTerminal({ platform, exe, args, title, spawn });
   }
 
   async function startClaude(p) {
@@ -64,7 +61,7 @@ export function createRemote({
     const exe = await findExe('claude');
     if (!exe) throw new Error('claude executable not found');
     const args = claudeRemoteArgs(p);
-    const child = spawn(exe, args, { cwd: p.path, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(exe, args, { cwd: p.path, ...childSpawnOptions({ platform }), stdio: ['pipe', 'pipe', 'pipe'] });
     const rec = { child, lines: [], consoleOnly: false };
     claudeRuns.set(p.id, rec);
     let exited = null;

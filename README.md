@@ -1,7 +1,7 @@
 # FlowState
 
 Desktop GUI for [Claude Code](https://claude.com/claude-code) (`claude.exe`) and Antigravity (`agy.exe`).
-Electron + plain JavaScript (ES modules, no framework, no bundler). Windows first.
+Electron + plain JavaScript (ES modules, no framework, no bundler). Windows first; macOS and Linux builds exist but are unverified (see Platforms).
 
 Run your coding agents without a terminal: a Claude-style 3-column UI (projects / chat / artifacts),
 per-project session resume, git auto-versioning, a VPN warning, adjustable prompt templates, EN/ES,
@@ -16,9 +16,21 @@ npm test             # unit tests (node:test)
 npm run e2e          # real-Electron smoke test, isolated profile (E2E_REAL=1 adds a real agy turn)
 npm run vendor       # re-copy marked / dompurify / highlight.js into src/renderer/vendor
 ```
-Requirements: Windows, Node 20+, Git. FlowState finds `claude.exe` and `agy.exe` itself (PATH, the
+Requirements: Node 20+, Git. FlowState finds the `claude` and `agy` CLIs itself (PATH, the
 Claude desktop app's bundled copy, common install dirs) and you can override the paths in Settings.
-Sign in once with each CLI (the app has a Sign-in button that opens a console for the login).
+Sign in to each CLI from inside the app (Settings > Accounts, the banners, or the setup walkthrough): Claude gets a
+native dialog (browser link + code box), AGY an embedded terminal for its own login screen. Credentials stay in each CLI's store.
+
+## Platforms
+| Platform | Status |
+|----------|--------|
+| Windows 10/11 x64 | **Verified end-to-end** (app, installer/portable build, real CLIs). |
+| macOS (arm64, x64) | Built by CI (`.dmg`/`.zip`, unsigned). **Not yet verified on a real Mac.** |
+| Linux x64 | Built by CI (`.AppImage`/`.deb`/`.tar.gz`). **Not yet verified on a real machine.** |
+
+macOS/Linux logic (CLI discovery, PATH for Finder/desktop launches, VPN detection, installers via Homebrew/apt/dnf/pacman/zypper,
+terminal launching, process-group kill) is unit-tested with injected platform data only. Downloads are unsigned: see
+[docs/building.md](docs/building.md) for the first-launch steps (SmartScreen, Gatekeeper, `chmod +x`) and how to build or release.
 
 ## Features
 - **Agents:** Claude / AGY switch per project, streaming chat, markdown + highlighted code (7 code themes), tool cards.
@@ -38,11 +50,12 @@ src/shared/    Contracts used by both sides: events.js, ipc.js, methodology.js
 prompts/       Bundled prompt templates        methodologies/  Bundled methodologies
 spikes/        Scripts that capture real CLI output (see docs/spikes.md)
 tests/         unit/, e2e/, fixtures/ (fake agent)
-docs/          architecture.md, design.md, spikes.md
+docs/          architecture.md, building.md, design.md, spikes.md
 ```
 
 ## Docs
-- [docs/architecture.md](docs/architecture.md) - how the pieces fit, security model
+- [docs/architecture.md](docs/architecture.md) - how the pieces fit, security model, platform support
+- [docs/building.md](docs/building.md) - build per OS, unsigned-app notes, cutting a release
 - [docs/design.md](docs/design.md) - design tokens and component class catalogue
 - [docs/spikes.md](docs/spikes.md) - what the real CLIs emit and what was verified
 

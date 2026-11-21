@@ -35,10 +35,31 @@ Renderer (sandboxed, vanilla ES modules)           Main process (Node)
 - Renderer never receives absolute paths outside the project and never builds shell strings.
 - Model output is untrusted: sanitized markdown, HTML previews in `sandbox=""` iframes.
 - Methodologies from outside are untrusted: validated, command nodes need per-run confirmation and a program deny-list.
-- Credentials: never read or stored; sign-in happens in the CLI's own console flow.
+- Credentials: never read or stored. Sign-in runs the CLI's own flow inside the app (`login.js`): claude over pipes
+  (`claude auth login` prints a URL and a paste-code prompt), agy in a PTY (`@lydell/node-pty` + xterm.js) because its login
+  is part of the interactive TUI. Signed-in state comes from `claude auth status` and `agy models`. Only allow-listed https
+  sign-in hosts are opened automatically (`auth-check.js`).
 
 ## Known behaviours of the CLIs (verified, see spikes.md)
 - claude headless default mode denies writes with `system/permission_denied` (no inline approval); FlowState shows an
   "approve & retry" card. agy's `init` always says `always-proceed` but obeys `--mode`.
 - claude refuses Windows 8.3 short paths ("suspicious path pattern"), so FlowState always resolves real long paths.
 - `claude remote-control` needs the folder trusted once through an interactive `claude` session.
+
+## Platform support (src/main/platform.js and friends)
+Every platform-dependent function takes `platform`/`env`/`fs`/runner parameters so macOS and Linux logic is unit-tested
+from Windows (`tests/unit/main-platform.test.js`, fake fs in `tests/fixtures/fake-fs.js`). Only Windows has run for real.
+- **Discovery** (`health.js`): settings path, PATH, then per-OS install dirs and the Claude desktop app's bundled copy
+  (newest version first). Only launchable files count: win32 `.exe` (never `.cmd/.bat` shims), posix files with an exec bit.
+- **PATH:** apps launched from Finder/the desktop do not inherit the shell PATH. `platform.js` builds a search PATH
+  (inherited + /usr/local/bin, /opt/homebrew/bin, ~/.local/bin, ~/.npm-global/bin, ~/.volta/bin, ~/.cargo/bin, nvm default)
+  and passes it to every spawned CLI via `spawnEnv()` (run.js, proc.js, agents/base.js, remote.js).
+- **VPN:** win32 Get-NetAdapter; macOS `scutil --nc list` (Connected) + VPN-named UP interfaces with IPv4 (bare `utun` never
+  counts); Linux `ip -o link show up` + `nmcli` active vpn/wireguard/tun connections.
+- **Installers** (`prereq.js`): winget / `brew install` / pkexec + apt-get|dnf|pacman|zypper with fixed package names; when no GUI
+  privilege prompt exists the exact `sudo ...` command is returned for the user to run. Nothing is ever piped into a shell.
+- **Terminals** (`terminal.js`): cmd `start`, Terminal.app via osascript (strictly quoted), or the first available Linux emulator.
+- **Process trees:** Windows `taskkill /T /F`; posix children are spawned `detached` (own process group) and killed with
+  SIGTERM to the group, SIGKILL after 2 s. Children not started by FlowState's spawn helper fall back to signalling the pid only.
+- **Files:** opening is refused for Windows executables, posix scripts/bundles (.sh, .command, .app, .AppImage ...) and any file with an exec bit.
+- **Packaging/CI:** see building.md.

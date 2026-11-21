@@ -6,7 +6,8 @@ import { activeProject } from '../lib/store.js';
 const dismissed = new Set();
 
 /** Pure: which banners apply. Returns [{ id, level, text, actions: ['recheck'|'settings'|'dismiss'] }]. */
-export function computeBanners(project, health, chat) {
+export function computeBanners(project, health, chat, signedIn) {
+  const si = (a) => (signedIn && typeof signedIn[a] === 'boolean' ? signedIn[a] : health && health[a] ? health[a].loggedIn : null);
   const out = [];
   if (health && health.vpn && health.vpn.active) {
     const reach = health.anthropicReachable ? t('health.reachable') : t('health.unreachable');
@@ -15,9 +16,10 @@ export function computeBanners(project, health, chat) {
   if (project && health) {
     if (project.agent === 'claude') {
       if (!health.claude.found) out.push({ id: 'claude-missing', level: 'warn', text: t('banner.claudeMissing') + ' ' + t('banner.claudeMissingHint'), actions: ['settings', 'recheck'] });
-      else if (health.claude.loggedIn === false || (chat && chat.needsAuth)) out.push({ id: 'claude-login', level: 'warn', text: t('banner.notLoggedIn'), actions: ['signin', 'recheck'] });
-    } else if (project.agent === 'agy' && !health.agy.found) {
-      out.push({ id: 'agy-missing', level: 'warn', text: t('health.agy') + ': ' + t('health.missing'), actions: ['settings', 'recheck'] });
+      else if (si('claude') === false || (chat && chat.needsAuth)) out.push({ id: 'claude-login', level: 'warn', text: t('banner.notLoggedIn'), actions: ['signin', 'recheck'] });
+    } else if (project.agent === 'agy') {
+      if (!health.agy.found) out.push({ id: 'agy-missing', level: 'warn', text: t('health.agy') + ': ' + t('health.missing'), actions: ['settings', 'recheck'] });
+      else if (si('agy') === false) out.push({ id: 'agy-login', level: 'warn', text: t('banner.agyNotLoggedIn'), actions: ['signin', 'recheck'] });
     }
   }
   if (project && health && project.autoCommit && health.git && !health.git.found) {
@@ -37,7 +39,7 @@ export function mountBanners(el, { store, actions }) {
     const s = store.get();
     const project = activeProject(s);
     const chat = project ? s.chats[project.id] : null;
-    const banners = computeBanners(project, s.health, chat);
+    const banners = computeBanners(project, s.health, chat, s.signedIn);
     const next = JSON.stringify(banners);
     if (next === sig) return;
     sig = next;
@@ -50,7 +52,7 @@ export function mountBanners(el, { store, actions }) {
           on: { click: () => {
             if (a === 'recheck') actions.recheckHealth();
             else if (a === 'settings') actions.openSettings();
-            else if (a === 'signin') actions.signIn(activeProject(store.get()).agent);
+            else if (a === 'signin') actions.openLogin(activeProject(store.get()).agent);
             else if (a.startsWith('install:')) actions.installPrereq(a.slice(8), { dialog: true });
             else { dismissed.add(b.id); sig = ''; render(); }
           } },
@@ -63,7 +65,7 @@ export function mountBanners(el, { store, actions }) {
   }
   store.subscribe((s, prev) => {
     if (s.health !== prev.health || s.activeProjectId !== prev.activeProjectId || s.projects !== prev.projects
-      || s.chats !== prev.chats) render();
+      || s.chats !== prev.chats || s.signedIn !== prev.signedIn) render();
   });
   render();
   return { update: () => { sig = ''; render(); } };

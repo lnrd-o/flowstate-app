@@ -1,17 +1,41 @@
 import { spawn as nodeSpawn } from 'node:child_process';
 import { createNdjsonParser } from '../../shared/events.js';
+import { spawnEnv } from '../platform.js';
 
-/** Kill a child and its whole process tree (taskkill /T /F on Windows). */
-export function killTree(child, { spawn = nodeSpawn, platform = process.platform } = {}) {
+/**
+ * Kill a child and its whole process tree.
+ *  win32: taskkill /T /F.
+ *  posix: SIGTERM to the process GROUP (-pid; works because FlowState spawns its agent/dashboard/remote children with
+ *  detached:true, which makes each one a group leader), falling back to the single pid if no such group exists
+ *  (child not spawned detached). If the child is still alive after graceMs, SIGKILL the group (then the pid).
+ */
+export function killTree(child, {
+  spawn = nodeSpawn, platform = process.platform, kill = process.kill.bind(process), graceMs = 2000,
+  setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout,
+} = {}) {
   if (!child || child.exitCode !== null || !child.pid) return;
   if (platform === 'win32') {
     try {
       const k = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', shell: false });
       k.on('error', () => { try { child.kill(); } catch { /* ignore */ } });
     } catch { try { child.kill(); } catch { /* ignore */ } }
-  } else {
-    try { child.kill('SIGKILL'); } catch { /* ignore */ }
+    return;
   }
+  const send = (sig) => {
+    try { kill(-child.pid, sig); return; } catch { /* no such group */ }
+    try { child.kill(sig); } catch { /* already gone */ }
+  };
+  send('SIGTERM');
+  const timer = setTimeoutFn(() => {
+    if (child.exitCode === null && child.signalCode == null) send('SIGKILL');
+  }, graceMs);
+  timer?.unref?.();
+  child.once?.('exit', () => clearTimeoutFn(timer));
+}
+
+/** Options every long-lived child spawn should use: own process group on posix (so killTree can signal the group), augmented PATH. */
+export function childSpawnOptions({ platform = process.platform } = {}) {
+  return { shell: false, windowsHide: true, detached: platform !== 'win32', env: spawnEnv(platform) };
 }
 
 /**
@@ -42,7 +66,7 @@ export class AgentAdapter {
     let finished = false;
     const stderrLines = [];
 
-    const child = spawn(command, args, { cwd: project.path, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { cwd: project.path, ...childSpawnOptions(), stdio: ['pipe', 'pipe', 'pipe'] });
     child.stdin?.on?.('error', () => {});
 
     const handle = (obj) => {

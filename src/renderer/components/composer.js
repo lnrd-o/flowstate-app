@@ -8,13 +8,14 @@ const MODES = ['default', 'acceptEdits', 'plan'];
 const AGENTS = ['claude', 'agy'];
 
 /** Why sending is blocked, as an i18n key + vars (or null). Pure; exported for tests of the logic. */
-export function sendBlockReason(project, health) {
+export function sendBlockReason(project, health, signedIn) {
   if (!project) return { key: 'composer.disabledNoProject' };
   if (!health) return null;
   if (health.vpn && health.vpn.active) return { key: 'composer.disabledVpn' };
   const a = health[project.agent];
   if (a && !a.found) return { key: 'composer.disabledMissing', vars: { agent: t('agent.' + project.agent) } };
-  if (project.agent === 'claude' && a && a.loggedIn === false) return { key: 'composer.disabledLogin' };
+  const known = signedIn && typeof signedIn[project.agent] === 'boolean' ? signedIn[project.agent] : (a ? a.loggedIn : null);
+  if (known === false) return { key: project.agent === 'agy' ? 'composer.disabledLoginAgy' : 'composer.disabledLogin', signIn: true };
   return null;
 }
 
@@ -45,6 +46,10 @@ export function mountComposer(root, { store, api, actions }) {
     input,
     h('div', { class: 'composer__toolbar' }, segmented, modeSelect, h('span', { class: 'composer__spacer' }), send));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
+  const hintText = h('span', { class: 'composer__hint-text' });
+  const hintBtn = h('button', { class: 'btn btn--sm composer__signin', type: 'button', hidden: true });
+  hintBtn.addEventListener('click', () => { const p = activeProject(store.get()); if (p) actions.openLogin(p.agent); });
+  hint.append(hintText, hintBtn);
   const slash = h('div', { class: 'menu slash-menu', id: 'slash-menu', hidden: true, attrs: { role: 'listbox', 'aria-label': t('composer.promptPicker') } });
   root.append(h('div', { class: 'composer-wrap__inner' }, slash, composer, hint));
   input.setAttribute('aria-controls', 'slash-menu');
@@ -98,7 +103,7 @@ export function mountComposer(root, { store, api, actions }) {
     const p = activeProject(s);
     const chat = p && s.chats[p.id];
     const text = input.value.trim();
-    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health)) return;
+    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health, s.signedIn)) return;
     input.value = '';
     drafts.delete(p.id);
     autosize();
@@ -136,7 +141,7 @@ export function mountComposer(root, { store, api, actions }) {
       input.value = (p && drafts.get(p.id)) || '';
       autosize();
     }
-    const block = sendBlockReason(p, s.health);
+    const block = sendBlockReason(p, s.health, s.signedIn);
     input.placeholder = t('composer.placeholder', { agent: p ? t('agent.' + p.agent) : t('app.name') });
     input.setAttribute('aria-label', input.placeholder);
     input.disabled = !p;
@@ -160,12 +165,14 @@ export function mountComposer(root, { store, api, actions }) {
     send.title = label;
     send.disabled = !running && !!block;
     hint.classList.toggle('is-warn', !!block && !!p);
-    hint.textContent = block ? t(block.key, block.vars) : t('composer.hint');
+    hintText.textContent = block ? t(block.key, block.vars) : t('composer.hint');
+    hintBtn.hidden = !(block && block.signIn);
+    hintBtn.textContent = t('banner.signIn');
   }
 
   const isRunning = (st) => !!(st.chats[st.activeProjectId] && st.chats[st.activeProjectId].running);
   store.subscribe((s, prev) => {
-    if (s.projects !== prev.projects || s.activeProjectId !== prev.activeProjectId || s.health !== prev.health
+    if (s.projects !== prev.projects || s.activeProjectId !== prev.activeProjectId || s.health !== prev.health || s.signedIn !== prev.signedIn
       || isRunning(s) !== isRunning(prev)) render();
   });
   render();

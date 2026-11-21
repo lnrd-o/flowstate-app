@@ -13,6 +13,11 @@ files:
   - "!**/*.map"
   - "!**/*.d.ts"
 asar: true
+# node-pty ships prebuilt binaries (and a spawn-helper on macOS/Linux) that must be real, executable files outside the
+# asar. npm only installs the @lydell/node-pty-<os>-<arch> package that matches the build machine, so each OS build
+# ships exactly one prebuild.
+asarUnpack:
+  - node_modules/@lydell/**
 win:
   icon: build/icon.png
   target:
@@ -32,3 +37,45 @@ nsis:
   artifactName: FlowState-Setup-${version}-${arch}.${ext}
 portable:
   artifactName: FlowState-Portable-${version}-${arch}.${ext}
+
+# macOS: unsigned build (no Apple Developer ID). identity "-" = ad-hoc signature, which Apple Silicon needs in order to
+# launch at all once the bundle has been modified; it is NOT a trusted signature (Gatekeeper still asks, see docs/building.md).
+# hardenedRuntime must be false with ad-hoc signing. Notarization is future work (needs a paid Developer ID).
+mac:
+  icon: build/icon.png
+  category: public.app-category.developer-tools
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  identity: "-"
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  artifactName: FlowState-${version}-mac-${arch}.${ext}
+dmg:
+  title: FlowState ${version}
+  artifactName: FlowState-${version}-mac-${arch}.${ext}
+
+# Linux: x64 only (arm64 would need an arm64 runner so that the matching node-pty prebuild is installed).
+linux:
+  icon: build/icons
+  category: Development
+  maintainer: FlowState contributors <flowstate@users.noreply.github.com>
+  vendor: FlowState contributors
+  synopsis: Desktop GUI for Claude Code and Antigravity
+  executableName: flowstate
+  syncDesktopName: true
+  desktop:
+    entry:
+      Name: FlowState
+      Comment: Desktop GUI for Claude Code and Antigravity CLIs
+      Keywords: claude;antigravity;agent;ai;
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+    - target: tar.gz
+      arch: [x64]
+  artifactName: FlowState-${version}-linux-${arch}.${ext}

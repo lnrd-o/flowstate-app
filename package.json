@@ -3,6 +3,19 @@
   "productName": "FlowState",
   "version": "0.1.0",
   "description": "FlowState - a desktop GUI for Claude Code and Antigravity CLIs",
+  "author": {
+    "name": "FlowState contributors",
+    "email": "flowstate@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/lnrd-o/flowstate-app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnrd-o/flowstate-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lnrd-o/flowstate-app/issues"
+  },
+  "desktopName": "flowstate.desktop",
   "main": "src/main/main.js",
   "type": "module",
   "private": true,
@@ -14,10 +27,13 @@
     "e2e:method": "node tests/e2e/methodology.mjs",
     "vendor": "node scripts/vendor.js",
     "icon": "node scripts/make-icon.mjs",
-    "dist": "electron-builder --win --x64",
+    "dist": "electron-builder --win --x64 --publish never",
     "dist:dir": "electron-builder --win --x64 --dir",
     "spike:claude": "node spikes/capture.js claude",
-    "spike:agy": "node spikes/capture.js agy"
+    "spike:agy": "node spikes/capture.js agy",
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:linux": "electron-builder --linux --x64 --publish never"
   },
   "engines": {
     "node": ">=20"

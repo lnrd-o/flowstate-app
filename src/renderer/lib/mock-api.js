@@ -18,6 +18,7 @@ const MOCK_REPLY = [
 
 import { createPhase2 } from './mock-phase2.js';
 import { createPhase3 } from './mock-phase3.js';
+import { createPhase4 } from './mock-phase4.js';
 
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -39,14 +40,15 @@ export function createMockApi() {
   const emit = (projectId, event) => { if (p2) p2.record(projectId, event); agentSubs.forEach((cb) => cb({ projectId, event })); };
 
   const health = () => ({
-    claude: { found: !/#noclaude/.test(location.hash), path: 'C:\\bin\\claude.exe', version: '2.1.0', loggedIn: p2.flagsHealth().loggedIn },
-    agy: { found: true, path: 'C:\\bin\\agy.exe', version: '0.9.2' },
+    claude: { found: !/#noclaude/.test(location.hash), path: 'C:\\bin\\claude.exe', version: '2.1.0', loggedIn: p4.signed().claude },
+    agy: { found: true, path: 'C:\\bin\\agy.exe', version: '0.9.2', loggedIn: p4.signed().agy },
     node: p2.flagsHealth().node,
     git: p2.flagsHealth().git,
     python: p2.flagsHealth().python,
     vpn: { active: /#vpn/.test(location.hash), adapters: /#vpn/.test(location.hash) ? ['Corp VPN'] : [] },
     anthropicReachable: !/#vpn/.test(location.hash),
   });
+  const p4 = createPhase4({ onSignedChange: () => healthSubs.forEach((cb) => cb(health())) });
   p2 = createPhase2({ projects: () => projects, emitAgent: emit, flags });
   const p3 = createPhase3({ projects: () => projects, getHistory: (pid) => p2.api.history.get(pid), emitAgent: emit });
   window.addEventListener('hashchange', () => healthSubs.forEach((cb) => cb(health())));
@@ -128,6 +130,10 @@ export function createMockApi() {
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
     ...p2.api,
+    auth: { login: async () => { const r = await p2.api.auth.login(); p4.setSigned('claude', true); return r; } },
+    ...p4.api,
+    onLogin: p4.subscribe.onLogin,
+    onWindow: p4.subscribe.onWindow,
     method: p3.api,
     onMethod: p3.subscribe.onMethod,
     onFiles: p2.subscribe.onFiles,

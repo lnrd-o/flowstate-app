@@ -1,5 +1,6 @@
 // Tiny observable store. State is replaced immutably; listeners get (state, prev).
 import { createChatState } from './events.js';
+import { createSignedIn } from './login-state.js';
 
 export function createStore(initial) {
   let state = initial;
@@ -50,6 +51,8 @@ export function createInitialState() {
     editing: null, // { draft, isNew, token } while the methodology editor is open
     runs: {}, // projectId -> RunState (active or last run)
     methodCache: {}, // methodologyId -> Methodology (for the run panel graph)
+    signedIn: createSignedIn(), // { claude, agy } true|false|null (unknown), merged from health, login.status and login events
+    win: { platform: 'win32', overlay: true, controlsInset: { left: 80, right: 140 }, fullscreen: false, maximized: false },
     sidebarCollapsed: false,
     artifactsCollapsed: false,
   };

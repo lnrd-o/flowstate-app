@@ -18,6 +18,10 @@ const CH = {
   methodList: 'method:list', methodGet: 'method:get', methodSave: 'method:save', methodDelete: 'method:delete', methodRecord: 'method:record',
   methodImport: 'method:import', methodExport: 'method:export', methodRun: 'method:run', methodRespond: 'method:respond', methodStop: 'method:stop',
   methodRunState: 'method:run-state', evMethod: 'ev:method',
+  loginStart: 'login:start', loginInput: 'login:input', loginResize: 'login:resize', loginCancel: 'login:cancel',
+  loginStatus: 'login:status', loginLogout: 'login:logout',
+  windowInfo: 'window:info', windowSetTheme: 'window:set-theme', windowAction: 'window:action',
+  evLogin: 'ev:login', evWindow: 'ev:window',
   evAgent: 'ev:agent', evHealth: 'ev:health', evFiles: 'ev:files', evDashboard: 'ev:dashboard', evInstall: 'ev:install', evRemote: 'ev:remote',
 };
 
@@ -50,6 +54,14 @@ contextBridge.exposeInMainWorld('flowstate', {
     import: call(CH.methodImport), export: call(CH.methodExport), run: call(CH.methodRun), respond: call(CH.methodRespond),
     stop: call(CH.methodStop), runState: call(CH.methodRunState),
   },
+  login: {
+    start: call(CH.loginStart), input: call(CH.loginInput), resize: call(CH.loginResize),
+    cancel: call(CH.loginCancel), status: call(CH.loginStatus), logout: call(CH.loginLogout),
+  },
+  window: { info: call(CH.windowInfo), setTheme: call(CH.windowSetTheme), action: call(CH.windowAction) },
+  platform: process.platform,
+  onLogin: subscribe(CH.evLogin),
+  onWindow: subscribe(CH.evWindow),
   onAgentEvent: subscribe(CH.evAgent),
   onHealth: subscribe(CH.evHealth),
   onFiles: subscribe(CH.evFiles),

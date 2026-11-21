@@ -9,6 +9,22 @@ export const MAX_IMAGE = 5 * 1024 * 1024;
 export const REFUSED_OPEN = new Set(['.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.lnk', '.ps1', '.vbs', '.wsf', '.jar', '.reg', '.hta',
   '.vbe', '.jse', '.pif', '.msc', '.cpl', '.url', '.psm1', '.msp', '.appx', '.msix']);
 
+/** Extra extensions refused on every platform because they run code on macOS/Linux (also refused: any file with an executable bit on posix). */
+export const REFUSED_OPEN_POSIX = new Set(['.sh', '.command', '.app', '.desktop', '.appimage', '.run', '.bin', '.pkg', '.dmg', '.bash', '.zsh', '.csh', '.ksh', '.fish', '.workflow', '.action', '.scpt', '.terminal', '.tool', '.deb', '.rpm', '.so', '.dylib']);
+
+/** Pure-ish guard: should shell.openPath be refused for this absolute path? -> reason string or null. */
+export function openRefusal(abs, { fsx = fs, platform = process.platform } = {}) {
+  const ext = path.extname(abs).toLowerCase();
+  if (REFUSED_OPEN.has(ext) || REFUSED_OPEN_POSIX.has(ext)) return `Opening ${ext} files is not allowed`;
+  if (platform !== 'win32') {
+    try {
+      const st = fsx.statSync(abs);
+      if (!st.isDirectory() && (st.mode & 0o111) !== 0) return 'Opening executable files is not allowed';
+    } catch { /* missing file: openPath reports it */ }
+  }
+  return null;
+}
+
 const IMAGE_MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const LANGS = {
   '.js': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript', '.jsx': 'javascript', '.ts': 'typescript', '.tsx': 'typescript',
@@ -32,8 +48,9 @@ export function classify(rel) {
   return { kind: 'binary' };
 }
 
-const sameOrInside = (root, p) => {
-  const r = path.relative(root.toLowerCase(), p.toLowerCase());
+// Windows and macOS file systems are case-insensitive by default; Linux is not.
+const sameOrInside = (root, p, ci = process.platform === 'win32' || process.platform === 'darwin') => {
+  const r = ci ? path.relative(root.toLowerCase(), p.toLowerCase()) : path.relative(root, p);
   return r === '' || (!r.startsWith('..') && !path.isAbsolute(r));
 };
 
@@ -70,7 +87,7 @@ export function resolveInside(root, rel = '', fsx = fs) {
   return { abs: rest ? path.join(real, rest) : real, rel: parts.join('/') };
 }
 
-export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debounceMs = 300 } = {}) {
+export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debounceMs = 300, platform = process.platform } = {}) {
   let watcher = null; // {projectId, w, timer, pending:Set}
 
   const need = (id) => {
@@ -138,8 +155,8 @@ export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debo
     async reveal(projectId, relPath) { shell.showItemInFolder(target(projectId, relPath)); },
     async open(projectId, relPath) {
       const abs = target(projectId, relPath);
-      const ext = path.extname(abs).toLowerCase();
-      if (REFUSED_OPEN.has(ext)) throw new Error(`Opening ${ext} files is not allowed`);
+      const refusal = openRefusal(abs, { fsx, platform });
+      if (refusal) throw new Error(refusal);
       const err = await shell.openPath(abs);
       if (err) throw new Error(`Could not open file: ${err}`);
     },

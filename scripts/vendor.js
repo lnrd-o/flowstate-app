@@ -19,4 +19,9 @@ writeFileSync(
   '// highlight.js core as ESM (generated wrapper of highlight.js/lib/core.js, which is CommonJS). See scripts/vendor.js.\n'
   + 'const module = { exports: {} };\nconst exports = module.exports;\n(function () {\n' + core + '\n})();\nexport default module.exports;\n',
 );
-console.log('vendored marked, dompurify, highlight.js ->', out);
+// xterm.js (ESM builds; the sourceMappingURL comment is dropped because the .map files are not vendored).
+const noMap = (s) => s.replace(/\n?\/\/# sourceMappingURL=.*\s*$/, '\n');
+writeFileSync(`${out}/xterm.js`, noMap(readFileSync(`${nm}/@xterm/xterm/lib/xterm.mjs`, 'utf8')));
+writeFileSync(`${out}/xterm-addon-fit.js`, noMap(readFileSync(`${nm}/@xterm/addon-fit/lib/addon-fit.mjs`, 'utf8')));
+cpSync(`${nm}/@xterm/xterm/css/xterm.css`, `${out}/xterm.css`);
+console.log('vendored marked, dompurify, highlight.js, xterm ->', out);

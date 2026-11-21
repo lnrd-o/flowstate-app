@@ -81,6 +81,8 @@ const ICONS = {
   pause: [['path', { d: 'M8 5v14M16 5v14' }]],
   info: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 11v5M12 8h.01' }]],
   pointer: [['path', { d: 'M5 3l14 7-6 2-2 6z' }]],
+  maximize: [['rect', { x: 5, y: 5, width: 14, height: 14, rx: 1 }]],
+  restore: [['rect', { x: 4, y: 8, width: 12, height: 12, rx: 1 }], ['path', { d: 'M8 8V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-3' }]],
   refresh: [['path', { d: 'M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8' }], ['path', { d: 'M21 4v5h-5M3 20v-5h5' }]],
 };
 

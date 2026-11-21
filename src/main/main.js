@@ -18,10 +18,15 @@ import { createHistory } from './history.js';
 import { createMethodologies } from './methodologies.js';
 import { createRecorder } from './recorder.js';
 import { createRunner } from './runner.js';
+import { createLoginManager } from './login.js';
+import { buildWindowOptions, createWindowController } from './window.js';
+import { killTree } from './agents/base.js';
+import { runCommand } from './run.js';
 import { CH } from '../shared/ipc.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let win = null;
+let winCtl = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -68,10 +73,17 @@ if (!app.requestSingleInstanceLock()) {
       dir, getProject, getMethodology: methodologies.get, agents, git,
       emit: (projectId, state) => ipc?.push(CH.evMethod, { projectId, state }),
     });
+    const login = createLoginManager({
+      resolveCli: (agent) => (agent === 'agy' ? health.findAgy() : health.findClaude()),
+      run: runCommand, killTree, emit: (evt) => ipc?.push(CH.evLogin, evt),
+    });
+    const windowCtl = {
+      windowInfo: () => winCtl?.windowInfo(), setTheme: (t) => winCtl?.setTheme(t), action: (a) => winCtl?.action(a),
+    };
     ipc = registerIpc({
       ipcMain, dialog, settings, projects, agents, git, health: poller,
       prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner,
-      getWindow: () => win, onSettings: applyLogin,
+      login, windowCtl, getWindow: () => win, onSettings: applyLogin,
     });
 
     session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
@@ -80,28 +92,28 @@ if (!app.requestSingleInstanceLock()) {
     });
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
 
-    win = new BrowserWindow({
-      width: 1280, height: 800, minWidth: 1000, minHeight: 650, title: 'FlowState', backgroundColor: '#17171a',
-      autoHideMenuBar: true,
-      webPreferences: {
-        preload: path.join(here, 'preload.cjs'),
-        contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false,
-      },
-    });
-    win.setMenuBarVisibility(false);
-    const openExternal = (url) => { if (isAllowedExternal(url)) shell.openExternal(url); };
-    win.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
-    win.webContents.on('will-navigate', (e, url) => {
-      if (!isInternalUrl(url)) { e.preventDefault(); openExternal(url); }
-    });
-    win.on('closed', () => { win = null; });
-    win.loadFile(path.join(here, '..', 'renderer', 'index.html'));
-    win.webContents.once('did-finish-load', () => poller.start());
+    let pollerStarted = false;
+    const createWindow = () => {
+      const w = new BrowserWindow(buildWindowOptions(process.platform, { preload: path.join(here, 'preload.cjs') }));
+      win = w;
+      winCtl = createWindowController(w, { platform: process.platform, push: (ch, p) => ipc.push(ch, p) });
+      w.setMenuBarVisibility(false);
+      const openExternal = (url) => { if (isAllowedExternal(url)) shell.openExternal(url); };
+      w.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
+      w.webContents.on('will-navigate', (e, url) => {
+        if (!isInternalUrl(url)) { e.preventDefault(); openExternal(url); }
+      });
+      w.on('closed', () => { if (win === w) { win = null; winCtl = null; } });
+      w.loadFile(path.join(here, '..', 'renderer', 'index.html'));
+      w.webContents.once('did-finish-load', () => { if (!pollerStarted) { pollerStarted = true; poller.start(); } });
+    };
+    createWindow();
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 
     app.on('before-quit', () => {
-      poller.stop(); runner.stopAll(); agents.stopAll(); dashboards.stopAll(); remote.stopAll(); files.closeWatcher();
+      poller.stop(); login.cancelAll(); runner.stopAll(); agents.stopAll(); dashboards.stopAll(); remote.stopAll(); files.closeWatcher();
     });
   });
 
-  app.on('window-all-closed', () => app.quit());
+  app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 }

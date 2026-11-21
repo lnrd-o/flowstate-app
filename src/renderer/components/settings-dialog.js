@@ -3,6 +3,7 @@ import { h } from '../lib/dom.js';
 import { t, onChange } from '../lib/i18n.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { openDialog } from './modal.js';
+import { statusChip } from '../lib/login-state.js';
 
 export const CODE_THEMES = ['vs-dark', 'github-dark', 'github-light', 'dracula', 'one-dark', 'solarized-dark', 'monokai', 'gold-dark'];
 
@@ -72,12 +73,27 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     const redo = h('button', { class: 'btn', type: 'button', text: t('settings.restartWalkthrough') });
     redo.addEventListener('click', () => { dlg.close('walkthrough'); onWalkthrough(); });
 
+    const accounts = h('div', { class: 'settings-accounts' },
+      h('div', { class: 'field__label', text: t('settings.accounts') }),
+      h('div', { class: 'card card--flush' }, ...['claude', 'agy'].map((a) => {
+        const known = store.get().signedIn[a];
+        const c = statusChip(known);
+        const acts = known === true
+          ? [h('button', { class: 'btn btn--sm', type: 'button', text: t('login.signOut'), on: { click: () => (a === 'claude' ? actions.signOut(a) : actions.openLogin(a)) } })]
+          : [h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(a) } })];
+        return h('div', { class: 'list-row' },
+          h('div', { class: 'list-row__main' }, h('div', { class: 'list-row__title', text: t('health.' + a) })),
+          h('span', { class: 'badge badge--' + c.tone }, h('span', { class: 'badge__dot' }), t(c.key)), ...acts);
+      })),
+      h('div', { class: 'field__hint', text: t('settings.accountsHint') }));
+
     body.replaceChildren(
       h('div', { class: 'settings-grid' },
         field(t('settings.language'), lang),
         field(t('settings.theme'), theme)),
       field(t('settings.codeTheme'), code),
       h('div', { class: 'settings-preview-wrap', attrs: { 'aria-label': t('settings.codeTheme') } }, preview),
+      accounts,
       field(t('settings.claudePath'), pathInput('set-claude-path', 'claudePath'), t('settings.pathHint')),
       field(t('settings.agyPath'), pathInput('set-agy-path', 'agyPath'), t('settings.pathHint')),
       h('label', { class: 'toggle', for: 'set-autolaunch' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('settings.autoLaunch') })),
@@ -87,6 +103,9 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
   }
 
   render();
-  unsub = onChange(() => render());
+  const unsubLang = onChange(() => render());
+  let lastSigned = store.get().signedIn;
+  const unsubStore = store.subscribe((st) => { if (st.signedIn !== lastSigned) { lastSigned = st.signedIn; render(); } });
+  unsub = () => { unsubLang(); unsubStore(); };
   return dlg;
 }

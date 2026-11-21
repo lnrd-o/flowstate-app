@@ -25,7 +25,7 @@ test('prereq: allow-list, exact winget args, unknown id refused', async () => {
   assert.deepEqual(wingetArgs('git'), ['install', '--id', 'Git.Git', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements']);
   for (const bad of ['calc', 'git; calc', '__proto__', 'constructor', '', 'Git.Git']) assert.throws(() => wingetArgs(bad), /Unknown/);
   let spawned = 0;
-  const p = createPrereq({ spawn: () => { spawned++; return fakeChild(); } });
+  const p = createPrereq({ platform: 'win32', spawn: () => { spawned++; return fakeChild(); } });
   await assert.rejects(p.install('evil'), /Unknown/);
   assert.equal(spawned, 0);
 });
@@ -33,7 +33,7 @@ test('prereq: allow-list, exact winget args, unknown id refused', async () => {
 test('prereq: streams, rechecks, refuses concurrent installs', async () => {
   const events = []; let rechecked = 0; const seen = [];
   const child = fakeChild();
-  const p = createPrereq({
+  const p = createPrereq({ platform: 'win32',
     spawn: (cmd, args, opts) => { seen.push([cmd, args, opts]); return child; },
     push: (e) => events.push(e), recheck: async () => { rechecked++; },
   });
@@ -49,23 +49,24 @@ test('prereq: streams, rechecks, refuses concurrent installs', async () => {
   assert.deepEqual(events.map((e) => e.kind), ['log', 'log', 'done']);
   assert.equal(rechecked, 1);
   const c2 = fakeChild();
-  const p2 = createPrereq({ spawn: () => c2, push: (e) => events.push(e) });
+  const p2 = createPrereq({ platform: 'win32', spawn: () => c2, push: (e) => events.push(e) });
   const pr = p2.install('node');
   c2.emit('close', 1);
   assert.equal((await pr).ok, false);
   assert.equal(events.at(-1).kind, 'error');
-  const bad = createPrereq({ spawn: () => { const c = fakeChild(); setImmediate(() => c.emit('error', new Error('ENOENT'))); return c; } });
+  const bad = createPrereq({ platform: 'win32', spawn: () => { const c = fakeChild(); setImmediate(() => c.emit('error', new Error('ENOENT'))); return c; } });
   assert.equal((await bad.install('git')).ok, false);
 });
 
 test('auth: argument building and validation', async () => {
-  assert.deepEqual(buildLoginCommand('claude', 'C:\\x\\claude.exe'), { command: 'cmd.exe', args: ['/c', 'start', 'FlowState sign-in', 'C:\\x\\claude.exe', 'auth', 'login'] });
-  assert.deepEqual(buildLoginCommand('agy', 'C:\\x\\agy.exe').args, ['/c', 'start', 'FlowState sign-in', 'C:\\x\\agy.exe']);
-  assert.throws(() => buildLoginCommand('claude', 'C:\\x\\claude.cmd'));
-  assert.throws(() => buildLoginCommand('claude', 'C:\\x" & calc & ".exe'));
-  assert.throws(() => buildLoginCommand('evil', 'a.exe'));
+  assert.deepEqual(buildLoginCommand('claude', 'C:\\x\\claude.exe', 'win32'), { command: 'cmd.exe', args: ['/c', 'start', 'FlowState sign-in', 'C:\\x\\claude.exe', 'auth', 'login'] });
+  assert.deepEqual(buildLoginCommand('agy', 'C:\\x\\agy.exe', 'win32').args, ['/c', 'start', 'FlowState sign-in', 'C:\\x\\agy.exe']);
+  assert.throws(() => buildLoginCommand('claude', 'C:\\x\\claude.cmd', 'win32'));
+  assert.throws(() => buildLoginCommand('claude', 'C:\\x" & calc & ".exe', 'win32'));
+  assert.throws(() => buildLoginCommand('evil', 'a.exe', 'win32'));
   const seen = [];
   const auth = createAuth({
+    platform: 'win32',
     health: { findClaude: async () => 'C:\\x\\claude.exe', findAgy: async () => null },
     fsx: { existsSync: () => true },
     spawn: (cmd, args, opts) => { seen.push([cmd, args, opts]); const c = fakeChild(); setImmediate(() => c.emit('spawn')); return c; },
@@ -92,7 +93,7 @@ test('remote: arg building per agent and status parsing', () => {
 test('remote: claude lifecycle with a fake child', async () => {
   const projects = { p1: { id: 'p1', name: 'Proj', path: 'C:\\proj', agent: 'claude', mode: 'acceptEdits' } };
   const child = fakeChild(); const killed = []; const events = []; const spawned = [];
-  const r = createRemote({
+  const r = createRemote({ platform: 'win32',
     getProject: (id) => projects[id] ?? null, findExe: async () => 'C:\\claude.exe', settleMs: 30,
     spawn: (cmd, args, opts) => { spawned.push([cmd, args, opts]); return child; }, kill: (c) => killed.push(c), push: (e) => events.push(e),
   });
@@ -125,7 +126,7 @@ test('remote: early exit maps to error code; needs-terminal opens a console; sto
     return c;
   };
   let script = [() => mk('Error: Workspace not trusted. Please run claude', 1), () => mk('Raw mode is not supported', 1), () => fakeChild()];
-  const r = createRemote({
+  const r = createRemote({ platform: 'win32',
     getProject: () => proj, findExe: async () => 'C:\\claude.exe', settleMs: 200,
     spawn: (cmd, args) => { spawned.push([cmd, args]); const c = (script.length ? script.shift()() : fakeChild()); if (cmd === 'cmd.exe') setImmediate(() => c.emit('spawn')); kids.push(c); return c; },
     kill: (c) => kids.push(['killed', c]),
@@ -148,7 +149,7 @@ test('remote: agy uses daemon commands', async () => {
   const proj = { id: 'p2', name: 'Agy P', path: 'C:\\p', agent: 'agy', mode: 'default' };
   const calls = [];
   const run = async (cmd, args) => { calls.push(args.join(' ')); return { code: 0, stdout: args[1] === 'status' ? 'Daemon status: running' : 'started', stderr: '' }; };
-  const r = createRemote({ getProject: () => proj, findExe: async () => 'C:\\agy.exe', run });
+  const r = createRemote({ platform: 'win32', getProject: () => proj, findExe: async () => 'C:\\agy.exe', run });
   assert.equal((await r.status('p2')).running, true);
   assert.equal((await r.start('p2')).running, true);
   assert.equal(calls.at(-1), 'remote-control start --session --name Agy P');
@@ -217,6 +218,7 @@ test('ipc: phase 2 handlers validate arguments', async () => {
     prompts: mk('prompts'), files: mk('files'), dashboards: mk('dashboards'), prereq: mk('prereq'), auth: mk('auth'),
     remote: { ...mk('remote'), stopForRemoved: async () => {} }, history: mk('history'),
     methodologies: mk('methodologies'), recorder: mk('recorder'), runner: mk('runner'),
+    login: mk('login'), windowCtl: mk('windowCtl'),
   });
   for (const ch of Object.values(CH).filter((c) => !c.startsWith('ev:'))) assert.equal(typeof handlers[ch], 'function', ch);
   await assert.rejects(async () => handlers[CH.filesRead]({}, 'nope', 'a.txt'), /Unknown project/);

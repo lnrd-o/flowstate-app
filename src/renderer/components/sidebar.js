@@ -14,7 +14,6 @@ export function mountRail(el, { store, actions }) {
       on: { click: () => actions.setView(view) },
     }, icon(ic));
     el.append(
-      h('div', { class: 'rail__logo', attrs: { 'aria-hidden': 'true' }, text: 'F' }),
       btn('project', 'message', t('nav.projects')),
       btn('prompts', 'file', t('nav.prompts')),
       btn('methodologies', 'layers', t('nav.methodologies')),
@@ -40,19 +39,11 @@ export function mountRail(el, { store, actions }) {
 export function mountSidebar(el, { store, actions }) {
   const avatar = h('span', { class: 'workspace-switcher__avatar', attrs: { 'aria-hidden': 'true' }, text: 'F' });
   const wsName = h('span', { class: 'grow truncate' });
-  const search = h('input', { class: 'input', type: 'search', id: 'project-search', autocomplete: 'off', spellcheck: false });
-  const kbd = h('span', { class: 'kbd', attrs: { 'aria-hidden': 'true' }, text: 'Ctrl K' });
   const header = h('div', { class: 'sidebar__header' },
-    h('div', { class: 'workspace-switcher' }, avatar, wsName),
-    h('div', { class: 'search-box' }, icon('search', 'search-box__icon'), search, kbd));
+    h('div', { class: 'workspace-switcher' }, avatar, wsName));
   const scroll = h('div', { class: 'sidebar__scroll' });
   const footer = h('div', { class: 'sidebar__footer' });
   el.append(header, scroll, footer);
-
-  search.addEventListener('input', () => store.set({ search: search.value }));
-  search.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { search.value = ''; store.set({ search: '' }); search.blur(); }
-  });
 
   function renderScroll(s) {
     clear(scroll);
@@ -121,8 +112,6 @@ export function mountSidebar(el, { store, actions }) {
 
   function renderHeader() {
     wsName.textContent = t('app.name');
-    search.placeholder = t('nav.searchPlaceholder');
-    search.setAttribute('aria-label', t('nav.search'));
     el.setAttribute('aria-label', t('nav.workspace'));
   }
 
@@ -144,6 +133,5 @@ export function mountSidebar(el, { store, actions }) {
   update();
   return {
     update: () => { sig = ''; update(); },
-    focusSearch() { search.focus(); search.select(); },
   };
 }

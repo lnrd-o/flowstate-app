@@ -1,5 +1,6 @@
 // Shared helper: run a child with args array (shell:false) and stream its output line by line.
 import { spawn as nodeSpawn } from 'node:child_process';
+import { spawnEnv } from './platform.js';
 
 /**
  * Resolves {code, error?} (never rejects). onLine(text, stream) is called for each non-empty output line.
@@ -9,7 +10,7 @@ export function streamProcess(cmd, args, { spawn = nodeSpawn, cwd, env, onLine, 
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn(cmd, args, { cwd, env, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn(cmd, args, { cwd, env: env ?? spawnEnv(), shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
       resolve({ code: -1, error: String(e?.message ?? e) });
       return;

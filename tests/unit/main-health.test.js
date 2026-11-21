@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { fakeFs as makeFs } from '../fixtures/fake-fs.js';
 import { matchVpnAdapters, createHealth, createHealthPoller } from '../../src/main/health.js';
 
 test('VPN adapter matcher (array, single object, configurable pattern)', () => {
@@ -16,40 +17,29 @@ test('VPN adapter matcher (array, single object, configurable pattern)', () => {
   assert.deepEqual(matchVpnAdapters(list, /wi-fi/i), ['Wi-Fi']);
 });
 
-function fakeFs(files) {
-  const norm = (p) => path.normalize(p).toLowerCase();
-  const set = new Set(files.map(norm));
-  const all = [...set];
-  return {
-    existsSync: (p) => { const n = norm(p); return set.has(n) || all.some((f) => f.startsWith(n + path.sep)); },
-    readdirSync: (p) => {
-      const n = norm(p) + path.sep;
-      const kids = new Set(all.filter((f) => f.startsWith(n)).map((f) => f.slice(n.length).split(path.sep)[0]));
-      if (!kids.size) throw new Error('ENOENT');
-      return [...kids];
-    },
-  };
-}
+const fakeFs = (files) => makeFs(files, 'win32');
 const noWhere = async () => ({ code: 1, stdout: '', stderr: '' });
 const env = { LOCALAPPDATA: 'C:\\L', USERPROFILE: 'C:\\U', APPDATA: 'C:\\A' };
 
 test('claude discovery: newest Claude-Data version wins', async () => {
   const files = ['C:\\L\\Claude-Data\\x1\\claude-code\\2.1.9\\aaa\\claude.exe', 'C:\\L\\Claude-Data\\x1\\claude-code\\2.1.328\\bbb\\claude.exe', 'C:\\L\\Claude-Data\\x1\\claude-code\\2.1.100\\ccc\\claude.exe'];
   const h = createHealth({ run: noWhere, fsx: fakeFs(files), env, platform: 'win32' });
-  assert.equal(await h.findClaude(), path.join('C:\\L', 'Claude-Data', 'x1', 'claude-code', '2.1.328', 'bbb', 'claude.exe'));
+  assert.equal(await h.findClaude(), path.win32.join('C:\\L', 'Claude-Data', 'x1', 'claude-code', '2.1.328', 'bbb', 'claude.exe'));
 });
 
-test('claude discovery order: settings > PATH > ~/.local/bin > Claude-Data > npm', async () => {
+test('claude discovery order (win32): settings > PATH > ~/.local/bin > Claude-Data > npm .exe; never .cmd shims', async () => {
   const local = 'C:\\U\\.local\\bin\\claude.exe';
   const cd = 'C:\\L\\Claude-Data\\x\\claude-code\\1.0.0\\h\\claude.exe';
-  const npm = 'C:\\A\\npm\\claude.cmd';
+  const npm = 'C:\\A\\npm\\claude.exe';
+  const shim = 'C:\\A\\npm\\claude.cmd';
   const mk = (files, run = noWhere, settings = {}) => createHealth({ run, fsx: fakeFs(files), env, platform: 'win32', getSettings: () => settings });
   assert.equal(await mk([local, cd], noWhere, { claudePath: cd }).findClaude(), cd);
   const onPath = async () => ({ code: 0, stdout: 'C:\\tools\\claude.exe\r\n', stderr: '' });
   assert.equal(await mk([local, cd], onPath).findClaude(), 'C:\\tools\\claude.exe');
   assert.equal(await mk([local, cd]).findClaude(), local);
-  assert.equal(await mk([cd, npm]).findClaude(), path.join('C:\\L', 'Claude-Data', 'x', 'claude-code', '1.0.0', 'h', 'claude.exe'));
+  assert.equal(await mk([cd, npm]).findClaude(), path.win32.join('C:\\L', 'Claude-Data', 'x', 'claude-code', '1.0.0', 'h', 'claude.exe'));
   assert.equal(await mk([npm]).findClaude(), npm);
+  assert.equal(await mk([shim]).findClaude(), null);
   assert.equal(await mk([]).findClaude(), null);
 });
 

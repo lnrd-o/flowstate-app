@@ -1,3 +1,6 @@
+import { isAllowedLoginUrl } from './auth-check.js';
+
+// CSP note: xterm.js (sign-in terminal) needs no eval and only inline styles, which style-src already allows.
 export const CSP = [
   "default-src 'self'",
   "script-src 'self'",
@@ -14,6 +17,7 @@ export const EXTERNAL_ALLOW = ['claude.ai', 'anthropic.com', 'github.com', 'node
 
 /** True only for https URLs whose host is (a subdomain of) an allow-listed domain. */
 export function isAllowedExternal(url, allow = EXTERNAL_ALLOW) {
+  if (isAllowedLoginUrl(url)) return true; // sign-in hosts (https only)
   let u;
   try { u = new URL(url); } catch { return false; }
   if (u.protocol !== 'https:' || u.username || u.password) return false;

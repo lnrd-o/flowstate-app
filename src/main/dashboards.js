@@ -6,7 +6,8 @@ import path from 'node:path';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { runCommand } from './run.js';
 import { streamProcess } from './proc.js';
-import { killTree } from './agents/base.js';
+import { killTree, childSpawnOptions } from './agents/base.js';
+import { pathFor } from './platform.js';
 import { resolveInside } from './files.js';
 
 export const PIP_PACKAGES = ['streamlit', 'plotly', 'pandas'];
@@ -39,6 +40,17 @@ export async function waitForPort(port, { timeoutMs = 60000, intervalMs = 300, p
   return false;
 }
 
+/** Path of the python executable inside a project's .venv for the given platform. */
+export function venvPythonPath(root, platform = process.platform) {
+  const P = pathFor(platform);
+  return platform === 'win32' ? P.join(root, '.venv', 'Scripts', 'python.exe') : P.join(root, '.venv', 'bin', 'python');
+}
+
+/** Interpreters tried (in order) to create the venv. */
+export function pythonCandidates(platform = process.platform) {
+  return platform === 'win32' ? [['py', ['-3']], ['python', []]] : [['python3', []], ['python', []]];
+}
+
 export function streamlitArgs(app, port) {
   return ['-m', 'streamlit', 'run', app, '--server.address', '127.0.0.1', '--server.port', String(port),
     '--server.headless', 'true', '--browser.gatherUsageStats', 'false'];
@@ -57,14 +69,13 @@ export function createDashboards({
     if (!p) throw new Error('Unknown project');
     return p;
   };
-  const venvPython = (root) => (platform === 'win32' ? path.join(root, '.venv', 'Scripts', 'python.exe') : path.join(root, '.venv', 'bin', 'python'));
+  const venvPython = (root) => venvPythonPath(root, platform);
   const exists = (f) => { try { return fsx.existsSync(f); } catch { return false; } };
   const emit = (projectId, o) => push({ projectId, ...o });
   const stateOf = (projectId) => { const r = procs.get(projectId); return { running: !!r, url: r?.url ?? null, app: r?.app ?? null }; };
 
   async function findPython() {
-    const cands = platform === 'win32' ? [['py', ['-3']], ['python', []]] : [['python3', []], ['python', []]];
-    for (const [cmd, pre] of cands) {
+    for (const [cmd, pre] of pythonCandidates(platform)) {
       const r = await run(cmd, [...pre, '--version'], { timeout: 8000 });
       const v = `${r.stdout}${r.stderr}`.trim().split(/\r?\n/)[0];
       if (r.code === 0 && /^Python \d/.test(v)) return { cmd, pre, version: v.replace(/^Python\s+/, '') };
@@ -117,7 +128,10 @@ export function createDashboards({
         if (!py) return fail('Python was not found. Install Python first.');
         log('Creating virtual environment (.venv)...');
         const r = await streamProcess(py.cmd, [...py.pre, '-m', 'venv', path.join(p.path, '.venv')], { spawn, cwd: p.path, onLine: log });
-        if (r.code !== 0 || !exists(vp)) return fail(r.error ?? `venv creation failed (exit ${r.code})`);
+        if (r.code !== 0 || !exists(vp)) {
+          const hint = platform === 'linux' ? ' (on Debian/Ubuntu install the python3-venv package)' : '';
+          return fail(r.error ?? `venv creation failed (exit ${r.code})${hint}`);
+        }
       }
       log(`Installing ${PIP_PACKAGES.join(', ')}...`);
       const r = await streamProcess(vp, ['-m', 'pip', 'install', '--disable-pip-version-check', ...PIP_PACKAGES], { spawn, cwd: p.path, onLine: log });
@@ -141,7 +155,7 @@ export function createDashboards({
     starting.add(projectId);
     try {
       const port = await getPort();
-      const child = spawn(vp, streamlitArgs(rel, port), { cwd: p.path, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(vp, streamlitArgs(rel, port), { cwd: p.path, ...childSpawnOptions({ platform }), stdio: ['ignore', 'pipe', 'pipe'] });
       let dead = false;
       const tail = [];
       const onData = (d) => { for (const l of String(d).split(/\r?\n/)) if (l.trim()) { tail.push(l); if (tail.length > 20) tail.shift(); } };

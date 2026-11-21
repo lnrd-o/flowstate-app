@@ -64,10 +64,11 @@
     "disabledNoProject": "Select or create a project to start.",
     "disabledVpn": "Sending is disabled while a VPN is active. Disconnect it and recheck.",
     "disabledMissing": "{agent} CLI was not found. Set its path in Settings.",
-    "disabledLogin": "Claude is not signed in. Sign in from the Claude CLI and recheck.",
+    "disabledLogin": "Claude is not signed in.",
     "slashForm": "Fill form",
     "slashInsert": "Insert",
-    "slashNone": "No matching templates"
+    "slashNone": "No matching templates",
+    "disabledLoginAgy": "AGY is not signed in."
   },
   "project": {
     "title": "Project",
@@ -104,7 +105,7 @@
   "banner": {
     "vpn": "VPN detected. Disconnect and use a regular network to reach Claude.",
     "claudeMissing": "Claude CLI was not found. Set its path in Settings.",
-    "notLoggedIn": "Claude is not signed in. Sign in from the Claude CLI, then recheck.",
+    "notLoggedIn": "Claude is not signed in. Sign in to continue.",
     "agyAlwaysProceed": "AGY applies file changes without asking in this mode. Switch to Plan only to review changes first.",
     "recheck": "Recheck",
     "openSettings": "Open settings",
@@ -112,7 +113,8 @@
     "claudeMissingHint": "Pick the claude.exe file in Settings.",
     "browseSettings": "Browse path in Settings",
     "signIn": "Sign in",
-    "gitMissing": "Git was not found, so auto-commit and undo are unavailable."
+    "gitMissing": "Git was not found, so auto-commit and undo are unavailable.",
+    "agyNotLoggedIn": "AGY is not signed in. Sign in to start chatting."
   },
   "health": {
     "title": "System check",
@@ -149,7 +151,9 @@
     "autoLaunch": "Launch FlowState at login",
     "restartWalkthrough": "Run the setup walkthrough again",
     "saved": "Settings saved",
-    "pathHint": "Leave empty to detect automatically."
+    "pathHint": "Leave empty to detect automatically.",
+    "accounts": "Accounts",
+    "accountsHint": "Sign in to the agents you use. Credentials stay in each CLI's own store; FlowState never reads them."
   },
   "walkthrough": {
     "title": "Set up your project",
@@ -190,7 +194,9 @@
     "startEmptyText": "Just the folder and the agent.",
     "startNoMethods": "No methodologies available yet.",
     "startRunNote": "The methodology starts as soon as the project is created.",
-    "runFailed": "The project was created but the methodology could not start: {message}"
+    "runFailed": "The project was created but the methodology could not start: {message}",
+    "signInNeeded": "You are not signed in to {agent}. You can continue, but sending messages stays disabled until you sign in.",
+    "signedInOk": "{agent} is signed in."
   },
   "prompts": {
     "title": "Prompt templates",
@@ -654,6 +660,68 @@
         "error": "Methodology failed in \"{name}\".",
         "stopped": "Methodology stopped in \"{name}\"."
       }
+    }
+  },
+  "titlebar": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close window",
+    "remoteOn": "Remote control on",
+    "signedOut": "{agent} signed out"
+  },
+  "login": {
+    "title": "Sign in",
+    "tabClaude": "Claude",
+    "tabAgy": "AGY",
+    "signedIn": "Signed in",
+    "signedOut": "Signed out",
+    "unknown": "Unknown",
+    "account": "Account type",
+    "kind": {
+      "claudeai": "Claude subscription",
+      "console": "Anthropic Console",
+      "sso": "SSO"
+    },
+    "email": "Email (optional)",
+    "emailSso": "Work email (optional)",
+    "emailPlaceholder": "you@company.com",
+    "signIn": "Sign in",
+    "claudeIntro": "Sign in to Claude without leaving FlowState. A browser window opens so you can approve access.",
+    "claudeSignedIn": "Claude is signed in. You can sign in again with another account.",
+    "step1": "A browser window opened",
+    "waitingUrl": "Waiting for the sign-in link...",
+    "openBrowser": "Open in browser",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "step2": "If the page shows a code, paste it here",
+    "codePlaceholder": "Paste the code",
+    "submit": "Submit",
+    "checking": "Checking the code...",
+    "waitBrowser": "Finish in the browser. This window updates by itself.",
+    "success": "You are signed in to {agent}",
+    "successSub": "Closing...",
+    "failed": "Sign-in failed",
+    "tryAgain": "Try again",
+    "cancelSignIn": "Cancel sign-in",
+    "signOut": "Sign out",
+    "signOutConfirmTitle": "Sign out of {agent}?",
+    "signOutConfirm": "You will need to sign in again to use {agent}.",
+    "signedOutToast": "Signed out of {agent}",
+    "signOutFailed": "Could not sign out.",
+    "external": "Use a separate window instead",
+    "agyIntro": "This opens the AGY terminal. Choose \"Log in with Google\" or \"Gemini Enterprise\" with the arrow keys and press Enter. A browser opens to finish.",
+    "agySignedIn": "AGY is signed in.",
+    "agyLogoutNote": "To sign out of AGY, type /logout inside the AGY terminal.",
+    "openTerminal": "Open sign-in terminal",
+    "openTerminalLogout": "Open AGY terminal",
+    "terminalLabel": "AGY sign-in terminal",
+    "terminalHint": "Use the arrow keys and Enter inside the terminal. Esc cancels the sign-in.",
+    "err": {
+      "generic": "Something went wrong. Try again.",
+      "terminalUnavailable": "The built-in terminal is not available on this system. Run agy in your own terminal to sign in, then recheck.",
+      "useTerminal": "AGY signs out from its own terminal: type /logout there.",
+      "notSignedIn": "The sign-in did not complete. Try again."
     }
   }
 }

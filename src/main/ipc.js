@@ -11,7 +11,7 @@ const isId = (v) => typeof v === 'string' && v.length > 0 && v.length <= 64;
  * getWindow() -> object with webContents.send / isDestroyed (or null).
  */
 export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, agents, health, git, onSettings,
-  prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner }) {
+  prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner, login, windowCtl }) {
   const need = (id) => {
     if (!isStr(id)) throw new TypeError('projectId required');
     const p = projects.get(id);
@@ -24,6 +24,47 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
   };
   const isMid = (v) => typeof v === 'string' && ID_RE.test(v);
   const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const isAgent = (a) => a === 'claude' || a === 'agy';
+  const needAgent = (a) => { if (!isAgent(a)) throw new TypeError('invalid agent'); return a; };
+  const optInt = (v, lo, hi, name) => {
+    if (v === undefined) return undefined;
+    if (!Number.isInteger(v) || v < lo || v > hi) throw new TypeError(`invalid ${name}`);
+    return v;
+  };
+  const phase4 = () => ({
+    [CH.loginStart]: (_e, agent, opts = {}) => {
+      needAgent(agent);
+      if (!isPlain(opts)) throw new TypeError('options must be an object');
+      const { kind, email } = opts;
+      if (kind !== undefined && !['claudeai', 'console', 'sso'].includes(kind)) throw new TypeError('invalid kind');
+      if (email !== undefined && (typeof email !== 'string' || email.length > 254)) throw new TypeError('invalid email');
+      const clean = { kind, email: email || undefined, cols: optInt(opts.cols, 20, 300, 'cols'), rows: optInt(opts.rows, 5, 100, 'rows') };
+      return login.start(agent, clean);
+    },
+    [CH.loginInput]: (_e, agent, data) => {
+      needAgent(agent);
+      if (typeof data !== 'string') throw new TypeError('data must be a string');
+      if (data.length > 8192) throw new TypeError('data too long');
+      login.input(agent, data);
+    },
+    [CH.loginResize]: (_e, agent, cols, rows) => {
+      needAgent(agent);
+      if (!Number.isInteger(cols) || !Number.isInteger(rows)) throw new TypeError('cols and rows must be integers');
+      login.resize(agent, cols, rows);
+    },
+    [CH.loginCancel]: (_e, agent) => { needAgent(agent); login.cancel(agent); },
+    [CH.loginStatus]: () => login.status(),
+    [CH.loginLogout]: (_e, agent) => login.logout(needAgent(agent)),
+    [CH.windowInfo]: () => windowCtl.windowInfo(),
+    [CH.windowSetTheme]: (_e, theme) => {
+      if (!isPlain(theme)) throw new TypeError('theme required');
+      windowCtl.setTheme({ color: theme.color, symbolColor: theme.symbolColor, height: theme.height });
+    },
+    [CH.windowAction]: (_e, name) => {
+      if (!['minimize', 'toggle-maximize', 'close'].includes(name)) throw new TypeError('invalid action');
+      windowCtl.action(name);
+    },
+  });
   const phase3 = () => ({
     [CH.methodList]: () => methodologies.list(),
     [CH.methodGet]: (_e, id) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); return methodologies.get(id); },
@@ -128,6 +169,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.gitUndoTurn]: (_e, id) => git.undoTurn(need(id).path),
     ...phase2(),
     ...phase3(),
+    ...phase4(),
   };
   for (const [ch, fn] of Object.entries(handlers)) ipcMain.handle(ch, fn);
 

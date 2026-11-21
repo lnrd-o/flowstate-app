@@ -7,6 +7,12 @@ import { installJobs } from '../lib/install-state.js';
 import { createLogBox } from './log-box.js';
 import { buildVarsForm } from './vars-form.js';
 import { runDefaults } from '../lib/method-utils.js';
+import { statusChip } from '../lib/login-state.js';
+
+function loginChip(loggedIn) {
+  const c = statusChip(loggedIn);
+  return h('span', { class: 'badge badge--' + c.tone }, h('span', { class: 'badge__dot' }), t(c.key));
+}
 
 const INSTALLABLE = ['git', 'node', 'python'];
 
@@ -33,6 +39,11 @@ export function prereqRows(health) {
   ];
 }
 
+/** The prerequisites step counts as satisfied only when the chosen agent is signed in (never blocks: the user can still continue). Pure. */
+export function prerequisitesSatisfied(signedIn, agent) {
+  return !!signedIn && signedIn[agent] === true;
+}
+
 export function openWalkthrough({ store, api, actions, firstRun }) {
   const data = { path: '', name: '', agent: 'claude', mode: 'default', autoCommit: true, methodId: '', method: null, varValues: {} };
   let step = 0;
@@ -57,7 +68,9 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
   let lastRunning = runningNow();
   const unsubLang = onChange(() => render());
   const unsubJobs = installJobs.subscribe(() => { const r = runningNow(); if (r !== lastRunning) { lastRunning = r; if (ids()[step] === 'prerequisites') { health = store.get().health; render(); } } });
-  const unsub = () => { unsubLang(); unsubJobs(); logBoxes.forEach((l) => l.destroy()); };
+  let lastSigned = store.get().signedIn;
+  const unsubSigned = store.subscribe((st) => { if (st.signedIn !== lastSigned) { lastSigned = st.signedIn; if (ids()[step] === 'prerequisites') render(); } });
+  const unsub = () => { unsubLang(); unsubJobs(); unsubSigned(); logBoxes.forEach((l) => l.destroy()); };
 
   async function runCheck() {
     checking = true; render();
@@ -93,6 +106,14 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
     if (ids()[step] === 'prerequisites') runCheck(); else render();
   }
 
+  function signNote() {
+    const ok = prerequisitesSatisfied(store.get().signedIn, data.agent);
+    const name = t('agent.' + data.agent);
+    return ok ? h('div', { class: 'faint small', text: t('walkthrough.signedInOk', { agent: name }) })
+      : h('div', { class: 'wt-note', attrs: { role: 'status' } }, h('span', { text: t('walkthrough.signInNeeded', { agent: name }) }),
+        h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(data.agent) } }));
+  }
+
   function stepBody() {
     const id = ids()[step];
     const text = h('p', { text: t('walkthrough.' + id + 'Text') });
@@ -105,12 +126,14 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
             on: { click: async () => { await actions.installPrereq(r.id, { dialog: false }); health = store.get().health; render(); } } }));
         }
         if (!r.ok && (r.id === 'claude' || r.id === 'agy')) acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.browseSettings'), on: { click: () => actions.openSettings() } }));
-        if (r.ok && r.extra === 'notLoggedIn') acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.signIn'), on: { click: () => actions.signIn('claude') } }));
+        const agentRow = r.ok && (r.id === 'claude' || r.id === 'agy');
+        const known = agentRow ? store.get().signedIn[r.id] : null;
+        if (agentRow && known !== true) acts.push(h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(r.id) } }));
         return h('div', { class: 'list-row' },
           h('div', { class: 'list-row__main list-row__main--wrap' },
             h('div', { class: 'list-row__title', text: t('health.' + r.id) }),
             h('div', { class: 'list-row__sub list-row__sub--wrap' }, r.ok ? (r.version || t('health.found')) : t('walkthrough.hint.' + r.id)),
-            r.extra ? h('div', { class: 'list-row__sub', text: t('health.' + r.extra) }) : null,
+            agentRow ? h('div', { class: 'list-row__sub' }, loginChip(known)) : null,
             acts.length ? h('div', { class: 'row wrap gap-1 list-row__acts' }, ...acts) : null),
           h('span', { class: 'badge ' + (r.ok ? 'badge--green' : 'badge--red') }, h('span', { class: 'badge__dot' }), r.ok ? t('health.found') : t('health.missing')));
       });
@@ -123,6 +146,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
           h('span', { class: 'badge ' + (vpn ? 'badge--red' : 'badge--green') }, h('span', { class: 'badge__dot' }), vpn ? t('health.vpnActive') : t('health.vpnInactive')),
           h('span', { class: 'badge ' + (health.anthropicReachable ? 'badge--green' : 'badge--red') }, h('span', { class: 'badge__dot' }),
             t('health.anthropic') + ': ' + (health.anthropicReachable ? t('health.reachable') : t('health.unreachable')))) : null,
+        health ? signNote() : null,
         ...logBoxes.map((l) => l.el),
         h('div', null, h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.recheck'), disabled: checking, on: { click: runCheck } }))];
     }

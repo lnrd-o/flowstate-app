@@ -64,10 +64,11 @@
     "disabledNoProject": "Elige o crea un proyecto para empezar.",
     "disabledVpn": "El env\u00edo est\u00e1 desactivado mientras haya una VPN activa. Descon\u00e9ctala y vuelve a comprobar.",
     "disabledMissing": "No se encontr\u00f3 la CLI de {agent}. Indica su ruta en Ajustes.",
-    "disabledLogin": "Claude no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n desde la CLI de Claude y vuelve a comprobar.",
+    "disabledLogin": "Claude no tiene la sesi\u00f3n iniciada.",
     "slashForm": "Llenar formulario",
     "slashInsert": "Insertar",
-    "slashNone": "No hay plantillas que coincidan"
+    "slashNone": "No hay plantillas que coincidan",
+    "disabledLoginAgy": "AGY no tiene la sesi\u00f3n iniciada."
   },
   "project": {
     "title": "Proyecto",
@@ -104,7 +105,7 @@
   "banner": {
     "vpn": "Se detect\u00f3 una VPN. Descon\u00e9ctala y usa una red normal para llegar a Claude.",
     "claudeMissing": "No se encontr\u00f3 la CLI de Claude. Indica su ruta en Ajustes.",
-    "notLoggedIn": "Claude no tiene sesi\u00f3n iniciada. Inicia sesi\u00f3n desde la CLI de Claude y vuelve a comprobar.",
+    "notLoggedIn": "Claude no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n para continuar.",
     "agyAlwaysProceed": "AGY aplica los cambios en archivos sin preguntarte en este modo. Cambia a Solo planificar para revisarlos antes.",
     "recheck": "Volver a comprobar",
     "openSettings": "Abrir ajustes",
@@ -112,7 +113,8 @@
     "claudeMissingHint": "Elige el archivo claude.exe en Configuraci\u00f3n.",
     "browseSettings": "Buscar ruta en Configuraci\u00f3n",
     "signIn": "Iniciar sesi\u00f3n",
-    "gitMissing": "No se encontr\u00f3 Git, as\u00ed que el auto-commit y deshacer no est\u00e1n disponibles."
+    "gitMissing": "No se encontr\u00f3 Git, as\u00ed que el auto-commit y deshacer no est\u00e1n disponibles.",
+    "agyNotLoggedIn": "AGY no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n para empezar a chatear."
   },
   "health": {
     "title": "Revisi\u00f3n del sistema",
@@ -149,7 +151,9 @@
     "autoLaunch": "Iniciar FlowState al iniciar sesi\u00f3n",
     "restartWalkthrough": "Repetir la gu\u00eda de configuraci\u00f3n",
     "saved": "Ajustes guardados",
-    "pathHint": "D\u00e9jalo vac\u00edo para detectarlo autom\u00e1ticamente."
+    "pathHint": "D\u00e9jalo vac\u00edo para detectarlo autom\u00e1ticamente.",
+    "accounts": "Cuentas",
+    "accountsHint": "Inicia sesi\u00f3n en los agentes que uses. Las credenciales quedan en el almac\u00e9n de cada CLI; FlowState nunca las lee."
   },
   "walkthrough": {
     "title": "Configura tu proyecto",
@@ -190,7 +194,9 @@
     "startEmptyText": "Solo la carpeta y el agente.",
     "startNoMethods": "Todav\u00eda no hay metodolog\u00edas disponibles.",
     "startRunNote": "La metodolog\u00eda empieza en cuanto se crea el proyecto.",
-    "runFailed": "El proyecto se cre\u00f3 pero la metodolog\u00eda no pudo iniciar: {message}"
+    "runFailed": "El proyecto se cre\u00f3 pero la metodolog\u00eda no pudo iniciar: {message}",
+    "signInNeeded": "No has iniciado sesi\u00f3n en {agent}. Puedes continuar, pero no podr\u00e1s enviar mensajes hasta que lo hagas.",
+    "signedInOk": "{agent} tiene la sesi\u00f3n iniciada."
   },
   "prompts": {
     "title": "Plantillas de prompt",
@@ -654,6 +660,68 @@
         "error": "La metodolog\u00eda fall\u00f3 en \"{name}\".",
         "stopped": "La metodolog\u00eda se detuvo en \"{name}\"."
       }
+    }
+  },
+  "titlebar": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
+    "close": "Cerrar ventana",
+    "remoteOn": "Control remoto activo",
+    "signedOut": "{agent} sin sesi\u00f3n"
+  },
+  "login": {
+    "title": "Iniciar sesi\u00f3n",
+    "tabClaude": "Claude",
+    "tabAgy": "AGY",
+    "signedIn": "Sesi\u00f3n iniciada",
+    "signedOut": "Sin sesi\u00f3n",
+    "unknown": "Desconocido",
+    "account": "Tipo de cuenta",
+    "kind": {
+      "claudeai": "Suscripci\u00f3n de Claude",
+      "console": "Consola de Anthropic",
+      "sso": "SSO"
+    },
+    "email": "Correo (opcional)",
+    "emailSso": "Correo del trabajo (opcional)",
+    "emailPlaceholder": "tu@empresa.com",
+    "signIn": "Iniciar sesi\u00f3n",
+    "claudeIntro": "Inicia sesi\u00f3n en Claude sin salir de FlowState. Se abre una ventana del navegador para que apruebes el acceso.",
+    "claudeSignedIn": "Claude ya tiene la sesi\u00f3n iniciada. Puedes entrar de nuevo con otra cuenta.",
+    "step1": "Se abri\u00f3 una ventana del navegador",
+    "waitingUrl": "Esperando el enlace de inicio de sesi\u00f3n...",
+    "openBrowser": "Abrir en el navegador",
+    "copyLink": "Copiar enlace",
+    "linkCopied": "Enlace copiado",
+    "step2": "Si la p\u00e1gina muestra un c\u00f3digo, p\u00e9galo aqu\u00ed",
+    "codePlaceholder": "Pega el c\u00f3digo",
+    "submit": "Enviar",
+    "checking": "Verificando el c\u00f3digo...",
+    "waitBrowser": "Termina en el navegador. Esta ventana se actualiza sola.",
+    "success": "Ya iniciaste sesi\u00f3n en {agent}",
+    "successSub": "Cerrando...",
+    "failed": "No se pudo iniciar sesi\u00f3n",
+    "tryAgain": "Intentar de nuevo",
+    "cancelSignIn": "Cancelar inicio de sesi\u00f3n",
+    "signOut": "Cerrar sesi\u00f3n",
+    "signOutConfirmTitle": "\u00bfCerrar sesi\u00f3n en {agent}?",
+    "signOutConfirm": "Tendr\u00e1s que volver a iniciar sesi\u00f3n para usar {agent}.",
+    "signedOutToast": "Sesi\u00f3n cerrada en {agent}",
+    "signOutFailed": "No se pudo cerrar la sesi\u00f3n.",
+    "external": "Usar una ventana aparte",
+    "agyIntro": "Esto abre la terminal de AGY. Elige \"Log in with Google\" o \"Gemini Enterprise\" con las flechas y pulsa Enter. Se abre el navegador para terminar.",
+    "agySignedIn": "AGY tiene la sesi\u00f3n iniciada.",
+    "agyLogoutNote": "Para cerrar sesi\u00f3n en AGY, escribe /logout dentro de la terminal de AGY.",
+    "openTerminal": "Abrir terminal de inicio de sesi\u00f3n",
+    "openTerminalLogout": "Abrir terminal de AGY",
+    "terminalLabel": "Terminal de inicio de sesi\u00f3n de AGY",
+    "terminalHint": "Usa las flechas y Enter dentro de la terminal. Esc cancela el inicio de sesi\u00f3n.",
+    "err": {
+      "generic": "Algo sali\u00f3 mal. Intenta de nuevo.",
+      "terminalUnavailable": "La terminal integrada no est\u00e1 disponible en este sistema. Ejecuta agy en tu propia terminal para iniciar sesi\u00f3n y luego vuelve a comprobar.",
+      "useTerminal": "AGY cierra sesi\u00f3n desde su propia terminal: escribe /logout all\u00ed.",
+      "notSignedIn": "El inicio de sesi\u00f3n no se complet\u00f3. Intenta de nuevo."
     }
   }
 }

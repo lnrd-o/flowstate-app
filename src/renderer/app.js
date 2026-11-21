@@ -14,6 +14,10 @@ import { mountBanners } from './components/banners.js';
 import { mountArtifacts, COLLAPSED_KEY } from './components/artifacts.js';
 import { openSettingsDialog } from './components/settings-dialog.js';
 import { openWalkthrough } from './components/walkthrough.js';
+import { openLoginDialog } from './components/login-dialog.js';
+import { mountTitlebar } from './components/titlebar.js';
+import { applyStatus, applyHealth, applyLoginEvent } from './lib/login-state.js';
+import { normalizePlatform } from './lib/titlebar-state.js';
 import { confirmDialog, toast, openDialog } from './components/modal.js';
 import { createMethodActions } from './lib/method-actions.js';
 
@@ -25,6 +29,7 @@ function applyAppearance(settings) {
   root.dataset.theme = ['light', 'gold'].includes(settings.theme) ? settings.theme : 'dark';
   if (settings.codeTheme) root.dataset.codeTheme = settings.codeTheme;
   else delete root.dataset.codeTheme;
+  if (ui.titlebar) ui.titlebar.syncTheme(); // recolour the native window controls
 }
 
 async function refreshGit(projectId) {
@@ -39,6 +44,11 @@ async function refreshGit(projectId) {
 }
 
 const ui = {};
+
+/** Single entry for Health snapshots: also merges the per-agent signed-in flags. */
+function setHealthState(health) {
+  store.set((s) => ({ health, signedIn: applyHealth(s.signedIn, health) }));
+}
 
 const histLoaded = new Set();
 const histBuffer = new Map(); // projectId -> live events received while history loads
@@ -227,7 +237,29 @@ const actions = {
     toast(good ? t('prereq.installedToast', { name: t('health.' + id) }) : t('prereq.failed'), good ? 'success' : 'error');
     return good;
   },
-  async signIn(agent) {
+  /** In-app sign-in (Claude URL + code, AGY terminal). */
+  openLogin(agent) { openLoginDialog({ store, api, actions, agent }); },
+  signIn(agent) { actions.openLogin(agent); },
+  applyLoginStatus(status) { store.set((s) => ({ signedIn: applyStatus(s.signedIn, status) })); },
+  async refreshLoginStatus() {
+    try { actions.applyLoginStatus(await api.login.status()); } catch { /* backend not ready */ }
+  },
+  async signOut(agent) {
+    if (agent !== 'claude') { actions.openLogin(agent); return false; }
+    const name = t('agent.' + agent);
+    const ok = await confirmDialog({ title: t('login.signOutConfirmTitle', { agent: name }), message: t('login.signOutConfirm', { agent: name }), confirmLabel: t('login.signOut'), danger: true });
+    if (!ok) return false;
+    try {
+      const r = await api.login.logout(agent);
+      if (r && r.ok === false) { toast(t('login.signOutFailed'), 'error'); return false; }
+      toast(t('login.signedOutToast', { agent: name }), 'success');
+    } catch { toast(t('login.signOutFailed'), 'error'); return false; }
+    await actions.refreshLoginStatus();
+    actions.recheckHealth();
+    return true;
+  },
+  /** Old behaviour: sign in from a separate console window. */
+  async signInExternal(agent) {
     try {
       const r = await api.auth.login(agent);
       if (r && r.ok === false) toast(t('auth.loginFailed'), 'error');
@@ -297,9 +329,9 @@ const actions = {
   },
   refreshGit: () => refreshGit(),
   async recheckHealth() {
-    try { store.set({ health: await api.health.check() }); } catch { /* keep previous */ }
+    try { setHealthState(await api.health.check()); } catch { /* keep previous */ }
   },
-  setHealth(health) { store.set({ health }); },
+  setHealth(health) { setHealthState(health); },
   toggleSidebar() {
     const collapsed = !store.get().sidebarCollapsed;
     store.set({ sidebarCollapsed: collapsed });
@@ -345,6 +377,7 @@ function syncLayout(app) {
 function buildShell() {
   const root = document.getElementById('root');
   root.replaceChildren();
+  const titlebar = h('header', { class: 'titlebar' });
   const bannerSlot = h('div', { class: 'banner-slot' });
   const rail = h('nav', { class: 'rail' });
   const sidebar = h('aside', { class: 'sidebar' });
@@ -352,12 +385,14 @@ function buildShell() {
   const splitter = h('div', { class: 'splitter', attrs: { role: 'separator', 'aria-orientation': 'vertical', tabindex: '0', 'aria-valuenow': '420' } });
   const artifacts = h('aside', { class: 'artifacts' });
   const app = h('div', { class: 'app' }, rail, sidebar, main, splitter, artifacts);
-  root.append(bannerSlot, app);
+  root.append(titlebar, bannerSlot, app);
   const deps = { store, api, actions };
   ui.rail = mountRail(rail, deps);
   ui.sidebar = mountSidebar(sidebar, deps);
   ui.main = mountMain(main, deps);
   ui.banners = mountBanners(bannerSlot, deps);
+  ui.titlebar = mountTitlebar(titlebar, deps);
+  ui.titlebar.syncTheme();
   ui.artifacts = mountArtifacts({ aside: artifacts, splitter, app, store, api, actions });
   store.subscribe((s, prev) => {
     if (s.sidebarCollapsed !== prev.sidebarCollapsed || s.artifactsCollapsed !== prev.artifactsCollapsed || s.view !== prev.view) syncLayout(app);
@@ -369,6 +404,7 @@ function buildShell() {
 function nav(rail) { rail.setAttribute('aria-label', t('nav.workspace')); }
 
 async function boot() {
+  document.documentElement.classList.add('platform-' + normalizePlatform(api.platform));
   let settings = await api.settings.get();
   const lang = settings.language || detectLanguage(navigator.language);
   await setLanguage(lang);
@@ -379,6 +415,10 @@ async function boot() {
     sidebarCollapsed: false,
     artifactsCollapsed: readStore(COLLAPSED_KEY, '0') === '1',
   });
+  try {
+    const info = api.window && (await api.window.info());
+    if (info) store.set((s) => ({ win: { ...s.win, ...info, platform: normalizePlatform(info.platform || api.platform) } }));
+  } catch { /* keep defaults */ }
   const projects = await api.projects.list();
   const last = projects.find((p) => p.id === settings.lastProjectId) || projects[0] || null;
   store.set({ projects, activeProjectId: last ? last.id : null });
@@ -390,8 +430,11 @@ async function boot() {
   actions.loadMethods({ quiet: true });
   for (const p of projects) actions.refreshRun(p.id);
 
-  api.health.check().then((health) => store.set({ health })).catch(() => {});
-  api.onHealth((health) => store.set({ health }));
+  api.health.check().then((health) => setHealthState(health)).catch(() => {});
+  api.onHealth((health) => setHealthState(health));
+  actions.refreshLoginStatus();
+  if (api.onLogin) api.onLogin((ev) => store.set((s) => ({ signedIn: applyLoginEvent(s.signedIn, ev) })));
+  if (api.onWindow) api.onWindow((w) => store.set((s) => ({ win: { ...s.win, ...w } })));
   api.onAgentEvent(({ projectId, event }) => {
     if (histBuffer.has(projectId)) { histBuffer.get(projectId).push(event); return; }
     store.updateChat(projectId, (c) => reduceEvent(c, event));
@@ -421,6 +464,7 @@ async function boot() {
     ui.sidebar.update();
     ui.main.update();
     ui.banners.update();
+    ui.titlebar.update();
     ui.artifacts.update();
     nav(document.querySelector('.rail'));
     if (store.get().settings.language !== l) store.set({ settings: { ...store.get().settings, language: l } });
@@ -430,8 +474,7 @@ async function boot() {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
-      if (store.get().sidebarCollapsed) store.set({ sidebarCollapsed: false });
-      ui.sidebar.focusSearch();
+      ui.titlebar.focusSearch();
     }
   });
 
