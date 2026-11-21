@@ -103,3 +103,10 @@ All main pairs are >= 4.5:1. Raw `--accent` (#7c5cff) is ~4.0:1 on panels: use o
 
 ## i18n
 `src/renderer/lib/i18n.js`: `await setLanguage('es')`, `t('chat.permissionText', {agent, tool})`, `applyTranslations(root)` for `data-i18n`, `data-i18n-placeholder`, `data-i18n-title`, `data-i18n-aria-label`, `onChange(cb)` returns unsubscribe, `detectLanguage(osLocale)`. JSON in `src/renderer/i18n/{en,es}.json`; add every key to both (test enforces parity and placeholders). Spanish strings run ~20-30% longer: let buttons/labels truncate or wrap, do not set fixed widths.
+
+## Phase 3 additions (app.css)
+- Graph (`components/graph.js`): `.graph > svg.graph__svg` with `.gedge(.is-selected|.is-walked)`, `.gnode.gnode--<type>(.is-selected|.is-source|.st-<state>)`; node tone via `--nc`/`--nct` (accent, amber, green, blue, muted). Run states always add a badge glyph, never color alone. Pulse only under `prefers-reduced-motion: no-preference`.
+- Editor: `.me` (head, toolbar, `.me__body` = canvas + `.me__side` inspector with `.pill-tabs`), `.chip(--ok|--warn)`, `.me__warn`, `.me__suggest`. Stacks under 780px of container width.
+- List: `.methods`, `.method-card`. Run panel above the chat: `.rp` (`.rp__card` waiting card, `.rp__cmd` command block, `.rp__steps`). Dialog helpers: `.vf` (variables form), `.wt-opt` (walkthrough starting point).
+- The methodologies view adds `.is-wide-view` to `.app` (artifacts pane hidden).
+- Browser mock: `lib/mock-phase3.js`; hash flags `#runfail`, `#fastrun`.

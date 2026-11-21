@@ -5,6 +5,8 @@ import { activeProject } from '../lib/store.js';
 import { mountChat } from './chat.js';
 import { mountComposer } from './composer.js';
 import { mountPrompts } from './prompts.js';
+import { mountMethods } from './methods.js';
+import { mountRunPanel } from './run-panel.js';
 import { openProjectMenu } from './project-menu.js';
 import { copyText } from '../lib/clipboard.js';
 import { toast } from './modal.js';
@@ -23,13 +25,17 @@ export function mountMain(el, deps) {
   const remoteCard = h('div', { class: 'remote-card-wrap', hidden: true });
 
   const chatRoot = h('div', { class: 'chat' });
+  const runHost = h('div', { class: 'run-host' });
   const chatInner = h('div', { class: 'chat__list' });
   const composerWrap = h('div', { class: 'composer-wrap' });
-  chatRoot.append(chatInner, composerWrap);
+  chatRoot.append(runHost, chatInner, composerWrap);
   const page = h('div', { class: 'page', hidden: true });
   const promptsHost = h('div', { class: 'prompts-host' });
   el.append(topbar, subbar, remoteCard, chatRoot, page);
   const prompts = mountPrompts(promptsHost, deps);
+  const methodsHost = h('div', { class: 'prompts-host methods-host' });
+  const methods = mountMethods(methodsHost, deps);
+  const runPanel = mountRunPanel(runHost, deps);
 
   const chat = mountChat(chatInner, deps);
   const composer = mountComposer(composerWrap, deps);
@@ -58,6 +64,7 @@ export function mountMain(el, deps) {
     } else {
       title.textContent = s.view === 'project' ? t('app.name') : section;
       if (s.view === 'prompts') { page.classList.add('page--fill'); page.replaceChildren(promptsHost); prompts.render(); }
+      else if (s.view === 'methodologies') { page.classList.add('page--fill'); page.replaceChildren(methodsHost); methods.render(); }
       else { page.classList.remove('page--fill'); page.replaceChildren(buildPage(s, p)); }
     }
   }
@@ -94,12 +101,6 @@ export function mountMain(el, deps) {
   }
 
   function buildPage(s, p) {
-    if (s.view === 'methodologies') {
-      return h('div', { class: 'page__inner' }, h('div', { class: 'empty-state' },
-        h('div', { class: 'empty-state__icon' }, icon(s.view === 'prompts' ? 'file' : 'layers', 'icon--lg')),
-        h('div', { class: 'empty-state__title', text: t('nav.comingSoon') }),
-        h('div', { class: 'empty-state__text', text: (s.view === 'prompts' ? t('nav.prompts') : t('nav.methodologies')) + ': ' + t('nav.comingSoonText') })));
-    }
     return h('div', { class: 'page__inner' }, h('div', { class: 'empty-state' },
       h('div', { class: 'empty-state__icon' }, icon('folder', 'icon--lg')),
       h('div', { class: 'empty-state__title', text: t('project.noProjects') }),
@@ -118,11 +119,12 @@ export function mountMain(el, deps) {
   }
   store.subscribe((s, prev) => {
     update(false);
+    if (s.view === 'methodologies' && (s.methods !== prev.methods || s.editing !== prev.editing || s.activeProjectId !== prev.activeProjectId || s.projects !== prev.projects)) methods.render();
     if (s.view === 'prompts' && (s.templates !== prev.templates || s.selectedTemplate !== prev.selectedTemplate || s.activeProjectId !== prev.activeProjectId)) prompts.render();
   });
   update(true);
   return {
     chat, composer,
-    update() { update(true); chat.update(); composer.update(); },
+    update() { update(true); chat.update(); composer.update(); methods.update(); runPanel.update(); },
   };
 }

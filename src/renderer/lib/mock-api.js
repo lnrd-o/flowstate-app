@@ -17,6 +17,7 @@ const MOCK_REPLY = [
 ];
 
 import { createPhase2 } from './mock-phase2.js';
+import { createPhase3 } from './mock-phase3.js';
 
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -47,6 +48,7 @@ export function createMockApi() {
     anthropicReachable: !/#vpn/.test(location.hash),
   });
   p2 = createPhase2({ projects: () => projects, emitAgent: emit, flags });
+  const p3 = createPhase3({ projects: () => projects, getHistory: (pid) => p2.api.history.get(pid), emitAgent: emit });
   window.addEventListener('hashchange', () => healthSubs.forEach((cb) => cb(health())));
 
   function runTurn(projectId, text) {
@@ -126,6 +128,8 @@ export function createMockApi() {
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
     ...p2.api,
+    method: p3.api,
+    onMethod: p3.subscribe.onMethod,
     onFiles: p2.subscribe.onFiles,
     onDashboard: p2.subscribe.onDashboard,
     onInstall: p2.subscribe.onInstall,

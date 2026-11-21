@@ -21,7 +21,9 @@ const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? '  -> ' + detail : ''}`); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const child = spawn(electron, [root, `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`], { stdio: 'ignore' });
+// E2E_EXE=<path to packaged FlowState.exe> tests the built app instead of the dev checkout.
+const packaged = process.env.E2E_EXE;
+const child = spawn(packaged || electron, [...(packaged ? [] : [root]), `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`], { stdio: 'ignore' });
 let ws; let id = 0; const pending = new Map(); const problems = [];
 
 async function connect() {

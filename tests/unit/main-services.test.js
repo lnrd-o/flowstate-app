@@ -216,6 +216,7 @@ test('ipc: phase 2 handlers validate arguments', async () => {
     projects: { get: (id) => (id === 'p' ? proj : null), remove() {} }, agents: mk('agents'),
     prompts: mk('prompts'), files: mk('files'), dashboards: mk('dashboards'), prereq: mk('prereq'), auth: mk('auth'),
     remote: { ...mk('remote'), stopForRemoved: async () => {} }, history: mk('history'),
+    methodologies: mk('methodologies'), recorder: mk('recorder'), runner: mk('runner'),
   });
   for (const ch of Object.values(CH).filter((c) => !c.startsWith('ev:'))) assert.equal(typeof handlers[ch], 'function', ch);
   await assert.rejects(async () => handlers[CH.filesRead]({}, 'nope', 'a.txt'), /Unknown project/);
@@ -226,5 +227,35 @@ test('ipc: phase 2 handlers validate arguments', async () => {
   await assert.rejects(async () => handlers[CH.promptsDelete]({}, ''), /id required/);
   await handlers[CH.filesRead]({}, 'p', 'a.txt');
   await handlers[CH.projectsRemove]({}, 'p');
-  assert.ok(called.includes('files.read') && called.includes('history.clear') && called.includes('dashboards.stop'));
+  assert.ok(called.includes('files.read') && called.includes('history.clear') && called.includes('dashboards.stop') && called.includes('runner.forgetProject'));
+
+  // phase 3 validation
+  const h = handlers;
+  const bad = (fn, re) => assert.rejects(async () => fn(), re);
+  await bad(() => h[CH.methodGet]({}, '../x'), /invalid methodology id/);
+  await bad(() => h[CH.methodDelete]({}, 'A'), /invalid methodology id/);
+  await bad(() => h[CH.methodExport]({}, 5), /invalid methodology id/);
+  await bad(() => h[CH.methodSave]({}, 'str'), /methodology required/);
+  await bad(() => h[CH.methodSave]({}, [1]), /methodology required/);
+  await bad(() => h[CH.methodRecord]({}, 'nope', {}), /Unknown project/);
+  await bad(() => h[CH.methodRecord]({}, 'p', { name: 5 }), /invalid name/);
+  await bad(() => h[CH.methodRecord]({}, 'p', { fromTs: 'x' }), /invalid timestamp/);
+  await bad(() => h[CH.methodRun]({}, 'nope', 'flow', {}), /Unknown project/);
+  await bad(() => h[CH.methodRun]({}, 'p', '../x', {}), /invalid methodology id/);
+  await bad(() => h[CH.methodRun]({}, 'p', 'flow', [1]), /plain object/);
+  await bad(() => h[CH.methodRun]({}, 'p', 'flow', Object.fromEntries(Array.from({ length: 41 }, (_, i) => ['k' + i, 'v']))), /too many vars/);
+  await bad(() => h[CH.methodRun]({}, 'p', 'flow', { 'bad key': 'v' }), /invalid var name/);
+  await bad(() => h[CH.methodRespond]({}, '', 'n1', {}), /run id required/);
+  await bad(() => h[CH.methodRespond]({}, 'r1', 'bad node!', {}), /invalid node id/);
+  await bad(() => h[CH.methodRespond]({}, 'r1', 'n1', null), /response required/);
+  await bad(() => h[CH.methodStop]({}, 7), /run id required/);
+  await bad(() => h[CH.methodRunState]({}, 'nope'), /Unknown project/);
+  called.length = 0;
+  await h[CH.methodRun]({}, 'p', 'flow', { a: 'b' });
+  await h[CH.methodRespond]({}, 'r1', 'n1', { approve: true });
+  await h[CH.methodStop]({}, 'r1');
+  await h[CH.methodRunState]({}, 'p');
+  await h[CH.methodRecord]({}, 'p');
+  await h[CH.methodList]({});
+  assert.deepEqual(called, ['runner.run', 'runner.respond', 'runner.stop', 'runner.state', 'recorder.record', 'methodologies.list']);
 });

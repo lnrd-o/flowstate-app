@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { CH } from '../shared/ipc.js';
+import { ID_RE, KEY_RE, LIMITS } from '../shared/methodology.js';
 
 const isStr = (v) => typeof v === 'string' && v.length > 0;
 const isRel = (v) => typeof v === 'string' && v.length <= 1024;
@@ -10,7 +11,7 @@ const isId = (v) => typeof v === 'string' && v.length > 0 && v.length <= 64;
  * getWindow() -> object with webContents.send / isDestroyed (or null).
  */
 export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, agents, health, git, onSettings,
-  prompts, files, dashboards, prereq, auth, remote, history }) {
+  prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner }) {
   const need = (id) => {
     if (!isStr(id)) throw new TypeError('projectId required');
     const p = projects.get(id);
@@ -21,6 +22,41 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     const w = getWindow();
     if (w && !w.isDestroyed?.() && !w.webContents?.isDestroyed?.()) w.webContents.send(channel, payload);
   };
+  const isMid = (v) => typeof v === 'string' && ID_RE.test(v);
+  const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const phase3 = () => ({
+    [CH.methodList]: () => methodologies.list(),
+    [CH.methodGet]: (_e, id) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); return methodologies.get(id); },
+    [CH.methodSave]: (_e, m) => { if (!isPlain(m)) throw new TypeError('methodology required'); return methodologies.save(m); },
+    [CH.methodDelete]: (_e, id) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); methodologies.delete(id); },
+    [CH.methodRecord]: (_e, projectId, opts = {}) => {
+      need(projectId);
+      if (!isPlain(opts)) throw new TypeError('options must be an object');
+      const { name, fromTs, toTs } = opts;
+      if (name !== undefined && (typeof name !== 'string' || name.length > 200)) throw new TypeError('invalid name');
+      for (const t of [fromTs, toTs]) if (t !== undefined && !Number.isFinite(t)) throw new TypeError('invalid timestamp');
+      return recorder.record(projectId, { name, fromTs, toTs });
+    },
+    [CH.methodImport]: () => methodologies.import(),
+    [CH.methodExport]: (_e, id) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); return methodologies.export(id); },
+    [CH.methodRun]: (_e, projectId, methodologyId, vars = {}) => {
+      need(projectId);
+      if (!isMid(methodologyId)) throw new TypeError('invalid methodology id');
+      if (!isPlain(vars)) throw new TypeError('vars must be a plain object');
+      const keys = Object.keys(vars);
+      if (keys.length > LIMITS.vars) throw new TypeError('too many vars');
+      if (keys.some((k) => !KEY_RE.test(k))) throw new TypeError('invalid var name');
+      return runner.run(projectId, methodologyId, vars);
+    },
+    [CH.methodRespond]: (_e, runId, nodeId, response) => {
+      if (!isId(runId)) throw new TypeError('run id required');
+      if (typeof nodeId !== 'string' || !/^[A-Za-z0-9_-]{1,40}$/.test(nodeId)) throw new TypeError('invalid node id');
+      if (!isPlain(response)) throw new TypeError('response required');
+      return runner.respond(runId, nodeId, response);
+    },
+    [CH.methodStop]: (_e, runId) => { if (!isId(runId)) throw new TypeError('run id required'); runner.stop(runId); },
+    [CH.methodRunState]: (_e, id) => { need(id); return runner.state(id); },
+  });
   const phase2 = () => ({
     [CH.promptsList]: () => prompts.list(),
     [CH.promptsSave]: (_e, t) => prompts.save(t),
@@ -68,6 +104,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.projectsRemove]: (_e, id) => {
       const p = need(id);
       agents.stop(p.id);
+      runner?.forgetProject(p.id);
       files?.closeWatcher(p.id);
       dashboards?.stop(p.id);
       remote?.stopForRemoved(p).catch(() => {});
@@ -90,6 +127,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.gitStatus]: (_e, id) => git.status(need(id).path),
     [CH.gitUndoTurn]: (_e, id) => git.undoTurn(need(id).path),
     ...phase2(),
+    ...phase3(),
   };
   for (const [ch, fn] of Object.entries(handlers)) ipcMain.handle(ch, fn);
 

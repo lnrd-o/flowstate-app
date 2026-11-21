@@ -12,6 +12,9 @@
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "e2e": "node tests/e2e/smoke.mjs",
     "vendor": "node scripts/vendor.js",
+    "icon": "node scripts/make-icon.mjs",
+    "dist": "electron-builder --win --x64",
+    "dist:dir": "electron-builder --win --x64 --dir",
     "spike:claude": "node spikes/capture.js claude",
     "spike:agy": "node spikes/capture.js agy"
   },
@@ -19,10 +22,9 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "electron": "^45.4.1"
-  },
-  "dependencies": {
     "dompurify": "^3.4.18",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
     "highlight.js": "^11.12.0",
     "marked": "^18.2.1"
   }

@@ -70,6 +70,17 @@ const ICONS = {
   external: [['path', { d: 'M14 4h6v6M20 4 10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5' }]],
   download: [['path', { d: 'M12 4v11M7 11l5 5 5-5M5 20h14' }]],
   link: [['path', { d: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' }]],
+  minus: [['path', { d: 'M5 12h14' }]],
+  fit: [['path', { d: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5' }]],
+  redo: [['path', { d: 'm15 14 5-5-5-5' }], ['path', { d: 'M20 9H10a6 6 0 0 0 0 12h3' }]],
+  question: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01' }]],
+  flag: [['path', { d: 'M5 21V4M5 4h11l-2 4 2 4H5' }]],
+  branch: [['path', { d: 'M12 3 21 12 12 21 3 12z' }]],
+  upload: [['path', { d: 'M12 15V4M7 8l5-5 5 5M5 20h14' }]],
+  grid: [['rect', { x: 3, y: 3, width: 7, height: 7, rx: 1 }], ['rect', { x: 14, y: 3, width: 7, height: 7, rx: 1 }], ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }], ['rect', { x: 14, y: 14, width: 7, height: 7, rx: 1 }]],
+  pause: [['path', { d: 'M8 5v14M16 5v14' }]],
+  info: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 11v5M12 8h.01' }]],
+  pointer: [['path', { d: 'M5 3l14 7-6 2-2 6z' }]],
   refresh: [['path', { d: 'M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8' }], ['path', { d: 'M21 4v5h-5M3 20v-5h5' }]],
 };
 

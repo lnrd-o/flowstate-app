@@ -1,0 +1,31 @@
+{
+  "id": "project-bootstrap",
+  "version": 1,
+  "source": "bundled",
+  "name": { "en": "Project bootstrap", "es": "Arranque de proyecto" },
+  "description": {
+    "en": "Sets up a new project: README, .gitignore, folder layout and a first test for the chosen stack.",
+    "es": "Prepara un proyecto nuevo: README, .gitignore, estructura de carpetas y una primera prueba para la tecnología elegida."
+  },
+  "tags": ["bootstrap", "setup"],
+  "vars": [
+    { "key": "stack", "label": { "en": "Language / stack", "es": "Lenguaje / tecnología" }, "type": "select", "required": true,
+      "default": "Python", "options": ["Python", "Node.js (JavaScript)", "TypeScript", "Other"] }
+  ],
+  "nodes": [
+    { "id": "ask-goal", "type": "ask-user", "title": { "en": "Project goal", "es": "Objetivo del proyecto" },
+      "question": "In one or two sentences, what is {{projectName}} going to do?",
+      "saveAs": "goal" },
+    { "id": "scaffold", "type": "prompt", "title": { "en": "Create the scaffold", "es": "Crear la estructura" },
+      "text": "Bootstrap this project using {{stack}}. Project goal: {{goal}}\n\nCreate: a README.md (purpose, how to install, how to run, how to test), a suitable .gitignore, a sensible folder layout (source, tests, docs) and one small first test that passes. Keep it minimal and do not add dependencies that are not needed." },
+    { "id": "check-readme", "type": "artifact", "title": { "en": "README.md exists", "es": "Existe README.md" },
+      "path": "README.md" },
+    { "id": "commit", "type": "git-commit", "title": { "en": "Commit", "es": "Confirmar cambios" },
+      "message": "Bootstrap project" }
+  ],
+  "edges": [
+    { "from": "ask-goal", "to": "scaffold" },
+    { "from": "scaffold", "to": "check-readme" },
+    { "from": "check-readme", "to": "commit" }
+  ]
+}

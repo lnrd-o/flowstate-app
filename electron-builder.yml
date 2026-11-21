@@ -1,0 +1,34 @@
+appId: com.flowstate.app
+productName: FlowState
+copyright: Copyright (c) FlowState contributors
+directories:
+  output: dist
+  buildResources: build
+files:
+  - package.json
+  - src/**
+  - prompts/**
+  - methodologies/**
+  - "!src/renderer/vendor/hljs-styles/**"
+  - "!**/*.map"
+  - "!**/*.d.ts"
+asar: true
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: FlowState-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: FlowState
+  deleteAppDataOnUninstall: false
+  artifactName: FlowState-Setup-${version}-${arch}.${ext}
+portable:
+  artifactName: FlowState-Portable-${version}-${arch}.${ext}

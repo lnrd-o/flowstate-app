@@ -1,0 +1,32 @@
+{
+  "id": "data-analysis-report",
+  "version": 1,
+  "source": "bundled",
+  "name": { "en": "Data analysis report", "es": "Informe de análisis de datos" },
+  "description": {
+    "en": "Analyses a data file to answer a question and writes artifacts/report.md with charts.",
+    "es": "Analiza un archivo de datos para responder una pregunta y escribe artifacts/report.md con gráficos."
+  },
+  "tags": ["data", "analysis", "report"],
+  "vars": [],
+  "nodes": [
+    { "id": "ask-data", "type": "ask-user", "title": { "en": "Data file", "es": "Archivo de datos" },
+      "question": "Which data file should be analysed? (path relative to {{projectName}}, e.g. data/sales.csv)",
+      "saveAs": "dataFile" },
+    { "id": "ask-question", "type": "ask-user", "title": { "en": "Your question", "es": "Tu pregunta" },
+      "question": "What question do you want the analysis to answer?",
+      "saveAs": "question" },
+    { "id": "analyse", "type": "prompt", "title": { "en": "Analyse the data", "es": "Analizar los datos" },
+      "text": "Analyse the data file {{dataFile}} to answer this question: {{question}}\n\nWrite a clear report to artifacts/report.md (question, method, findings, caveats) and save the supporting charts as image files in artifacts/ referenced from the report. Do not modify the original data file." },
+    { "id": "check-report", "type": "artifact", "title": { "en": "report.md exists", "es": "Existe report.md" },
+      "path": "artifacts/report.md" },
+    { "id": "read", "type": "checkpoint", "title": { "en": "Read the report", "es": "Leer el informe" },
+      "message": "Open artifacts/report.md and check the findings. Approve to finish." }
+  ],
+  "edges": [
+    { "from": "ask-data", "to": "ask-question" },
+    { "from": "ask-question", "to": "analyse" },
+    { "from": "analyse", "to": "check-report" },
+    { "from": "check-report", "to": "read" }
+  ]
+}

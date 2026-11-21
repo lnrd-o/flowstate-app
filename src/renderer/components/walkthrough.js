@@ -1,13 +1,21 @@
 // New-project walkthrough: welcome -> prerequisites -> folder -> agent -> git -> done.
 import { h, radioKeys } from '../lib/dom.js';
-import { t, onChange } from '../lib/i18n.js';
+import { pickText } from '../../shared/methodology.js';
+import { t, onChange, getLanguage } from '../lib/i18n.js';
 import { openDialog } from './modal.js';
 import { installJobs } from '../lib/install-state.js';
 import { createLogBox } from './log-box.js';
+import { buildVarsForm } from './vars-form.js';
+import { runDefaults } from '../lib/method-utils.js';
 
 const INSTALLABLE = ['git', 'node', 'python'];
 
-export const STEPS = ['welcome', 'prerequisites', 'folder', 'agent', 'git', 'done'];
+export const STEPS = ['welcome', 'prerequisites', 'folder', 'agent', 'start', 'git', 'done'];
+
+/** Step ids for the wizard: the variables step only exists when a methodology is chosen. Pure. */
+export function stepsFor(methodId) {
+  return methodId ? ['welcome', 'prerequisites', 'folder', 'agent', 'start', 'variables', 'git', 'done'] : STEPS;
+}
 
 /** Last path segment of a Windows or POSIX path. Pure. */
 export function folderName(p) {
@@ -26,14 +34,18 @@ export function prereqRows(health) {
 }
 
 export function openWalkthrough({ store, api, actions, firstRun }) {
-  const data = { path: '', name: '', agent: 'claude', mode: 'default', autoCommit: true };
+  const data = { path: '', name: '', agent: 'claude', mode: 'default', autoCommit: true, methodId: '', method: null, varValues: {} };
   let step = 0;
+  let varsForm = null;
+  let runError = '';
+  const ids = () => stepsFor(data.methodId);
   let health = store.get().health;
   let checking = false;
   let error = '';
   let creating = false;
   let created = null;
   let finished = false;
+  let startLoaded = false;
 
   const body = h('div', { class: 'wt' });
   const dlg = openDialog({
@@ -44,7 +56,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
   const runningNow = () => INSTALLABLE.map((i) => installJobs.get(i).running).join();
   let lastRunning = runningNow();
   const unsubLang = onChange(() => render());
-  const unsubJobs = installJobs.subscribe(() => { const r = runningNow(); if (r !== lastRunning) { lastRunning = r; if (STEPS[step] === 'prerequisites') { health = store.get().health; render(); } } });
+  const unsubJobs = installJobs.subscribe(() => { const r = runningNow(); if (r !== lastRunning) { lastRunning = r; if (ids()[step] === 'prerequisites') { health = store.get().health; render(); } } });
   const unsub = () => { unsubLang(); unsubJobs(); logBoxes.forEach((l) => l.destroy()); };
 
   async function runCheck() {
@@ -58,7 +70,14 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
     creating = true; error = ''; render();
     try {
       created = await actions.createProject({ ...data, name: data.name || folderName(data.path) });
-      step = STEPS.length - 1;
+      step = ids().length - 1;
+      if (data.methodId) {
+        try {
+          await actions.startRun(created.id, data.methodId, data.varValues);
+          finished = true; actions.walkthroughClosed(); dlg.close('done');
+          return;
+        } catch (e) { runError = (e && e.message) || t('errors.generic'); }
+      }
     } catch (e) {
       error = (e && e.message) || t('errors.generic');
     }
@@ -68,13 +87,14 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
   function next() {
     if (step === 2 && !data.path) { error = t('walkthrough.folderRequired'); render(); return; }
     error = '';
-    if (STEPS[step] === 'git') { create(); return; }
-    step = Math.min(step + 1, STEPS.length - 1);
-    if (STEPS[step] === 'prerequisites') runCheck(); else render();
+    if (ids()[step] === 'variables' && varsForm && !varsForm.validate()) return;
+    if (ids()[step] === 'git') { create(); return; }
+    step = Math.min(step + 1, ids().length - 1);
+    if (ids()[step] === 'prerequisites') runCheck(); else render();
   }
 
   function stepBody() {
-    const id = STEPS[step];
+    const id = ids()[step];
     const text = h('p', { text: t('walkthrough.' + id + 'Text') });
     if (id === 'welcome') return [h('h3', { class: 'wt__h', text: t('app.name') }), text, h('p', { class: 'muted', text: t('app.tagline') })];
     if (id === 'prerequisites') {
@@ -133,6 +153,11 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
       mode.addEventListener('change', () => { data.mode = mode.value; });
       return [text, h('div', null, seg), h('div', { class: 'field' }, h('label', { class: 'field__label', for: 'wt-mode', text: t('mode.label') }), mode)];
     }
+    if (id === 'start') return startStep(text);
+    if (id === 'variables') {
+      varsForm = buildVarsForm({ vars: (data.method && data.method.vars) || [], values: data.varValues, api });
+      return [text, h('div', { class: 'strong', text: pickText(data.method && data.method.name, getLanguage()) }), varsForm.el, h('div', { class: 'faint small', text: t('walkthrough.startRunNote') })];
+    }
     if (id === 'git') {
       const cb = h('input', { type: 'checkbox', id: 'wt-git', checked: data.autoCommit });
       cb.addEventListener('change', () => { data.autoCommit = cb.checked; });
@@ -140,14 +165,41 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
         error ? h('div', { class: 'field__error', attrs: { role: 'alert' }, text: error }) : null];
     }
     return [h('div', { class: 'row' }, h('span', { class: 'badge badge--green' }, h('span', { class: 'badge__dot' }), t('common.ok')),
-      h('strong', { text: created ? created.name : '' })), text];
+      h('strong', { text: created ? created.name : '' })), text,
+      runError ? h('div', { class: 'field__error', attrs: { role: 'alert' }, text: t('walkthrough.runFailed', { message: runError }) }) : null];
+  }
+
+  async function pickMethod(id) {
+    if (!id) { data.methodId = ''; data.method = null; data.varValues = {}; error = ''; render(); return; }
+    try {
+      const m = await api.method.get(id);
+      data.methodId = id; data.method = m; data.varValues = runDefaults(m.vars || []); error = '';
+    } catch (e) { error = (e && e.message) || t('errors.generic'); }
+    render();
+  }
+
+  function startStep(text) {
+    const list = store.get().methods;
+    if (!list.length && !startLoaded) { startLoaded = true; actions.loadMethods({ quiet: true }).then(() => { if (ids()[step] === 'start') render(); }); }
+    const L = getLanguage();
+    const opt = (id, name, desc, badge) => h('button', {
+      class: 'wt-opt' + (data.methodId === id ? ' is-active' : ''), type: 'button',
+      attrs: { role: 'radio', 'aria-checked': String(data.methodId === id), tabindex: data.methodId === id ? '0' : '-1' },
+      on: { click: () => pickMethod(id) },
+    }, h('span', { class: 'row between gap-2' }, h('span', { class: 'strong truncate', text: name }), badge ? h('span', { class: 'badge badge--muted', text: badge }) : null), desc ? h('span', { class: 'muted small wt-opt__desc', text: desc }) : null);
+    const group = h('div', { class: 'wt-opts', attrs: { role: 'radiogroup', 'aria-label': t('walkthrough.steps.start') } },
+      opt('', t('walkthrough.startEmpty'), t('walkthrough.startEmptyText'), ''),
+      ...list.map((m) => opt(m.id, pickText(m.name, L), pickText(m.description, L), t('method.source.' + m.source))));
+    radioKeys(group);
+    return [text, group, !list.length ? h('div', { class: 'faint small', text: t('walkthrough.startNoMethods') }) : null,
+      error ? h('div', { class: 'field__error', attrs: { role: 'alert' }, text: error }) : null];
   }
 
   function render() {
-    const id = STEPS[step];
+    const id = ids()[step];
     dlg.setTitle(t('walkthrough.title'));
-    const stepper = h('div', { class: 'stepper', attrs: { role: 'list', 'aria-label': t('walkthrough.stepOf', { current: step + 1, total: STEPS.length }) } },
-      ...STEPS.map((s, i) => h('div', {
+    const stepper = h('div', { class: 'stepper', attrs: { role: 'list', 'aria-label': t('walkthrough.stepOf', { current: step + 1, total: ids().length }) } },
+      ...ids().map((s, i) => h('div', {
         class: 'stepper__step' + (i === step ? ' is-active' : i < step ? ' is-done' : ''),
         attrs: { role: 'listitem', ...(i === step ? { 'aria-current': 'step' } : {}) },
       }, h('span', { class: 'stepper__num', text: i < step ? '\u2713' : String(i + 1) }), h('span', { class: 'truncate', text: t('walkthrough.steps.' + s) }))));
@@ -165,11 +217,11 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
       buttons.push(h('button', { class: 'btn btn--primary', type: 'button', text: t('common.close'), on: { click: () => { finished = true; actions.walkthroughClosed(); dlg.close('done'); } } }));
     }
     dlg.setFooter(buttons);
-    const focusTarget = content.querySelector('input:not([readonly]), select, .segmented__item.is-active');
+    const focusTarget = content.querySelector('input:not([readonly]), select, .segmented__item.is-active, .wt-opt.is-active');
     if (!dlg.dialog.contains(document.activeElement) || document.activeElement === document.body) (focusTarget || buttons[buttons.length - 1]).focus();
   }
 
   render();
-  if (STEPS[step] === 'prerequisites') runCheck();
+  if (ids()[step] === 'prerequisites') runCheck();
   return dlg;
 }

@@ -15,6 +15,9 @@ import { createPrereq } from './prereq.js';
 import { createAuth } from './auth.js';
 import { createRemote } from './remote.js';
 import { createHistory } from './history.js';
+import { createMethodologies } from './methodologies.js';
+import { createRecorder } from './recorder.js';
+import { createRunner } from './runner.js';
 import { CH } from '../shared/ipc.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -37,10 +40,11 @@ if (!app.requestSingleInstanceLock()) {
     applyLogin(settings.get());
 
     let ipc;
+    let runner;
     const history = createHistory({ dir });
     const agents = createAgentManager({
       projects, git, history,
-      emit: (id, ev) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); },
+      emit: (id, ev) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); runner?.onAgentEvent(id, ev); },
       resolveLauncher: async (agent) => {
         const p = agent === 'agy' ? await health.findAgy() : await health.findClaude();
         return p ? { command: p } : null;
@@ -58,9 +62,15 @@ if (!app.requestSingleInstanceLock()) {
       getProject, push: push(CH.evRemote),
       findExe: (agent) => (agent === 'agy' ? health.findAgy() : health.findClaude()),
     });
+    const methodologies = createMethodologies({ userDir: dir, dialog, getWindow: () => win });
+    const recorder = createRecorder({ history, getProject });
+    runner = createRunner({
+      dir, getProject, getMethodology: methodologies.get, agents, git,
+      emit: (projectId, state) => ipc?.push(CH.evMethod, { projectId, state }),
+    });
     ipc = registerIpc({
       ipcMain, dialog, settings, projects, agents, git, health: poller,
-      prompts, files, dashboards, prereq, auth, remote, history,
+      prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner,
       getWindow: () => win, onSettings: applyLogin,
     });
 
@@ -89,7 +99,7 @@ if (!app.requestSingleInstanceLock()) {
     win.webContents.once('did-finish-load', () => poller.start());
 
     app.on('before-quit', () => {
-      poller.stop(); agents.stopAll(); dashboards.stopAll(); remote.stopAll(); files.closeWatcher();
+      poller.stop(); runner.stopAll(); agents.stopAll(); dashboards.stopAll(); remote.stopAll(); files.closeWatcher();
     });
   });
 

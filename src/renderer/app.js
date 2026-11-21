@@ -15,6 +15,7 @@ import { mountArtifacts, COLLAPSED_KEY } from './components/artifacts.js';
 import { openSettingsDialog } from './components/settings-dialog.js';
 import { openWalkthrough } from './components/walkthrough.js';
 import { confirmDialog, toast, openDialog } from './components/modal.js';
+import { createMethodActions } from './lib/method-actions.js';
 
 const api = getApi();
 const store = createStore(createInitialState());
@@ -92,6 +93,7 @@ const actions = {
     }
     store.set({ view });
     if (view === 'prompts') actions.loadTemplates();
+    if (view === 'methodologies') actions.loadMethods();
   },
   // ---- prompt library ----
   async loadTemplates() {
@@ -324,6 +326,8 @@ const actions = {
   },
 };
 
+Object.assign(actions, createMethodActions({ store, api, actions }));
+
 let lastPersisted = null;
 function persistLastProject(id) {
   if (id === lastPersisted) return;
@@ -335,6 +339,7 @@ function syncLayout(app) {
   const s = store.get();
   app.classList.toggle('is-sidebar-collapsed', s.sidebarCollapsed);
   app.classList.toggle('is-artifacts-collapsed', s.artifactsCollapsed);
+  app.classList.toggle('is-wide-view', s.view === 'methodologies');
 }
 
 function buildShell() {
@@ -355,7 +360,7 @@ function buildShell() {
   ui.banners = mountBanners(bannerSlot, deps);
   ui.artifacts = mountArtifacts({ aside: artifacts, splitter, app, store, api, actions });
   store.subscribe((s, prev) => {
-    if (s.sidebarCollapsed !== prev.sidebarCollapsed || s.artifactsCollapsed !== prev.artifactsCollapsed) syncLayout(app);
+    if (s.sidebarCollapsed !== prev.sidebarCollapsed || s.artifactsCollapsed !== prev.artifactsCollapsed || s.view !== prev.view) syncLayout(app);
   });
   syncLayout(app);
   nav(rail);
@@ -382,6 +387,8 @@ async function boot() {
   buildShell();
   if (last) openProject(last.id);
   actions.loadTemplates();
+  actions.loadMethods({ quiet: true });
+  for (const p of projects) actions.refreshRun(p.id);
 
   api.health.check().then((health) => store.set({ health })).catch(() => {});
   api.onHealth((health) => store.set({ health }));
@@ -391,6 +398,7 @@ async function boot() {
     if (event && event.type === 'result') refreshGit(projectId);
   });
 
+  if (api.onMethod) api.onMethod(({ projectId, state }) => { if (state) actions.setRun(projectId, state); });
   if (api.onFiles) api.onFiles((evt) => ui.artifacts.onFiles(evt));
   if (api.onRemote) api.onRemote(({ projectId, running, info }) => setRemote(projectId, { running: !!running, info: info || '', busy: false }));
   if (api.onInstall) {

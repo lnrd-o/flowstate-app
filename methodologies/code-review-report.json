@@ -1,0 +1,26 @@
+{
+  "id": "code-review-report",
+  "version": 1,
+  "source": "bundled",
+  "name": { "en": "Code review report", "es": "Informe de revisión de código" },
+  "description": {
+    "en": "Reviews the recent changes and writes artifacts/review.md with findings ordered by severity.",
+    "es": "Revisa los cambios recientes y escribe artifacts/review.md con los hallazgos ordenados por gravedad."
+  },
+  "tags": ["review", "report"],
+  "vars": [
+    { "key": "focus", "label": { "en": "Focus (optional)", "es": "Enfoque (opcional)" }, "type": "text", "default": "correctness, security and maintainability" }
+  ],
+  "nodes": [
+    { "id": "review", "type": "prompt", "title": { "en": "Review recent changes", "es": "Revisar cambios recientes" },
+      "text": "Review the recent changes in {{projectName}} (use git log and git diff to find them), focusing on {{focus}}. Do not modify any source file. Write your findings to artifacts/review.md: a short summary, then a list of findings ordered by severity, each with the file, the problem and a suggested fix." },
+    { "id": "check-report", "type": "artifact", "title": { "en": "review.md exists", "es": "Existe review.md" },
+      "path": "artifacts/review.md" },
+    { "id": "read", "type": "checkpoint", "title": { "en": "Read the report", "es": "Leer el informe" },
+      "message": "Open artifacts/review.md and read the findings. Approve to finish." }
+  ],
+  "edges": [
+    { "from": "review", "to": "check-report" },
+    { "from": "check-report", "to": "read" }
+  ]
+}

@@ -45,6 +45,7 @@ export async function setLanguage(lang) {
   const next = SUPPORTED.includes(lang) ? lang : 'en';
   await loadDict('en');
   if (next !== 'en') await loadDict(next);
+  for (const l of SUPPORTED) { try { await loadDict(l); } catch { /* optional: only needed for bilingual defaults */ } }
   current = next;
   if (typeof document !== 'undefined' && document.documentElement) document.documentElement.lang = next;
   for (const cb of [...listeners]) {
@@ -58,6 +59,11 @@ export function t(key, vars) {
   const s = (dicts[current] && dicts[current][key]) ?? (dicts.en && dicts.en[key]) ?? key;
   if (!vars) return s;
   return s.replace(/\{(\w+)\}/g, (m, name) => (Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : m));
+}
+
+/** Translate into a specific language regardless of the current one (used to store bilingual defaults). */
+export function tIn(lang, key) {
+  return (dicts[lang] && dicts[lang][key]) ?? (dicts.en && dicts.en[key]) ?? key;
 }
 
 /** Fill data-i18n (text), data-i18n-placeholder, data-i18n-title, data-i18n-aria-label inside root. */

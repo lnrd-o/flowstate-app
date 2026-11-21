@@ -86,6 +86,24 @@ test('non-zero exit -> error/process with stderr; spawn failure -> error/process
   assert.equal(ev[0].kind, 'process');
 });
 
+test('manager: stays running until a slow auto-commit finishes (runner git-commit race)', async () => {
+  const store = { id2: { id: 'id2', path: cwd, agent: 'claude', mode: 'default', sessionId: null, autoCommit: true } };
+  const projects = { get: (id) => (store[id] ? { ...store[id] } : null), update: (id, p) => Object.assign(store[id], p) };
+  let release; const gate = new Promise((r) => { release = r; });
+  let commitDone = false;
+  const mgr = createAgentManager({
+    projects, emit: () => {}, resolveLauncher: async () => launcher('claude'),
+    git: { autoCommit: async () => { await gate; commitDone = true; } },
+  });
+  await mgr.send({ projectId: 'id2', text: 'hi' });
+  // wait until the agent process is done and the commit is pending
+  await new Promise((res) => setTimeout(res, 1500));
+  assert.deepEqual(mgr.status('id2'), { running: true }, 'still running while committing');
+  release();
+  await new Promise((res) => { const t = setInterval(() => { if (!mgr.status('id2').running) { clearInterval(t); res(); } }, 20); });
+  assert.equal(commitDone, true);
+});
+
 test('manager: persists sessionId, rejects concurrent send, stop kills, autoCommit on ok', async () => {
   const store = { id1: { id: 'id1', path: cwd, agent: 'claude', mode: 'default', sessionId: null, autoCommit: true } };
   const projects = { get: (id) => (store[id] ? { ...store[id] } : null), update: (id, p) => Object.assign(store[id], p) };

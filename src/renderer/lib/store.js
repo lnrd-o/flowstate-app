@@ -46,6 +46,10 @@ export function createInitialState() {
     selectedTemplate: null,
     dashboard: {}, // projectId -> dashboard.status result
     remote: {}, // projectId -> { running, info, supported, busy }
+    methods: [], // method.list summaries
+    editing: null, // { draft, isNew, token } while the methodology editor is open
+    runs: {}, // projectId -> RunState (active or last run)
+    methodCache: {}, // methodologyId -> Methodology (for the run panel graph)
     sidebarCollapsed: false,
     artifactsCollapsed: false,
   };

@@ -1,0 +1,32 @@
+{
+  "id": "bugfix-flow",
+  "version": 1,
+  "source": "bundled",
+  "name": { "en": "Bug fix flow", "es": "Flujo de corrección de errores" },
+  "description": {
+    "en": "Describe a bug, let the agent reproduce it and fix it with tests, review the result and commit.",
+    "es": "Describe un error, deja que el agente lo reproduzca y lo corrija con pruebas, revisa el resultado y confirma."
+  },
+  "tags": ["bugfix", "tests"],
+  "vars": [],
+  "nodes": [
+    { "id": "ask-bug", "type": "ask-user", "title": { "en": "Describe the bug", "es": "Describe el error" },
+      "question": "What is the bug? Describe what you expected and what happens instead.",
+      "saveAs": "bugDescription" },
+    { "id": "ask-file", "type": "ask-user", "title": { "en": "Where is it?", "es": "¿Dónde está?" },
+      "question": "Which file or area of {{projectName}} is affected? (leave a short hint, e.g. src/app.py)",
+      "saveAs": "bugFile" },
+    { "id": "fix", "type": "prompt", "title": { "en": "Reproduce and fix", "es": "Reproducir y corregir" },
+      "text": "There is a bug in this project.\n\nDescription: {{bugDescription}}\nAffected file or area: {{bugFile}}\n\nFirst write a failing test that reproduces the bug. Then fix the root cause with the smallest reasonable change, make the tests pass, and finally summarise what was wrong and what you changed." },
+    { "id": "review", "type": "checkpoint", "title": { "en": "Review the fix", "es": "Revisar la corrección" },
+      "message": "Review the changes and the test results. Approve to commit, or reject to stop here." },
+    { "id": "commit", "type": "git-commit", "title": { "en": "Commit", "es": "Confirmar cambios" },
+      "message": "Fix bug with regression test" }
+  ],
+  "edges": [
+    { "from": "ask-bug", "to": "ask-file" },
+    { "from": "ask-file", "to": "fix" },
+    { "from": "fix", "to": "review" },
+    { "from": "review", "to": "commit" }
+  ]
+}

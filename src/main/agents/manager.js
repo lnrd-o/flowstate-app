@@ -14,9 +14,15 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
   return {
     status: (projectId) => ({ running: running.has(projectId) }),
 
-    async send({ projectId, text }) {
-      const project = projects.get(projectId);
-      if (!project) throw new Error('Unknown project');
+    /** agent/mode: optional per-turn override (methodology runner); the stored project is never changed by it. */
+    async send({ projectId, text, agent, mode }) {
+      const base = projects.get(projectId);
+      if (!base) throw new Error('Unknown project');
+      const project = { ...base };
+      const switched = agent !== undefined && agent !== base.agent;
+      if (agent !== undefined) project.agent = agent;
+      if (mode !== undefined) project.mode = mode;
+      if (switched) project.sessionId = null; // a session belongs to one agent
       if (typeof text !== 'string' || !text.trim()) throw new TypeError('text must be a non-empty string');
       if (running.has(projectId)) throw new Error('Agent already running for this project');
       const adapter = ad[project.agent];
@@ -30,7 +36,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
           project, text, launcher, spawn, kill,
           emit: (event) => emit(projectId, event),
           onSession: (sessionId) => {
-            if (projects.get(projectId)?.sessionId !== sessionId) projects.update(projectId, { sessionId });
+            if (!switched && projects.get(projectId)?.sessionId !== sessionId) projects.update(projectId, { sessionId });
           },
         });
       } catch (e) {
@@ -40,10 +46,13 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       running.set(projectId, handle);
       try { history?.recordUser(projectId, text); } catch { /* best effort */ }
       handle.done.then(async (r) => {
-        running.delete(projectId);
-        if (r.ok && project.autoCommit) {
-          try { await git?.autoCommit(project.path, text); } catch { /* best effort */ }
-        }
+        // Keep the project "running" until the auto-commit finishes: the methodology runner polls status() and a
+        // following git-commit node must not race this commit (index.lock / 'nothing to commit').
+        try {
+          if (r.ok && project.autoCommit) {
+            try { await git?.autoCommit(project.path, text); } catch { /* best effort */ }
+          }
+        } finally { running.delete(projectId); }
       });
       return { turnId: crypto.randomUUID() };
     },

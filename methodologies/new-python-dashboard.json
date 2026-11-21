@@ -1,0 +1,33 @@
+{
+  "id": "new-python-dashboard",
+  "version": 1,
+  "source": "bundled",
+  "name": { "en": "New Python dashboard", "es": "Nuevo panel en Python" },
+  "description": {
+    "en": "Builds a Streamlit + Plotly dashboard (dashboard.py) from a data file, with a review step before committing.",
+    "es": "Crea un panel con Streamlit + Plotly (dashboard.py) a partir de un archivo de datos, con revisión antes de confirmar."
+  },
+  "tags": ["python", "dashboard", "streamlit"],
+  "vars": [
+    { "key": "dashboardTitle", "label": { "en": "Dashboard title", "es": "Título del panel" }, "type": "text", "default": "Dashboard" }
+  ],
+  "nodes": [
+    { "id": "ask-data", "type": "ask-user", "title": { "en": "Data file", "es": "Archivo de datos" },
+      "question": "Which data file should the dashboard use? (path relative to {{projectName}}, e.g. data/sales.csv)",
+      "saveAs": "dataFile" },
+    { "id": "build", "type": "prompt", "title": { "en": "Build the dashboard", "es": "Crear el panel" },
+      "text": "Create a Streamlit dashboard in dashboard.py titled \"{{dashboardTitle}}\" that loads the data file {{dataFile}} with pandas and shows it with interactive Plotly charts (a summary of key metrics, at least two charts and a filter in the sidebar). Handle missing or malformed data gracefully. Add a requirements.txt (streamlit, plotly, pandas) if one does not exist. Do not run the app; only write the files." },
+    { "id": "check-file", "type": "artifact", "title": { "en": "dashboard.py exists", "es": "Existe dashboard.py" },
+      "path": "dashboard.py", "description": "The generated Streamlit app" },
+    { "id": "review", "type": "checkpoint", "title": { "en": "Review the dashboard", "es": "Revisar el panel" },
+      "message": "Open dashboard.py and check that it looks right. Approve to commit the changes, or reject to stop here." },
+    { "id": "commit", "type": "git-commit", "title": { "en": "Commit", "es": "Confirmar cambios" },
+      "message": "Add Streamlit dashboard" }
+  ],
+  "edges": [
+    { "from": "ask-data", "to": "build" },
+    { "from": "build", "to": "check-file" },
+    { "from": "check-file", "to": "review" },
+    { "from": "review", "to": "commit" }
+  ]
+}

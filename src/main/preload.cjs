@@ -15,6 +15,9 @@ const CH = {
   prereqInstall: 'prereq:install', authLogin: 'auth:login',
   remoteStatus: 'remote:status', remoteStart: 'remote:start', remoteStop: 'remote:stop',
   historyGet: 'history:get', historyClear: 'history:clear',
+  methodList: 'method:list', methodGet: 'method:get', methodSave: 'method:save', methodDelete: 'method:delete', methodRecord: 'method:record',
+  methodImport: 'method:import', methodExport: 'method:export', methodRun: 'method:run', methodRespond: 'method:respond', methodStop: 'method:stop',
+  methodRunState: 'method:run-state', evMethod: 'ev:method',
   evAgent: 'ev:agent', evHealth: 'ev:health', evFiles: 'ev:files', evDashboard: 'ev:dashboard', evInstall: 'ev:install', evRemote: 'ev:remote',
 };
 
@@ -42,10 +45,16 @@ contextBridge.exposeInMainWorld('flowstate', {
   auth: { login: call(CH.authLogin) },
   remote: { status: call(CH.remoteStatus), start: call(CH.remoteStart), stop: call(CH.remoteStop) },
   history: { get: call(CH.historyGet), clear: call(CH.historyClear) },
+  method: {
+    list: call(CH.methodList), get: call(CH.methodGet), save: call(CH.methodSave), delete: call(CH.methodDelete), record: call(CH.methodRecord),
+    import: call(CH.methodImport), export: call(CH.methodExport), run: call(CH.methodRun), respond: call(CH.methodRespond),
+    stop: call(CH.methodStop), runState: call(CH.methodRunState),
+  },
   onAgentEvent: subscribe(CH.evAgent),
   onHealth: subscribe(CH.evHealth),
   onFiles: subscribe(CH.evFiles),
   onDashboard: subscribe(CH.evDashboard),
   onInstall: subscribe(CH.evInstall),
   onRemote: subscribe(CH.evRemote),
+  onMethod: subscribe(CH.evMethod),
 });
