@@ -88,7 +88,7 @@ export function resolveInside(root, rel = '', fsx = fs) {
 }
 
 export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debounceMs = 300, platform = process.platform } = {}) {
-  let watcher = null; // {projectId, w, timer, pending:Set}
+  let watcher = null; // {projectId, w, timer, pending:Set, startedAt}
 
   const need = (id) => {
     const p = typeof id === 'string' ? getProject(id) : null;
@@ -152,6 +152,8 @@ export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debo
 
   return {
     list, read, closeWatcher,
+    /** Active file watcher (tasks service). */
+    watching: () => (watcher ? [{ projectId: watcher.projectId, startedAt: watcher.startedAt }] : []),
     async reveal(projectId, relPath) { shell.showItemInFolder(target(projectId, relPath)); },
     async open(projectId, relPath) {
       const abs = target(projectId, relPath);
@@ -165,7 +167,7 @@ export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debo
       if (watcher?.projectId === projectId) return;
       closeWatcher();
       const root = (fsx.realpathSync.native ?? fsx.realpathSync)(p.path);
-      const cur = { projectId, w: null, timer: null, pending: new Set() };
+      const cur = { projectId, w: null, timer: null, pending: new Set(), startedAt: Date.now() };
       const flush = () => {
         cur.timer = null;
         const changed = [...cur.pending].slice(0, 200);
@@ -177,6 +179,7 @@ export function createFiles({ getProject, shell, fsx = fs, push = () => {}, debo
           if (!filename) return;
           const rel = String(filename).replace(/\\/g, '/');
           if (rel.split('/').some((s) => IGNORED.has(s))) return;
+          if (rel.startsWith('.flowstate/') && !rel.startsWith('.flowstate/methodologies/')) return; // store bookkeeping (history, state, attachments) is not a user change
           cur.pending.add(rel);
           if (!cur.timer) cur.timer = setTimeout(flush, debounceMs);
         });

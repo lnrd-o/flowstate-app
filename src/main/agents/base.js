@@ -51,6 +51,8 @@ export class AgentAdapter {
 
   buildArgs() { throw new Error('not implemented'); }
   stdinPayload() { return null; }
+  /** Final prompt text (agy appends image path lines). */
+  prepareText(text) { return text; }
   augment(ev) { return ev; }
 
   buildCommand(project, text, launcher) {
@@ -58,8 +60,8 @@ export class AgentAdapter {
   }
 
   /** Starts the child. Returns { child, done: Promise<{code, resultSeen, ok, stopped}>, stop() }. */
-  run({ project, text, launcher, emit, onSession, spawn = nodeSpawn, kill = killTree }) {
-    const { command, args } = this.buildCommand(project, text, launcher);
+  run({ project, text, launcher, emit, onSession, images = [], spawn = nodeSpawn, kill = killTree }) {
+    const { command, args } = this.buildCommand(project, this.prepareText(text, images), launcher);
     let stopped = false;
     let resultSeen = false;
     let ok = false;
@@ -92,7 +94,7 @@ export class AgentAdapter {
       while ((i = errBuf.indexOf('\n')) >= 0) { const l = errBuf.slice(0, i).trim(); errBuf = errBuf.slice(i + 1); if (l) stderrLines.push(l); }
     });
 
-    const payload = this.stdinPayload(text);
+    const payload = this.stdinPayload(text, images);
     try {
       if (payload) child.stdin.write(payload);
       else child.stdin.end();

@@ -17,7 +17,7 @@ export function createMethodActions({ store, api, actions }) {
     toastError(e) { toast(errText(e), 'error', 7000); },
 
     async loadMethods({ quiet = false } = {}) {
-      try { const list = await api.method.list(); store.set({ methods: Array.isArray(list) ? list : [] }); } catch (e) { if (!quiet) toast(t('method.loadFailed', { message: errText(e) }), 'error'); }
+      try { const list = await api.method.list(store.get().activeProjectId || undefined); store.set({ methods: Array.isArray(list) ? list : [] }); } catch (e) { if (!quiet) toast(t('method.loadFailed', { message: errText(e) }), 'error'); }
     },
 
     /** Open a methodology object in the editor (view switches to the methodologies page). */
@@ -26,7 +26,7 @@ export function createMethodActions({ store, api, actions }) {
       store.set({ view: 'methodologies', editing: { draft, isNew, token } });
     },
     async openMethodEditorById(id) {
-      try { self.openMethodEditor(await api.method.get(id)); } catch (e) { self.toastError(e); }
+      try { self.openMethodEditor(await api.method.get(id, store.get().activeProjectId || undefined)); } catch (e) { self.toastError(e); }
     },
     newMethod() {
       const draft = newMethodology({
@@ -52,7 +52,7 @@ export function createMethodActions({ store, api, actions }) {
     },
     async duplicateMethod(id) {
       try {
-        const m = await api.method.get(id);
+        const m = await api.method.get(id, store.get().activeProjectId || undefined);
         const copy = duplicateOf(m, uniqueId(id + '-copy', ids()), { en: tIn('en', 'method.copySuffix'), es: tIn('es', 'method.copySuffix') });
         const saved = await api.method.save(copy);
         await self.loadMethods();

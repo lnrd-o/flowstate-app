@@ -24,11 +24,15 @@ export function summarize(m) {
 }
 
 /** dialog = { showOpenDialog, showSaveDialog } (electron). getWindow() optional. */
-export function createMethodologies({ userDir, bundledDir = BUNDLED_DIR, dialog, getWindow = () => null, fsx = fs, now = () => new Date().toISOString() }) {
+export function createMethodologies({ userDir, bundledDir = BUNDLED_DIR, dialog, getWindow = () => null, getProject = () => null, fsx = fs, now = () => new Date().toISOString() }) {
   const root = path.join(userDir, 'methodologies');
 
   function readOne(file, source) {
     try {
+      if (source === 'project') { // project folders are untrusted input: regular files only, size-capped
+        const st = fsx.lstatSync(file);
+        if (!st.isFile() || st.size > MAX_IMPORT_BYTES) return null;
+      }
       const m = JSON.parse(stripBom(fsx.readFileSync(file, 'utf8')));
       if (validateMethodology(m).length) return null;
       if (path.basename(file) !== `${m.id}.json`) return null;
@@ -42,17 +46,25 @@ export function createMethodologies({ userDir, bundledDir = BUNDLED_DIR, dialog,
   }
   const userFile = (id) => path.join(root, `${checkId(id)}.json`);
 
-  function all() {
+  /** <project>/.flowstate/methodologies/*.json (source 'project'); invalid files are skipped. */
+  function projectDir(projectId) {
+    const p = typeof projectId === 'string' ? getProject(projectId) : null;
+    return p ? path.join(p.path, '.flowstate', 'methodologies') : null;
+  }
+
+  function all(projectId) {
     const map = new Map(scan(bundledDir, 'bundled').map((m) => [m.id, m]));
     for (const m of scan(root, 'user')) map.set(m.id, m);
+    const pd = projectDir(projectId);
+    if (pd) for (const m of scan(pd, 'project')) map.set(m.id, m);
     return map;
   }
 
   const store = {
-    list: () => [...all().values()].map(summarize).sort((a, b) => a.id.localeCompare(b.id)),
-    get(id) {
+    list: (projectId) => [...all(projectId).values()].map(summarize).sort((a, b) => a.id.localeCompare(b.id)),
+    get(id, projectId) {
       checkId(id);
-      const m = all().get(id);
+      const m = all(projectId).get(id);
       if (!m) throw new Error('Unknown methodology');
       return m;
     },

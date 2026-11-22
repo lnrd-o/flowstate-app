@@ -26,7 +26,7 @@ let ws; let id = 0; const pending = new Map(); const problems = [];
 async function connect() {
   for (let i = 0; i < 40; i++) {
     try {
-      const t = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((x) => x.type === 'page');
+      const t = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((x) => x.type === 'page' && x.url.split('?')[0].endsWith('index.html'));
       if (t) { ws = new WebSocket(t.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; }); return; }
     } catch { /* not up */ }
     await sleep(500);
@@ -79,7 +79,9 @@ try {
     else if (d.method === 'Runtime.exceptionThrown') problems.push(d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text);
     else if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error') problems.push(d.params.args.map((a) => a.value ?? a.description).join(' '));
   };
-  await send('Runtime.enable'); await send('Page.reload'); await sleep(3000);
+  await send('Runtime.enable');
+  await ev('try { await window.flowstate.app.ready(); } catch {} return 1'); // show the window now instead of waiting for the fallback
+  await send('Page.reload'); await sleep(3000);
   await ev('await window.flowstate.settings.set({walkthroughDone:true}); return 1');
 
   // ---- bundled methodologies ----

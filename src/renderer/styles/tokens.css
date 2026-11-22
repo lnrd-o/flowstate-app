@@ -145,6 +145,8 @@
   --control-h: 32px;
   --control-h-sm: 26px;
   --chat-max-w: 760px;
+  --thumb-size: 64px;   /* attachment thumbnails (message bubbles use 1.6x) */
+  --gauge-h: 8px;       /* usage gauges */
 }
 
 [data-theme="light"] {

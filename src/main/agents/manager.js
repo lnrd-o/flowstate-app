@@ -3,6 +3,7 @@ import { ClaudeAdapter } from './claude.js';
 import { AgyAdapter } from './agy.js';
 import { createChangeTracker } from '../changes.js';
 import { sanitizeAllow } from '../permissions.js';
+import { loadAttachmentImages } from '../svc/attachments.js';
 
 /**
  * Owns one running child per project. Deps are injected:
@@ -14,6 +15,8 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
   const running = new Map(); // projectId -> handle | null (starting)
   const committing = new Map(); // projectId -> Promise (auto-commit after a finished turn)
   const finished = new Set(); // projectIds whose current turn already emitted result/error (process may still be exiting)
+  const meta = new Map(); // projectId -> {agent, startedAt, pid} of the running turn (tasks service: listRunning)
+  const commitStart = new Map(); // projectId -> {agent, startedAt} while an auto-commit runs
 
   return {
     // "running" also covers the post-turn auto-commit so the methodology runner never races it.
@@ -21,7 +24,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
 
     /** agent/mode: optional per-turn override (methodology runner); the stored project is never changed by it. */
     /** allow: optional per-turn narrow permission rules [{tool, pattern}] (claude only; validated in permissions.js, never persisted). */
-    async send({ projectId, text, agent, mode, allow }) {
+    async send({ projectId, text, agent, mode, allow, images }) {
       const base = projects.get(projectId);
       if (!base) throw new Error('Unknown project');
       const project = { ...base };
@@ -29,7 +32,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       const switched = agent !== undefined && agent !== base.agent;
       if (agent !== undefined) project.agent = agent;
       if (mode !== undefined) project.mode = mode;
-      if (switched) project.sessionId = null; // a session belongs to one agent
+      if (switched) { project.sessionId = null; project.model = null; project.effort = null; } // a session / model belongs to one agent
       if (typeof text !== 'string' || !text.trim()) throw new TypeError('text must be a non-empty string');
       // A follow-up sent while the previous turn's auto-commit is still running waits for it (instead of being rejected).
       // Likewise when the previous turn already emitted its result/error but its process has not exited yet.
@@ -46,19 +49,22 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       if (running.has(projectId)) throw new Error('Agent already running for this project');
       const adapter = ad[project.agent];
       if (!adapter) throw new Error(`Unknown agent: ${project.agent}`);
+      let imgs = [];
+      if (images !== undefined) imgs = loadAttachmentImages(project, images, { withData: project.agent === 'claude' }); // throws before anything starts
       running.set(projectId, null);
+      meta.set(projectId, { agent: project.agent, startedAt: Date.now(), pid: null });
       let handle;
       try {
         const launcher = await resolveLauncher(project.agent);
         if (!launcher) throw new Error(`${project.agent} executable not found`);
         handle = adapter.run({
-          project, text, launcher, spawn, kill,
+          project, text, launcher, spawn, kill, images: imgs,
           emit: (event) => {
             if (event?.type === 'result' || event?.type === 'error') finished.add(projectId);
             let extra = [];
             try { extra = changes.observe({ ...project, id: projectId }, event) ?? []; } catch { /* best effort */ }
-            emit(projectId, event);
-            for (const fc of extra) emit(projectId, fc); // file-change goes out right after the tool-result that produced it
+            emit(projectId, event, { agent: project.agent });
+            for (const fc of extra) emit(projectId, fc, { agent: project.agent }); // file-change goes out right after the tool-result that produced it
           },
           onSession: (sessionId) => {
             if (!switched && projects.get(projectId)?.sessionId !== sessionId) projects.update(projectId, { sessionId });
@@ -66,23 +72,39 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         });
       } catch (e) {
         running.delete(projectId);
+        meta.delete(projectId);
         finished.delete(projectId);
         throw e;
       }
       running.set(projectId, handle);
-      try { history?.recordUser(projectId, text); } catch { /* best effort */ }
+      const m = meta.get(projectId);
+      if (m) m.pid = handle.child?.pid ?? null;
+      try { history?.recordUser(projectId, text, imgs.map((i) => i.rel)); } catch { /* best effort */ }
       handle.done.then((r) => {
         try { changes.endTurn({ ...project, id: projectId }); } catch { /* best effort */ }
         running.delete(projectId);
+        meta.delete(projectId);
         finished.delete(projectId);
         if (r.ok && project.autoCommit && git) {
           // Tracked in `committing` (same tick as the delete above, so status() never flickers to idle).
+          commitStart.set(projectId, { agent: project.agent, startedAt: Date.now() });
           const p = Promise.resolve().then(() => git.autoCommit(project.path, text)).catch(() => { /* best effort */ })
-            .finally(() => { committing.delete(projectId); });
+            .finally(() => { committing.delete(projectId); commitStart.delete(projectId); });
           committing.set(projectId, p);
         }
       });
       return { turnId: crypto.randomUUID() };
+    },
+
+    /** Running turns + post-turn commits, for the tasks service. */
+    listRunning() {
+      const out = [];
+      for (const [projectId, h] of running) {
+        const m = meta.get(projectId);
+        if (m) out.push({ projectId, agent: m.agent, state: 'running', startedAt: m.startedAt, pid: h?.child?.pid ?? m.pid ?? undefined });
+      }
+      for (const [projectId, c] of commitStart) if (!running.has(projectId)) out.push({ projectId, agent: c.agent, state: 'committing', startedAt: c.startedAt });
+      return out;
     },
 
     stop(projectId) {

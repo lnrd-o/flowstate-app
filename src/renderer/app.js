@@ -1,7 +1,7 @@
 // FlowState renderer entry: wires settings, i18n, store, components and agent events.
 import { getApi, isMockApi } from './lib/api.js';
 import { setLanguage, detectLanguage, onChange, t } from './lib/i18n.js';
-import { createStore, createInitialState, activeProject } from './lib/store.js';
+import { createStore, createInitialState, activeProject, isDev } from './lib/store.js';
 import { reduceEvent, addUserMessage, failTurn, resolvePermission, addSystemNote, createChatState } from './lib/events.js';
 import { RETRY_NOTE, stripRetryNote } from './lib/approvals.js';
 import { replayHistory, dedupeLive } from './lib/history.js';
@@ -21,9 +21,21 @@ import { applyStatus, applyHealth, applyLoginEvent } from './lib/login-state.js'
 import { normalizePlatform } from './lib/titlebar-state.js';
 import { confirmDialog, toast, openDialog } from './components/modal.js';
 import { createMethodActions } from './lib/method-actions.js';
+import { stopNeedsConfirm } from './lib/tasks.js';
+import { createThumbCache } from './lib/images.js';
+import { createUiPersist } from './lib/ui-persist.js';
+import { createMenuActions, dispatchMenu } from './lib/menu-actions.js';
+import { acceleratorMatches } from './lib/menu-state.js';
+import { flattenMenu } from '../shared/menu.js';
+import { openUsageDialog } from './components/usage-dialog.js';
+import { openProjectDataDialog } from './components/project-data-dialog.js';
+import { openProjectSettingsDialog } from './components/project-settings-dialog.js';
+import { openAboutDialog, openShortcutsDialog } from './components/help-dialogs.js';
 
 const api = getApi();
 const store = createStore(createInitialState());
+const thumbs = createThumbCache(api);
+const persist = createUiPersist({ api, store });
 
 function applyAppearance(settings) {
   const root = document.documentElement;
@@ -86,19 +98,37 @@ function setRemote(pid, patch) {
 }
 
 /** Everything that follows "this project is now the active one". */
-function openProject(id) {
+function openProject(id, opts) {
   refreshGit(id);
   try { if (api.files && api.files.watch) Promise.resolve(api.files.watch(id)).catch(() => {}); } catch { /* backend not ready */ }
-  loadHistory(id);
+  const hist = loadHistory(id);
   actions.refreshRemote(id);
   actions.refreshDashboard(id);
+  actions.refreshStoreStatus(id);
+  if (!(opts && opts.initial)) actions.loadMethods({ quiet: true });
+  const p = store.get().projects.find((x) => x.id === id);
+  if (p) actions.loadModels(p.agent);
+  if (!(opts && opts.initial)) {
+    store.set({ openFile: null });
+    persist.readProject(id).then((pui) => applyProjectPlan(id, persist.plan(null, pui), hist));
+  }
+  return hist;
+}
+
+/** Apply a validated per-project UI plan (tab, open file, composer draft, chat scroll). */
+function applyProjectPlan(id, plan, hist) {
+  if (store.get().activeProjectId !== id) return;
+  if (plan.openFile && ui.artifacts) ui.artifacts.openFile(plan.openFile);
+  if (plan.artifactsTab) store.set({ artifactsTab: plan.artifactsTab });
+  if (plan.draft && ui.main) ui.main.composer.setDraft(id, plan.draft);
+  if (plan.scroll != null && ui.main) Promise.resolve(hist).then(() => { if (store.get().activeProjectId === id) ui.main.chat.restoreScroll(plan.scroll); });
 }
 
 const actions = {
   async selectProject(id) {
     store.set({ activeProjectId: id, view: 'project' });
     persistLastProject(id);
-    openProject(id);
+    await openProject(id);
   },
   setView(view) {
     if (view === 'project' && !store.get().activeProjectId && store.get().projects[0]) {
@@ -108,6 +138,7 @@ const actions = {
     store.set({ view });
     if (view === 'prompts') actions.loadTemplates();
     if (view === 'methodologies') actions.loadMethods();
+    if (view === 'tasks') actions.refreshTasks();
   },
   // ---- prompt library ----
   async loadTemplates() {
@@ -276,6 +307,7 @@ const actions = {
     try {
       const updated = await api.projects.update(id, patch);
       store.set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, ...updated } : p)) }));
+      if (patch.agent) actions.loadModels(patch.agent);
     } catch {
       toast(t('errors.saveFailed'), 'error');
     }
@@ -296,11 +328,12 @@ const actions = {
     const s = store.get();
     const p = activeProject(s);
     if (!p) return;
-    store.updateChat(p.id, (c) => addUserMessage(c, text, { agent: p.agent, now: Date.now() }));
+    const images = opts && Array.isArray(opts.images) ? opts.images.filter((i) => i && typeof i.rel === 'string').slice(0, 5) : [];
+    store.updateChat(p.id, (c) => addUserMessage(c, text, { agent: p.agent, now: Date.now(), images: images.map((i) => i.rel) }));
     ui.main.chat.stickToBottom();
     try {
       const allow = opts && Array.isArray(opts.allow) && opts.allow.length ? opts.allow : null;
-      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}) });
+      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}), ...(images.length ? { images } : {}) });
     } catch (e) {
       store.updateChat(p.id, (c) => failTurn(c, (e && e.message) || t('errors.spawnFailed', { agent: t('agent.' + p.agent) })));
     }
@@ -383,12 +416,132 @@ const actions = {
     await actions.selectProject(proj.id);
     return proj;
   },
+  // ---- Phase 7: models, usage, limits, DeepSeek, tasks, project store, dialogs, menu ----
+  async loadModels(agent, { force } = {}) {
+    const s = store.get();
+    if (!agent || !api.models || !api.models.list) return;
+    if (s.modelsLoading[agent] || (!force && s.models[agent] && !s.models[agent].error)) return;
+    store.set({ modelsLoading: { ...s.modelsLoading, [agent]: true } });
+    let list;
+    try { list = await api.models.list(agent); } catch (e) { list = { agent, source: 'static', models: [], efforts: [], error: (e && e.message) || 'error' }; }
+    store.set((st) => ({ models: { ...st.models, [agent]: list }, modelsLoading: { ...st.modelsLoading, [agent]: false } }));
+  },
+  async refreshUsage() {
+    try { if (api.usage && api.usage.get) store.set({ usage: await api.usage.get() }); } catch { /* keep the last snapshot */ }
+  },
+  openUsage() { openUsageDialog({ store, api, actions }); },
+  /** Limit card / banner: move the active project to the other agent. */
+  async switchAgent(agent) {
+    const p = activeProject(store.get());
+    if (!p || p.agent === agent) return;
+    await actions.updateProject(p.id, { agent });
+    toast(t('usage.limit.switched', { agent: t('agent.' + agent) }), 'success');
+  },
+  async refreshDeepseek(force) {
+    try {
+      const st = await api.deepseek.status(!!force);
+      store.set({ deepseek: st });
+      return st;
+    } catch {
+      store.set((s) => ({ deepseek: { configured: !!(s.deepseek && s.deepseek.configured), enabled: !!s.settings.deepseekEnabled, error: 'offline' } }));
+      return null;
+    }
+  },
+  async saveDeepseekKey(key) {
+    const r = await api.deepseek.setKey(key);
+    if (r && r.ok) await actions.refreshDeepseek(true);
+    return r;
+  },
+  async removeDeepseekKey() {
+    const r = await api.deepseek.setKey(null);
+    await actions.refreshDeepseek(true);
+    return r;
+  },
+  async refreshTasks() {
+    try { if (api.tasks && api.tasks.list) store.set({ tasks: await api.tasks.list() }); } catch { /* backend not ready */ }
+  },
+  /** item: { kind, id, name, project }. Agents and methodology runs ask first. */
+  async stopTask(item) {
+    if (stopNeedsConfirm(item.kind)) {
+      const ok = await confirmDialog({ title: t('tasks.stopConfirmTitle', { name: item.name }), message: t('tasks.stopConfirm', { project: item.project || item.name }), confirmLabel: t('tasks.stop'), danger: true });
+      if (!ok) { actions.refreshTasks(); return; }
+    }
+    try {
+      const r = await api.tasks.stop({ kind: item.kind, id: item.id });
+      if (r && r.ok === false) toast(t('tasks.stopFailed'), 'error');
+    } catch { toast(t('tasks.stopFailed'), 'error'); }
+    actions.refreshTasks();
+  },
+  async refreshStoreStatus(pid) {
+    try {
+      if (!api.store || !api.store.status) return;
+      const st = await api.store.status(pid);
+      store.set((s) => ({ storeStatus: { ...s.storeStatus, [pid]: st } }));
+    } catch { /* not available (older backend) */ }
+  },
+  async saveProjectNow(pid) {
+    try {
+      const r = await api.store.save(pid);
+      toast(r && r.ok === false ? t('pdata.saveFailed') : t('pdata.saved'), r && r.ok === false ? 'error' : 'success');
+    } catch { toast(t('pdata.saveFailed'), 'error'); }
+    await actions.refreshStoreStatus(pid);
+  },
+  revealStore(pid) { try { Promise.resolve(api.files.reveal(pid, '.flowstate')).catch(() => {}); } catch { /* ignore */ } },
+  /** Double confirm, then remove <project>/.flowstate. Resolves true when it was deleted. */
+  async deleteProjectData(pid) {
+    const p = store.get().projects.find((x) => x.id === pid);
+    if (!p) return false;
+    const first = await confirmDialog({ title: t('pdata.deleteTitle'), message: t('pdata.deleteConfirm1', { project: p.name }), confirmLabel: t('common.continue'), danger: true });
+    if (!first) return false;
+    const second = await confirmDialog({ title: t('pdata.deleteTitle'), message: t('pdata.deleteConfirm2', { project: p.name }), confirmLabel: t('pdata.deleteAll'), danger: true });
+    if (!second) return false;
+    try { await api.store.clear(pid, 'all'); } catch { toast(t('errors.generic'), 'error'); return false; }
+    store.updateChat(pid, () => createChatState());
+    await actions.refreshStoreStatus(pid);
+    toast(t('pdata.deleted'), 'success');
+    return true;
+  },
+  openProjectData(id) { openProjectDataDialog({ store, api, actions, projectId: id }); },
+  openProjectSettings(id) { openProjectSettingsDialog({ store, actions, projectId: id }); },
+  openAbout() { openAboutDialog({ store, api }); },
+  openShortcuts() { openShortcutsDialog({ store, api }); },
+  /** File > Open folder: import an existing .flowstate or register a fresh folder. */
+  async openFolder() {
+    let r;
+    try { r = await api.store.openFolder(); } catch { toast(t('menu.openFailed'), 'error'); return; }
+    if (!r || !r.project) return;
+    const proj = r.project;
+    store.set((s) => ({ projects: [...s.projects.filter((x) => x.id !== proj.id), proj] }));
+    histLoaded.delete(proj.id);
+    store.set((s) => { const chats = { ...s.chats }; delete chats[proj.id]; return { chats }; });
+    await actions.selectProject(proj.id);
+    const c = store.get().chats[proj.id];
+    const n = c ? c.messages.filter((m) => m.role === 'user' || m.role === 'assistant').length : 0;
+    const loaded = r.loaded && (r.loaded.projectJson || r.loaded.state || r.loaded.history);
+    toast(!r.created && loaded ? t('menu.loadedFolder', { n }) : t('menu.projectAdded'), 'success');
+  },
+  /** Developer mode toggle (title-bar pill, View menu): flips the project's own override when it has one, else the global setting. */
+  async toggleDeveloper() {
+    const s = store.get();
+    const p = activeProject(s);
+    if (p && typeof p.developerMode === 'boolean') await actions.updateProject(p.id, { developerMode: !isDev(s) });
+    else await actions.updateSettings({ developerMode: !isDev(s) });
+  },
+  draftChanged(pid, text) { persist.setDraft(pid, text); },
+  chatScrolled(pid, top) { persist.setScroll(pid, top); },
   async walkthroughClosed() {
     if (!store.get().settings.walkthroughDone) await actions.updateSettings({ walkthroughDone: true });
   },
 };
 
 Object.assign(actions, createMethodActions({ store, api, actions }));
+
+const menuActions = createMenuActions({ store, api, actions, ui, notify: (m, k, ms) => toast(m, k, ms) });
+actions.menuDispatch = async (item) => {
+  const ok = await dispatchMenu(item, { api, menuActions });
+  if (ok && item.id === 'file.saveState') toast(t('menu.saved'), 'success');
+  return ok;
+};
 
 let lastPersisted = null;
 function persistLastProject(id) {
@@ -416,7 +569,7 @@ function buildShell() {
   const artifacts = h('aside', { class: 'artifacts' });
   const app = h('div', { class: 'app' }, rail, sidebar, main, splitter, artifacts);
   root.append(titlebar, bannerSlot, app);
-  const deps = { store, api, actions };
+  const deps = { store, api, actions, thumbs, menuDispatch: (item) => actions.menuDispatch(item) };
   ui.rail = mountRail(rail, deps);
   ui.sidebar = mountSidebar(sidebar, deps);
   ui.main = mountMain(main, deps);
@@ -440,10 +593,14 @@ async function boot() {
   await setLanguage(lang);
   settings = { ...settings, language: lang };
   applyAppearance(settings);
+  const gui = await persist.readGlobal(); // UI state is read BEFORE the first render of the chat
+  const gplan = persist.plan(gui, null);
   store.set({
     settings,
-    sidebarCollapsed: false,
-    artifactsCollapsed: readStore(COLLAPSED_KEY, '0') === '1',
+    sidebarCollapsed: gplan.sidebarCollapsed ?? false,
+    artifactsCollapsed: gplan.artifactsCollapsed ?? readStore(COLLAPSED_KEY, '0') === '1',
+    artifactsWidth: gplan.artifactsWidth ?? null,
+    sidebarWidth: gplan.sidebarWidth ?? null,
   });
   try {
     const info = api.window && (await api.window.info());
@@ -451,11 +608,15 @@ async function boot() {
   } catch { /* keep defaults */ }
   const projects = await api.projects.list();
   const last = projects.find((p) => p.id === settings.lastProjectId) || projects[0] || null;
-  store.set({ projects, activeProjectId: last ? last.id : null });
+  const pplan = persist.plan(gui, last ? await persist.readProject(last.id) : null);
+  store.set({ projects, activeProjectId: last ? last.id : null, view: gplan.view && (gplan.view !== 'project' || last) ? gplan.view : 'project', ...(pplan.artifactsTab ? { artifactsTab: pplan.artifactsTab } : {}) });
   lastPersisted = last ? last.id : null;
+  if (gplan.sidebarWidth) document.documentElement.style.setProperty('--sidebar-w', gplan.sidebarWidth + 'px');
 
   buildShell();
-  if (last) openProject(last.id);
+  if (gplan.artifactsWidth) ui.artifacts.applyWidth(gplan.artifactsWidth);
+  if (last) { const hist = openProject(last.id, { initial: true }); applyProjectPlan(last.id, pplan, hist); }
+  persist.watch();
   actions.loadTemplates();
   actions.loadMethods({ quiet: true });
   for (const p of projects) actions.refreshRun(p.id);
@@ -471,6 +632,13 @@ async function boot() {
     if (event && event.type === 'result') refreshGit(projectId);
   });
 
+  actions.refreshUsage();
+  if (api.onUsage) api.onUsage((u) => store.set({ usage: u }));
+  actions.refreshTasks();
+  if (api.onTasks) api.onTasks((snap) => store.set({ tasks: snap }));
+  if (settings.deepseekEnabled) actions.refreshDeepseek(false);
+  if (api.onMenu) api.onMenu(({ id }) => { menuActions.run(id); });
+  if (api.onBeforeQuit) api.onBeforeQuit(async () => { try { await persist.flush(); } finally { try { if (api.app && api.app.flushed) await api.app.flushed(); } catch { /* quitting */ } } });
   if (api.onMethod) api.onMethod(({ projectId, state }) => { if (state) actions.setRun(projectId, state); });
   if (api.onFiles) api.onFiles((evt) => ui.artifacts.onFiles(evt));
   if (api.onRemote) api.onRemote(({ projectId, running, info }) => setRemote(projectId, { running: !!running, info: info || '', busy: false }));
@@ -507,9 +675,20 @@ async function boot() {
       ui.titlebar.focusSearch();
     }
   });
+  // In a plain browser (mock) there is no native menu to own the accelerators: handle the renderer ones here.
+  if (isMockApi()) {
+    const accels = flattenMenu().filter((i) => i.accelerator && i.handler === 'renderer' && i.id !== 'edit.find');
+    document.addEventListener('keydown', (e) => {
+      if (e.defaultPrevented) return;
+      const hit = accels.find((i) => acceleratorMatches(e, i.accelerator, store.get().win.platform));
+      if (hit) { e.preventDefault(); menuActions.run(hit.id); }
+    });
+  }
 
   if (!settings.walkthroughDone) actions.openWalkthrough();
-  if (isMockApi()) window.__flowstate = { store, actions };
+  if (isMockApi()) window.__flowstate = { store, actions, persist, menuActions };
+  // First render is done: main hides the splash and shows the window (no-op in the mock / a plain browser).
+  try { if (api.app && api.app.ready) await api.app.ready(); } catch { /* the window shows itself anyway */ }
 }
 
 boot().catch((e) => {

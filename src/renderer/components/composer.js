@@ -4,6 +4,10 @@ import { t, getLanguage } from '../lib/i18n.js';
 import { pickLang, filterTemplates, render as renderTemplate, defaultValues } from '../lib/templates.js';
 import { activeProject, isDev } from '../lib/store.js';
 import { agentIcon, setIconState } from './agent-icon.js';
+import { createAttachments } from './attachments.js';
+import { mountModelPicker } from './model-picker.js';
+import { suggestionChips } from '../lib/images.js';
+import { toast } from './modal.js';
 
 const MODES = ['default', 'acceptEdits', 'plan'];
 const AGENTS = ['claude', 'agy'];
@@ -20,7 +24,7 @@ export function sendBlockReason(project, health, signedIn) {
   return null;
 }
 
-export function mountComposer(root, { store, api, actions }) {
+export function mountComposer(root, { store, api, actions, thumbs }) {
   const drafts = new Map();
   let shownProject = null;
 
@@ -44,16 +48,26 @@ export function mountComposer(root, { store, api, actions }) {
     if (p) actions.updateProject(p.id, { mode: modeSelect.value });
   });
   const send = h('button', { class: 'composer__send', type: 'button' });
+  const att = createAttachments({
+    api, getProjectId: () => store.get().activeProjectId, notify: (m, k, ms) => toast(m, k, ms), onChange: () => render(),
+  });
+  const picker = mountModelPicker({ store, actions });
+  const attachBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm composer__attach', type: 'button' }, icon('image'));
+  attachBtn.addEventListener('click', () => att.pick());
+  const chipsEl = h('div', { class: 'chips', attrs: { role: 'group' }, hidden: true });
+  const agyHint = h('div', { class: 'att-hint faint xs', hidden: true });
   const composer = h('div', { class: 'composer' },
+    att.strip, agyHint,
     input,
-    h('div', { class: 'composer__toolbar' }, segmented, modeSelect, h('span', { class: 'composer__spacer' }), send));
+    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, att.input), h('div', { class: 'composer__actions' }, attachBtn, send)));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
   const hintText = h('span', { class: 'composer__hint-text' });
   const hintBtn = h('button', { class: 'btn btn--sm composer__signin', type: 'button', hidden: true });
   hintBtn.addEventListener('click', () => { const p = activeProject(store.get()); if (p) actions.openLogin(p.agent); });
   hint.append(hintText, hintBtn);
   const slash = h('div', { class: 'menu slash-menu', id: 'slash-menu', hidden: true, attrs: { role: 'listbox', 'aria-label': t('composer.promptPicker') } });
-  root.append(h('div', { class: 'composer-wrap__inner' }, slash, composer, hint));
+  root.append(h('div', { class: 'composer-wrap__inner' }, slash, chipsEl, composer, hint));
+  if (root.parentElement) att.bindDrop(root.parentElement);
   input.setAttribute('aria-controls', 'slash-menu');
   input.setAttribute('aria-expanded', 'false');
 
@@ -104,15 +118,43 @@ export function mountComposer(root, { store, api, actions }) {
     const s = store.get();
     const p = activeProject(s);
     const chat = p && s.chats[p.id];
-    const text = input.value.trim();
-    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health, s.signedIn)) return;
+    const refs = p ? att.refs(p.id) : [];
+    const text = input.value.trim() || (refs.length ? t('images.sugg.describe') : '');
+    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health, s.signedIn) || att.busy(p.id)) return;
     input.value = '';
     drafts.delete(p.id);
+    if (actions.draftChanged) actions.draftChanged(p.id, '');
     autosize();
-    actions.send(text);
+    if (refs.length && thumbs) for (const [rel, url] of att.thumbs(p.id)) thumbs.put(p.id, rel, url);
+    att.clear(p.id);
+    actions.send(text, refs.length ? { images: refs } : undefined);
   }
 
-  input.addEventListener('input', () => { autosize(); updateSlash(); });
+  /** Insert a suggestion chip's prompt (never sends). */
+  function insertPrompt(text) {
+    input.value = input.value.trim() ? input.value.replace(/\s+$/, '') + '\n' + text : text;
+    autosize();
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    if (actions.draftChanged) { const p = activeProject(store.get()); if (p) actions.draftChanged(p.id, input.value); }
+  }
+
+  function renderChips(p, chat, dev) {
+    const empty = !!p && !(chat && chat.messages.length) && !(chat && chat.running);
+    const list = p ? suggestionChips({ imageCount: att.count(p.id), chatEmpty: empty }, t) : [];
+    chipsEl.hidden = !list.length;
+    chipsEl.setAttribute('aria-label', t('images.chips'));
+    chipsEl.replaceChildren(...list.map((c) => h('button', { class: 'chip', type: 'button', text: c.text, on: { click: () => insertPrompt(c.text) } })));
+    const n = p ? att.count(p.id) : 0;
+    agyHint.hidden = !(p && p.agent === 'agy' && n > 0);
+    agyHint.textContent = t('images.agyHint');
+  }
+
+  input.addEventListener('input', () => {
+    autosize(); updateSlash();
+    if (actions.draftChanged) { const p = activeProject(store.get()); if (p) actions.draftChanged(p.id, input.value); }
+  });
+  input.addEventListener('paste', (e) => { if (att.handlePaste(e)) e.preventDefault(); });
   input.addEventListener('blur', () => { if (slashOpen()) closeSlash(); });
   input.addEventListener('keydown', (e) => {
     if (slashOpen() && slashItems.length) {
@@ -142,6 +184,7 @@ export function mountComposer(root, { store, api, actions }) {
       shownProject = p ? p.id : null;
       input.value = (p && drafts.get(p.id)) || '';
       autosize();
+      att.repaint();
     }
     const block = sendBlockReason(p, s.health, s.signedIn);
     input.placeholder = t('composer.placeholder', { agent: p ? t('agent.' + p.agent) : t('app.name') });
@@ -169,7 +212,14 @@ export function mountComposer(root, { store, api, actions }) {
     const label = running ? t('composer.stop') : t('composer.send');
     send.setAttribute('aria-label', label);
     send.title = label;
-    send.disabled = !running && !!block;
+    const uploading = !!p && att.busy(p.id);
+    send.disabled = !running && (!!block || uploading);
+    attachBtn.setAttribute('aria-label', t('images.attach'));
+    attachBtn.title = t('images.attach') + ' (' + t('images.attached', { count: p ? att.count(p.id) : 0, max: 5 }) + ')';
+    attachBtn.disabled = !p || running;
+    att.relabel();
+    renderChips(p, chat, dev);
+    picker.render();
     hint.classList.toggle('is-warn', !!block && !!p);
     hintText.textContent = block ? t(block.key, block.vars) : t('composer.hint');
     hintBtn.hidden = !(block && block.signIn);
@@ -177,14 +227,22 @@ export function mountComposer(root, { store, api, actions }) {
   }
 
   const isRunning = (st) => !!(st.chats[st.activeProjectId] && st.chats[st.activeProjectId].running);
+  const isEmpty = (st) => !(st.chats[st.activeProjectId] && st.chats[st.activeProjectId].messages.length);
   store.subscribe((s, prev) => {
     if (s.projects !== prev.projects || s.activeProjectId !== prev.activeProjectId || s.health !== prev.health || s.signedIn !== prev.signedIn
-      || isRunning(s) !== isRunning(prev) || s.settings.developerMode !== prev.settings.developerMode) render();
+      || isRunning(s) !== isRunning(prev) || isEmpty(s) !== isEmpty(prev) || s.models !== prev.models || s.modelsLoading !== prev.modelsLoading) render();
   });
   render();
   return {
     update: render,
     focus: () => input.focus(),
+    openPicker: () => att.pick(),
+    addFiles: (files) => att.addFiles(files),
+    /** Restore a saved draft for a project (boot / project switch). Never overwrites what the user already typed. */
+    setDraft(pid, text) {
+      if (!pid || !text) return;
+      if (pid === shownProject) { if (!input.value) { input.value = text; autosize(); } } else if (!drafts.get(pid)) drafts.set(pid, text);
+    },
     setText(text) {
       input.value = text; autosize(); input.focus();
       input.setSelectionRange(input.value.length, input.value.length);

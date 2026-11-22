@@ -94,6 +94,11 @@ export function createPhase2({ projects, emitAgent, flags }) {
   const proj = (id) => projects().find((p) => p.id === id);
 
   history.set('p1', [
+    ...(has(/#images/) ? [
+      { ts: Date.now() - 7300000, t: 'user', text: 'Why does the header overflow in these two screenshots?', images: ['.flowstate/attachments/layout-before.png', '.flowstate/attachments/layout-after.png'] },
+      { ts: Date.now() - 7299000, t: 'event', event: { type: 'text', text: 'In the first screenshot the header has a fixed width of 1200px, so it overflows narrow windows. Use `max-width: 100%` and let it wrap.' } },
+      { ts: Date.now() - 7298000, t: 'event', event: { type: 'result', ok: true } },
+    ] : []),
     { ts: Date.now() - 3600000, t: 'user', text: 'Summarise what this project does' },
     { ts: Date.now() - 3599000, t: 'event', event: { type: 'session', sessionId: 'abc' } },
     { ts: Date.now() - 3598000, t: 'event', event: { type: 'tool-use', id: 'h1', name: 'Read', input: { file_path: 'README.md' } } },
@@ -141,9 +146,9 @@ export function createPhase2({ projects, emitAgent, flags }) {
 
   return {
     templates() { return templates; },
-    onUserSend(projectId, text) {
+    onUserSend(projectId, text, images) {
       const list = history.get(projectId) || [];
-      list.push({ ts: Date.now(), t: 'user', text });
+      list.push({ ts: Date.now(), t: 'user', text, ...(Array.isArray(images) && images.length ? { images } : {}) });
       history.set(projectId, list);
     },
     record,

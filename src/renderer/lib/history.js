@@ -14,7 +14,7 @@ export function replayHistory(records, base, opts) {
   for (const r of Array.isArray(records) ? records : []) {
     if (!r || typeof r !== 'object') continue;
     const now = typeof r.ts === 'number' ? r.ts : undefined;
-    if (r.t === 'user' && typeof r.text === 'string') state = addUserMessage(state, r.text, { agent, now });
+    if (r.t === 'user' && typeof r.text === 'string') state = addUserMessage(state, r.text, { agent, now, images: r.images });
     else if (r.t === 'event' && r.event) state = reduceEvent(state, r.event, { now });
   }
   return { ...state, running: false };

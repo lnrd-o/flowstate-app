@@ -8,7 +8,7 @@ import { buildVarsForm } from './vars-form.js';
 
 export async function openRunDialog({ store, api, actions, methodologyId, projectId }) {
   let m;
-  try { m = await api.method.get(methodologyId); } catch (e) { actions.toastError(e); return null; }
+  try { m = await api.method.get(methodologyId, projectId || undefined); } catch (e) { actions.toastError(e); return null; }
   const lang = getLanguage();
   const s = store.get();
   const projects = s.projects;

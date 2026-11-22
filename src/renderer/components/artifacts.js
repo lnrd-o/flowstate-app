@@ -39,7 +39,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     const c = clampWidth(w, minW(), window.innerWidth);
     app.style.setProperty('--artifacts-w', c + 'px');
     splitter.setAttribute('aria-valuenow', String(c));
-    if (persist) writeStore(WIDTH_KEY, c);
+    if (persist) { writeStore(WIDTH_KEY, c); store.set({ artifactsWidth: c }); }
     return c;
   }
   const saved = parseInt(readStore(WIDTH_KEY, ''), 10);
@@ -71,7 +71,9 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     try { splitter.releasePointerCapture(e.pointerId); } catch { /* already released */ }
     splitter.classList.remove('is-dragging');
     app.classList.remove('is-resizing');
-    writeStore(WIDTH_KEY, parseInt(app.style.getPropertyValue('--artifacts-w'), 10) || curW());
+    const w = parseInt(app.style.getPropertyValue('--artifacts-w'), 10) || curW();
+    writeStore(WIDTH_KEY, w);
+    store.set({ artifactsWidth: w });
   };
   splitter.addEventListener('pointerup', end);
   splitter.addEventListener('pointercancel', end);
@@ -207,6 +209,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   return {
     update() { sig = ''; render(); previewViewer.update(); filesTab.update(); dashTab.update(); activityTab.update(); },
     openFile(rel) { filesTab.render(); filesTab.openPath(rel); },
+    applyWidth(w) { setWidth(w, false); },
     onFiles(evt) {
       filesTab.onFiles(evt);
       const p = activeProject(store.get());

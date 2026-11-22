@@ -10,6 +10,8 @@ import { buildThinkingRow, buildSummaryCard, createLiveStatus } from './activity
 import { buildApprovalCard } from './approval-card.js';
 import { buildPlainSteps, buildPlainSummary } from './plain-view.js';
 import { agentIcon } from './agent-icon.js';
+import { buildLimitCard } from './limit-card.js';
+import { openLightbox } from './lightbox.js';
 
 /** Simple mode: fold every markdown code block under a "Show code" disclosure. */
 function collapseCode(body) {
@@ -27,7 +29,7 @@ function agentName(project, m) {
 }
 
 
-export function mountChat(root, { store, api, actions }) {
+export function mountChat(root, { store, api, actions, thumbs }) {
   const inner = h('div', { class: 'chat-scroll__inner', attrs: { role: 'log', 'aria-live': 'polite', 'aria-relevant': 'additions text' } });
   const scroll = h('div', { class: 'chat-scroll' }, inner);
   const jump = h('button', { class: 'btn btn--sm jump-latest', type: 'button', hidden: true }, icon('arrowDown'));
@@ -46,8 +48,10 @@ export function mountChat(root, { store, api, actions }) {
   let shownDev = null;
   const detailTurns = new Set(); // Simple mode: turns whose technical cards are expanded ("Show details")
   let stick = true;
+  let restoring = false;
 
   scroll.addEventListener('scroll', () => {
+    if (actions.chatScrolled && shownProject && !restoring) actions.chatScrolled(shownProject, scroll.scrollTop);
     stick = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80;
     jump.hidden = stick || !entries.size;
   });
@@ -97,10 +101,28 @@ export function mountChat(root, { store, api, actions }) {
     if (m.role === 'user') {
       const body = h('div', { class: 'msg__body' });
       const tag = h('div', { class: 'msg__tag small muted', hidden: true });
-      const el = h('div', { class: 'msg msg--user' }, body, tag);
+      const gallery = h('div', { class: 'msg__images', hidden: true, attrs: { role: 'group' } });
+      const el = h('div', { class: 'msg msg--user' }, gallery, body, tag);
+      let lastImages = '';
       return {
         el,
         update(x) {
+          const imgs = Array.isArray(x.images) ? x.images : [];
+          if (imgs.join('|') !== lastImages) {
+            lastImages = imgs.join('|');
+            gallery.hidden = !imgs.length;
+            gallery.setAttribute('aria-label', t('images.bubble'));
+            const pid = shownProject;
+            gallery.replaceChildren(...imgs.map((rel, i) => {
+              const name = String(rel).split('/').pop();
+              const alt = t('images.alt', { n: i + 1, name });
+              const img = h('img', { class: 'msg__img', alt, draggable: false });
+              const btn = h('button', { class: 'msg__img-btn is-loading', type: 'button', attrs: { 'aria-label': alt }, title: name,
+                on: { click: () => openLightbox({ title: name, alt, load: () => (thumbs ? thumbs.get(pid, rel) : null) }) } }, img);
+              if (thumbs) thumbs.get(pid, rel).then((url) => { btn.classList.remove('is-loading'); if (url) img.src = url; else btn.classList.add('is-missing'); });
+              return btn;
+            }));
+          }
           // A retry after "Allow this once" carries a fixed note for the agent: show it as a small tag instead.
           const shown = stripRetryNote(x.text);
           body.textContent = shown;
@@ -137,6 +159,7 @@ export function mountChat(root, { store, api, actions }) {
     if (m.role === 'thinking') return buildThinkingRow();
     if (m.role === 'summary') return cardCtx.dev ? buildSummaryCard() : buildPlainSummary();
     if (m.role === 'approval') return buildApprovalCard();
+    if (m.role === 'limit') return buildLimitCard({ store, actions });
     if (m.role === 'permission') return { el: h('div', { class: 'msg-hidden', hidden: true }), update() {} };
     if (m.role === 'error') {
       const text = h('div', { class: 'msg__body' });
@@ -246,6 +269,14 @@ export function mountChat(root, { store, api, actions }) {
       render();
     },
     stickToBottom() { stick = true; schedule(); },
+    /** Restore a saved scroll offset (boot): leaves "stick to bottom" until the user scrolls back down. */
+    restoreScroll(top) {
+      if (!(top >= 0)) return;
+      restoring = true; stick = false;
+      scroll.scrollTop = top;
+      jump.hidden = !entries.size;
+      setTimeout(() => { restoring = false; }, 100);
+    },
     reveal,
   };
 }

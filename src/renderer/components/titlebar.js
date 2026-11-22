@@ -6,12 +6,20 @@ import { activeProject, isDev } from '../lib/store.js';
 import { agentIcon } from './agent-icon.js';
 import { cssColorToHexOr } from '../lib/colors.js';
 import { computeInsets, needsOwnControls, normalizePlatform, statusChips, TITLEBAR_HEIGHT } from '../lib/titlebar-state.js';
+import { chipModel } from '../lib/usage.js';
+import { taskCount } from '../lib/tasks.js';
+import { mountMenubar } from './menubar.js';
 
-export function mountTitlebar(el, { store, api, actions }) {
+export function mountTitlebar(el, deps) {
+  const { store, api, actions } = deps;
   const logo = h('span', { class: 'titlebar__logo', attrs: { 'aria-hidden': 'true' }, text: 'F' });
   const name = h('span', { class: 'titlebar__name' });
   const crumbs = h('span', { class: 'titlebar__crumbs truncate' });
-  const left = h('div', { class: 'titlebar__left' }, logo, name, crumbs);
+  const menubarHost = h('div', { class: 'titlebar__menubar', hidden: true });
+  const left = h('div', { class: 'titlebar__left' }, logo, name, menubarHost, crumbs);
+  // Windows / Linux draw their own menu bar here; macOS uses the native one.
+  const menubar = normalizePlatform(store.get().win.platform) !== 'darwin' ? mountMenubar(menubarHost, deps) : null;
+  if (menubar) { menubarHost.hidden = false; el.classList.add('has-menubar'); }
 
   const search = h('input', { class: 'input', type: 'search', id: 'project-search', autocomplete: 'off', spellcheck: false });
   const kbd = h('span', { class: 'kbd', attrs: { 'aria-hidden': 'true' } });
@@ -24,10 +32,14 @@ export function mountTitlebar(el, { store, api, actions }) {
 
   const agentChip = h('span', { class: 'titlebar__agent', hidden: true });
   const modePill = h('button', { class: 'titlebar__mode', type: 'button', attrs: { 'aria-pressed': 'true' } });
-  modePill.addEventListener('click', () => actions.updateSettings({ developerMode: !isDev(store.get()) }));
+  modePill.addEventListener('click', () => actions.toggleDeveloper());
+  const usageChip = h('button', { class: 'badge titlebar__usage', type: 'button', hidden: true });
+  usageChip.addEventListener('click', () => actions.openUsage());
+  const tasksChip = h('button', { class: 'badge badge--green titlebar__tasks', type: 'button', hidden: true });
+  tasksChip.addEventListener('click', () => actions.setView('tasks'));
   const chipsEl = h('div', { class: 'titlebar__chips' });
   const controls = h('div', { class: 'titlebar__controls', hidden: true, attrs: { role: 'group' } });
-  const right = h('div', { class: 'titlebar__right' }, agentChip, modePill, chipsEl, controls);
+  const right = h('div', { class: 'titlebar__right' }, agentChip, usageChip, tasksChip, modePill, chipsEl, controls);
   el.classList.add('titlebar');
   el.append(left, center, right);
 
@@ -93,9 +105,28 @@ export function mountTitlebar(el, { store, api, actions }) {
     modePill.replaceChildren(icon(dev ? 'code' : 'smile'), h('span', { class: 'titlebar__mode-text', text: dev ? t('devmode.pillDev') : t('devmode.pillSimple') }));
   }
 
+  function renderUsageAndTasks(s) {
+    const chip = chipModel(s.usage);
+    usageChip.hidden = !chip;
+    if (chip) {
+      const label = chip.label + (chip.tone === 'red' ? ' - ' + t('usage.chipRejected') : '');
+      usageChip.className = 'badge titlebar__usage titlebar__usage--' + chip.tone;
+      usageChip.title = t('usage.chipTitle', { label });
+      usageChip.setAttribute('aria-label', t('usage.chipTitle', { label }));
+      usageChip.replaceChildren(agentIcon('claude', { size: 12 }), h('span', { class: 'titlebar__usage-text', text: chip.label }));
+    }
+    const n = taskCount(s.tasks);
+    tasksChip.hidden = n === 0;
+    if (n) {
+      tasksChip.title = t('tasks.chipAria', { n });
+      tasksChip.setAttribute('aria-label', t('tasks.chipAria', { n }));
+      tasksChip.replaceChildren(h('span', { class: 'badge__dot' }), h('span', { class: 'titlebar__chip-text', text: t('tasks.chip', { n }) }));
+    }
+  }
+
   function renderText(s) {
     const p = activeProject(s);
-    const section = s.view === 'prompts' ? t('nav.prompts') : s.view === 'methodologies' ? t('nav.methodologies') : t('nav.projects');
+    const section = s.view === 'prompts' ? t('nav.prompts') : s.view === 'methodologies' ? t('nav.methodologies') : s.view === 'tasks' ? t('nav.tasks') : t('nav.projects');
     const last = s.view === 'project' && p ? p.name : '';
     name.textContent = t('app.name');
     crumbs.replaceChildren(h('span', { class: 'sep', text: '/' }), section, ...(last ? [h('span', { class: 'sep', text: '/' }), h('strong', { text: last })] : []));
@@ -116,20 +147,23 @@ export function mountTitlebar(el, { store, api, actions }) {
     const s = store.get();
     const p = activeProject(s);
     const next = JSON.stringify([isDev(s), p && !!(s.chats[p.id] && s.chats[p.id].running), s.view, p && [p.id, p.name, p.agent], s.search, s.win, s.signedIn, p && s.remote[p.id] && s.remote[p.id].running,
-      s.health && [s.health.vpn && s.health.vpn.active, s.health.anthropicReachable]]) + t('nav.projects');
+      s.health && [s.health.vpn && s.health.vpn.active, s.health.anthropicReachable], (chipModel(s.usage) || {}).label, (chipModel(s.usage) || {}).tone, taskCount(s.tasks),
+      p && p.developerMode]) + t('nav.projects');
     if (!force && next === sig) return;
     sig = next;
     applyWindow();
     renderText(s);
     renderAgentAndMode(s);
     renderChips(s);
+    renderUsageAndTasks(s);
   }
   store.subscribe(() => update(false));
   update(true);
 
   return {
-    update: () => update(true),
+    update: () => { update(true); if (menubar) menubar.update(); },
     syncTheme,
+    menubar,
     focusSearch() { search.focus(); search.select(); },
   };
 }

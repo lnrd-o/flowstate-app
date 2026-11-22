@@ -92,7 +92,7 @@ export function createLoginManager({
       emit({ agent, kind: 'error', text: String(e?.message ?? e) });
       return { ok: false, mode: 'pipe', error: 'spawn-failed' };
     }
-    const s = { agent, mode: 'pipe', proc: child, cancelled: false, urls: new Set(), prompted: false };
+    const s = { startedAt: Date.now(), agent, mode: 'pipe', proc: child, cancelled: false, urls: new Set(), prompted: false };
     sessions.set(agent, s);
     s.timer = setTimeoutFn(() => { send(s, { kind: 'error', text: 'timeout' }); teardown(s, { kill: 'timeout' }); }, timeoutMs);
     const onText = (buf) => (chunk) => {
@@ -145,7 +145,7 @@ export function createLoginManager({
       emit({ agent, kind: 'error', text: 'terminal-unavailable' });
       return { ok: false, mode: 'pty', error: String(e?.message ?? e) };
     }
-    const s = { agent, mode: 'pty', proc: pty, cancelled: false, urls: new Set(), tail: '', lastLoggedIn: undefined, inflight: false, finished: false };
+    const s = { startedAt: Date.now(), agent, mode: 'pty', proc: pty, cancelled: false, urls: new Set(), tail: '', lastLoggedIn: undefined, inflight: false, finished: false };
     sessions.set(agent, s);
     s.timer = setTimeoutFn(() => { send(s, { kind: 'error', text: 'timeout' }); teardown(s, { kill: 'timeout' }); }, timeoutMs);
 
@@ -229,5 +229,7 @@ export function createLoginManager({
 
   function cancelAll() { for (const a of [...sessions.keys()]) cancel(a); }
 
-  return { start, input, resize, cancel, cancelAll, status, logout, isOpen: (a) => sessions.has(a) };
+  return { start, input, resize, cancel, cancelAll, status, logout, isOpen: (a) => sessions.has(a),
+    /** Open sign-in sessions (tasks service). */
+    sessions: () => [...sessions.values()].map((s) => ({ agent: s.agent, mode: s.mode, startedAt: s.startedAt })) };
 }

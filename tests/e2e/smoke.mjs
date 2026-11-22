@@ -29,7 +29,7 @@ let ws; let id = 0; const pending = new Map(); const problems = [];
 async function connect() {
   for (let i = 0; i < 40; i++) {
     try {
-      const t = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((x) => x.type === 'page');
+      const t = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((x) => x.type === 'page' && x.url.split('?')[0].endsWith('index.html'));
       if (t) { ws = new WebSocket(t.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; }); return; }
     } catch { /* not up yet */ }
     await sleep(500);
@@ -53,6 +53,7 @@ try {
     else if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error') problems.push(d.params.args.map((a) => a.value ?? a.description).join(' '));
   };
   await send('Runtime.enable');
+  await ev('try { await window.flowstate.app.ready(); } catch {} return 1'); // show the window now instead of waiting for the 10 s fallback
   await send('Page.reload'); await sleep(3000);
 
   // 1. API surface matches the contract
@@ -133,6 +134,24 @@ try {
     check('history recorded user + text + result', out.hist.includes('user:') && out.hist.includes('event:text') && out.hist.includes('event:result'), out.hist.join(','));
     check('session id persisted for resume', out.session === true);
   }
+
+  // 7c. Phase 7 surface (no model calls): splash gone, models, usage, tasks, menu, deepseek, store
+  const pages = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).filter((x) => x.type === 'page');
+  check('only the index.html page remains (splash closed)', pages.length === 1 && pages[0].url.split('?')[0].endsWith('index.html'), pages.map((x) => x.url).join(','));
+  const ai = JSON.parse(await ev(`return JSON.stringify(await window.flowstate.app.info())`));
+  check('app.info shape', ai.name === 'FlowState' && typeof ai.version === 'string' && typeof ai.userData === 'string');
+  const cm = JSON.parse(await ev(`return JSON.stringify(await window.flowstate.models.list('claude'))`));
+  check('models.list(claude) static aliases', cm.source === 'static' && cm.models.some((m) => m.id === 'opus') && cm.efforts.length === 5);
+  const us = JSON.parse(await ev(`return JSON.stringify(await window.flowstate.usage.get())`));
+  check('usage.get shape', typeof us.at === 'number' && us.claude?.windows && us.agy?.today && us.deepseek?.configured === false);
+  const tk = JSON.parse(await ev(`return JSON.stringify(await window.flowstate.tasks.list())`));
+  check('tasks.list shape', Array.isArray(tk.agents) && Array.isArray(tk.services) && typeof tk.todos === 'object' && Array.isArray(tk.subagents));
+  const mm = JSON.parse(await ev(`return JSON.stringify(await window.flowstate.menu.model())`));
+  const recent = mm.items[0].submenu.find((i) => i.dynamic === 'recent');
+  check('menu.model File/Edit/View/Help + recents', mm.items.map((i) => i.id).join() === 'file,edit,view,help' && recent.submenu.some((r) => r.id === `file.recent:${p.id}`));
+  check('deepseek.status default', (await ev(`return (await window.flowstate.deepseek.status()).configured`)) === false);
+  const stAll = JSON.parse(await ev(`await window.flowstate.store.save(${JSON.stringify(p.id)}); return JSON.stringify(await window.flowstate.store.status(${JSON.stringify(p.id)}))`));
+  check('store writes .flowstate/project.json (gitignored private files)', stAll.hasProject && stAll.gitignored && existsSync(join(proj, '.flowstate', 'project.json')));
 
   // 8. UI renders the project and themes switch
   await send('Page.reload'); await sleep(3000);

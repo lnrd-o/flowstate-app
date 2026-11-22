@@ -4,7 +4,8 @@
 // another one lazily at call time - never at create time) and a `push(channel, payload)` helper to the renderer.
 //
 // Optional service hooks (all optional, called by main.js):
-//   service.onAgentEvent(projectId, event)   every normalised agent event (usage, tasks and the project store listen)
+//   service.onAgentEvent(projectId, event, meta?)   every normalised agent event (usage, tasks and the project store listen);
+//                                            meta = {agent} = the agent that produced the turn (per-turn methodology overrides included)
 //   service.dispose()                        on app quit
 // A service that fails to load or create is logged and skipped: the IPC layer then answers 'service not available: <name>'.
 
@@ -36,9 +37,9 @@ export async function createServices(deps, { names = SERVICE_NAMES, importer = (
 }
 
 /** Fan an agent event out to every service that listens (errors in one never affect the others). */
-export function fanoutAgentEvent(services, projectId, event) {
+export function fanoutAgentEvent(services, projectId, event, meta) {
   for (const s of Object.values(services)) {
-    try { s?.onAgentEvent?.(projectId, event); } catch { /* a listener must never break the agent stream */ }
+    try { s?.onAgentEvent?.(projectId, event, meta); } catch { /* a listener must never break the agent stream */ }
   }
 }
 

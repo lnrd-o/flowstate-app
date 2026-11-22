@@ -1,6 +1,9 @@
-// Append-only chat history: one JSONL file per project in <userData>/history/<projectId>.jsonl.
+// Append-only chat history: one JSONL file per project, stored INSIDE the project folder (<project>/.flowstate/history.jsonl).
+// Falls back to <userData>/history/<projectId>.jsonl when the folder is unknown or read-only; an existing userData file is
+// migrated into the folder once (the folder copy wins when both exist).
 import fs from 'node:fs';
 import path from 'node:path';
+import { ensureStoreDir } from './svc/store-fs.js';
 
 export const MAX_BYTES = 2 * 1024 * 1024;
 export const KEEP_BYTES = Math.floor(MAX_BYTES * 0.75);
@@ -24,17 +27,62 @@ export function capEvent(ev) {
   return out;
 }
 
-export function createHistory({ dir, fsx = fs, now = Date.now } = {}) {
+/** storeDirOf(projectId) -> absolute <project>/.flowstate path | null (unknown project). */
+export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null } = {}) {
   const root = path.join(dir, 'history');
   const pending = new Map(); // projectId -> accumulated text-delta string
-  const fileOf = (id) => {
+  const readonly = new Set(); // projects whose folder could not be written: they use the userData copy
+  const migrated = new Set();
+
+  const legacyOf = (id) => {
     if (typeof id !== 'string' || !ID_RE.test(id)) throw new TypeError('invalid project id');
     return path.join(root, `${id}.jsonl`);
   };
+  const folderOf = (id) => {
+    if (readonly.has(id)) return null;
+    let d = null;
+    try { d = storeDirOf?.(id) ?? null; } catch { d = null; }
+    return d ? path.join(d, 'history.jsonl') : null;
+  };
+  /** One-time move of an old userData history file into the folder (best effort; never loses data). */
+  const migrate = (id, folderFile) => {
+    if (migrated.has(id)) return;
+    migrated.add(id);
+    const old = legacyOf(id);
+    try {
+      if (!fsx.existsSync(old) || fsx.existsSync(folderFile)) return; // both exist: the folder copy wins, the old one stays
+      fsx.copyFileSync(old, folderFile);
+      fsx.unlinkSync(old);
+    } catch { /* keep the old copy */ }
+  };
+  // File to use for a project. For a folder file when writing, make sure the folder (and its .gitignore) exists and is writable.
+  const fileOf = (id, forWrite = false) => {
+    const legacy = legacyOf(id);
+    const ff = folderOf(id);
+    if (!ff) return legacy;
+    const storeDir = path.dirname(ff);
+    if (forWrite) {
+      try { ensureStoreDir(path.dirname(storeDir), fsx); } catch { readonly.add(id); return legacy; }
+      migrate(id, ff);
+    } else {
+      if (fsx.existsSync(storeDir)) migrate(id, ff);
+      if (!fsx.existsSync(ff) && fsx.existsSync(legacy)) return legacy; // not migrated yet (no folder): still readable
+    }
+    return ff;
+  };
   const write = (id, rec) => {
-    const f = fileOf(id);
-    fsx.mkdirSync(root, { recursive: true });
-    fsx.appendFileSync(f, `${JSON.stringify(rec)}\n`, 'utf8');
+    let f = fileOf(id, true);
+    const line = `${JSON.stringify(rec)}\n`;
+    try {
+      fsx.mkdirSync(path.dirname(f), { recursive: true });
+      fsx.appendFileSync(f, line, 'utf8');
+    } catch (e) {
+      if (f === legacyOf(id)) throw e;
+      readonly.add(id); // read-only folder: fall back to the userData copy
+      f = legacyOf(id);
+      fsx.mkdirSync(path.dirname(f), { recursive: true });
+      fsx.appendFileSync(f, line, 'utf8');
+    }
   };
   const flush = (id) => {
     const t = pending.get(id);
@@ -43,9 +91,11 @@ export function createHistory({ dir, fsx = fs, now = Date.now } = {}) {
   };
 
   return {
-    recordUser(id, text) {
+    recordUser(id, text, images) {
       flush(id);
-      write(id, { ts: now(), t: 'user', text: String(text).slice(0, FIELD_CAP) });
+      const rec = { ts: now(), t: 'user', text: String(text).slice(0, FIELD_CAP) };
+      if (Array.isArray(images) && images.length) rec.images = images.filter((r) => typeof r === 'string').slice(0, 5);
+      write(id, rec);
     },
     /** text-delta is buffered; a full 'text' event supersedes the buffer; any other event flushes it first. */
     recordEvent(id, ev) {
@@ -58,8 +108,9 @@ export function createHistory({ dir, fsx = fs, now = Date.now } = {}) {
     },
     flush,
     get(id) {
-      const f = fileOf(id);
+      legacyOf(id);
       flush(id);
+      const f = fileOf(id);
       let text;
       try { text = fsx.readFileSync(f, 'utf8'); } catch { return []; }
       if (Buffer.byteLength(text) > MAX_BYTES) {
@@ -76,10 +127,20 @@ export function createHistory({ dir, fsx = fs, now = Date.now } = {}) {
       }
       return recs.slice(-RETURN_LAST);
     },
+    /** Truncate the history (folder copy and any leftover userData copy). */
     clear(id) {
-      const f = fileOf(id);
+      legacyOf(id);
       pending.delete(id);
-      try { fsx.unlinkSync(f); } catch { /* none */ }
+      const ff = folderOf(id);
+      if (ff) { try { fsx.unlinkSync(ff); } catch { /* none */ } }
+      try { fsx.unlinkSync(legacyOf(id)); } catch { /* none */ }
     },
+    /** Project removed from the registry: drop in-memory state and the userData copy only. The folder history stays. */
+    forget(id) {
+      pending.delete(id); migrated.delete(id); readonly.delete(id);
+      try { fsx.unlinkSync(legacyOf(id)); } catch { /* none */ }
+    },
+    /** Absolute file currently used for this project (diagnostics / status). */
+    fileFor: (id) => fileOf(id),
   };
 }

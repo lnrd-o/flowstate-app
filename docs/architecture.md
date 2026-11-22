@@ -63,3 +63,29 @@ from Windows (`tests/unit/main-platform.test.js`, fake fs in `tests/fixtures/fak
   SIGTERM to the group, SIGKILL after 2 s. Children not started by FlowState's spawn helper fall back to signalling the pid only.
 - **Files:** opening is refused for Windows executables, posix scripts/bundles (.sh, .command, .app, .AppImage ...) and any file with an exec bit.
 - **Packaging/CI:** see building.md.
+
+## Phase 7 services (`src/main/svc/*.js`)
+
+Loaded by `services.js` (`export function create(deps)`), listening to agent events through `onAgentEvent(projectId, event, meta)`
+where `meta.agent` is the agent that produced the turn (methodology overrides included).
+
+| service | role |
+| --- | --- |
+| `store` | `<project>/.flowstate` write-through + auto-load, open folder, clear (see project-store.md) |
+| `ui` | global UI state (userData) + per-project UI state (via store) |
+| `models` | claude static aliases (+ model id seen in `session`), agy live `agy models` (60 s cache); the adapters add `--model/--effort` |
+| `usage` | claude rate-limit windows, per-turn cost/tokens per agent (daily buckets, 30 days, `usage.json`), verbatim `limit` messages, `claude -p /usage` refresh (at most every 5 min), DeepSeek balance; pushes `ev:usage` (1/s) |
+| `deepseek` | optional balance/models; key only via Electron `safeStorage` in `deepseek.key`, fixed `https://api.deepseek.com` origin |
+| `attachments` | images in `.flowstate/attachments` (magic bytes, <= 8 MB, header size parsing); `agent.send({images})` becomes base64 blocks (claude) or `[Image attached: path]` lines (agy) |
+| `tasks` | running agent turns + dashboards / remote / methodology / sign-in / watcher + agent todos and sub-agents; `ev:tasks` on change (<= 2/s) |
+| `menu` | one model (`src/shared/menu.js`) for the native menu (EN/ES labels in `menu-labels.js`) and the HTML bar (`menu:model` / `menu:invoke`) |
+| `boot` | splash window (`src/main/splash/`), window state (`window-state.json`), show-on-`app:ready` (10 s fallback), quit flow |
+
+### Boot and quit
+
+`main.js` opens the splash first (steps: modules, settings, projects, resume, services, tools, open), creates the main window with
+`show:false` at the saved bounds (validated against the connected displays; maximized restored, fullscreen never) and shows it when the
+renderer has called `app:ready` AND the first health poll is done (or after 10 s); the splash then closes (minimum 700 ms visible).
+Closing the window on win/linux, `file.quit` or any quit runs one guarded flow: push `ev:before-quit`, wait for `app:flushed` (max 2 s),
+`store.saveAll`, flush usage, stop agents / runner / dashboards / remote / login / watcher / services, then `app.quit()`.
+E2E launchers must pick the CDP target whose URL ends with `index.html` (the splash is a second page while booting).

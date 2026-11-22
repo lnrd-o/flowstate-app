@@ -33,7 +33,7 @@ export function createInitialState() {
   return {
     settings: {
       language: 'en', theme: 'dark', codeTheme: 'vs-dark', claudePath: null, agyPath: null,
-      lastProjectId: null, autoLaunch: false, walkthroughDone: true, developerMode: true,
+      lastProjectId: null, autoLaunch: false, walkthroughDone: true, developerMode: true, deepseekEnabled: false,
     },
     projects: [],
     activeProjectId: null,
@@ -55,6 +55,18 @@ export function createInitialState() {
     win: { platform: 'win32', overlay: true, controlsInset: { left: 80, right: 140 }, fullscreen: false, maximized: false },
     sidebarCollapsed: false,
     artifactsCollapsed: false,
+    artifactsWidth: null,
+    sidebarWidth: null,
+    usage: null, // UsageSnapshot (usage.get / onUsage)
+    models: {}, // agent -> ModelList
+    modelsLoading: {}, // agent -> boolean
+    deepseek: null, // DeepseekStatus
+    tasks: null, // TasksSnapshot (tasks.list / onTasks)
+    storeStatus: {}, // projectId -> StoreStatus
+    menuModel: null, // menu.model()
+    appInfo: null, // app.info()
+    openFile: null, // project-relative path shown in the Files tab (persisted per project)
+    limitDismissed: {}, // projectId -> limit.at that the user dismissed from the banner
   };
 }
 
@@ -62,8 +74,23 @@ export function activeProject(state) {
   return state.projects.find((p) => p.id === state.activeProjectId) || null;
 }
 
-/** Developer mode (technical detail: code, diffs, commands). On unless explicitly turned off. */
+/**
+ * Effective Developer mode for one project: the project's own override (true/false) wins, null/undefined follows the global setting
+ * (which is on unless explicitly turned off). Pure.
+ */
+export function effectiveDeveloperMode(project, settings) {
+  if (project && typeof project.developerMode === 'boolean') return project.developerMode;
+  return !settings || settings.developerMode !== false;
+}
+
+/** Developer mode (technical detail: code, diffs, commands) for the active project, falling back to the global setting. */
 export function isDev(state) {
+  if (!state || !state.settings) return true;
+  return effectiveDeveloperMode(activeProject(state), state.settings);
+}
+
+/** The GLOBAL developer-mode setting only (Settings dialog, walkthrough): ignores any project override. */
+export function isGlobalDev(state) {
   return !state || !state.settings || state.settings.developerMode !== false;
 }
 

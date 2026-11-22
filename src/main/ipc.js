@@ -121,8 +121,9 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     },
   });
   const phase3 = () => ({
-    [CH.methodList]: () => methodologies.list(),
-    [CH.methodGet]: (_e, id) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); return methodologies.get(id); },
+    // optional projectId: also list / read <project>/.flowstate/methodologies/*.json (source 'project')
+    [CH.methodList]: (_e, projectId) => { if (projectId !== undefined) need(projectId); return methodologies.list(projectId); },
+    [CH.methodGet]: (_e, id, projectId) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); if (projectId !== undefined) need(projectId); return methodologies.get(id, projectId); },
     [CH.methodSave]: (_e, m) => { if (!isPlain(m)) throw new TypeError('methodology required'); return methodologies.save(m); },
     [CH.methodDelete]: (_e, id) => { if (!isMid(id)) throw new TypeError('invalid methodology id'); methodologies.delete(id); },
     [CH.methodRecord]: (_e, projectId, opts = {}) => {
@@ -204,7 +205,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
       files?.closeWatcher(p.id);
       dashboards?.stop(p.id);
       remote?.stopForRemoved(p).catch(() => {});
-      history?.clear(p.id);
+      history?.forget(p.id); // registry only: the folder history stays so re-adding the folder reloads it
       projects.remove(id);
     },
     [CH.projectsPickFolder]: async () => {

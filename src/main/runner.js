@@ -251,7 +251,7 @@ export function createRunner({ dir, getProject, getMethodology, agents, git, emi
       if (!project) throw new Error('Unknown project');
       if (typeof methodologyId !== 'string' || !ID_RE.test(methodologyId)) throw new TypeError('invalid methodology id');
       if (active.has(projectId)) throw new Error('A run is already active for this project');
-      const m = getMethodology(methodologyId);
+      const m = getMethodology(methodologyId, projectId);
       const errs = validateMethodology(m);
       if (errs.length) throw new Error(`Invalid methodology: ${errs.join('; ')}`);
       const clean = validateVars(m, vars, project);
@@ -265,6 +265,9 @@ export function createRunner({ dir, getProject, getMethodology, agents, git, emi
       Promise.resolve().then(() => walk(run, m, project));
       return { runId: state.runId };
     },
+
+    /** Active runs (tasks service). */
+    listActive: () => [...active.values()].map((r) => ({ runId: r.state.runId, projectId: r.state.projectId, methodologyId: r.state.methodologyId, status: r.state.status, startedAt: r.state.startedAt })),
 
     respond(runId, nodeId, response) {
       const run = [...active.values()].find((r) => r.state.runId === runId);

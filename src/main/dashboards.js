@@ -161,7 +161,7 @@ export function createDashboards({
       const onData = (d) => { for (const l of String(d).split(/\r?\n/)) if (l.trim()) { tail.push(l); if (tail.length > 20) tail.shift(); } };
       child.stdout?.on('data', onData);
       child.stderr?.on('data', onData);
-      const rec = { child, port, app: rel, url: `http://127.0.0.1:${port}` };
+      const rec = { child, port, app: rel, url: `http://127.0.0.1:${port}`, startedAt: Date.now() };
       child.on('error', () => { dead = true; });
       child.on('close', () => {
         dead = true;
@@ -189,6 +189,8 @@ export function createDashboards({
 
   return {
     status, setup, start, stop, discoverApps,
+    /** Running dashboards (tasks service). */
+    list: () => [...procs].map(([projectId, r]) => ({ projectId, url: r.url, app: r.app, startedAt: r.startedAt })),
     stopAll() { for (const id of [...procs.keys()]) stop(id); },
   };
 }

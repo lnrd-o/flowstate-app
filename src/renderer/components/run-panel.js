@@ -47,7 +47,7 @@ export function mountRunPanel(el, { store, api, actions }) {
   function ensureMethod(st) {
     if (methodOf(st) || loadingFor === st.methodologyId) return;
     loadingFor = st.methodologyId;
-    api.method.get(st.methodologyId).then((m) => { store.set((s) => ({ methodCache: { ...s.methodCache, [m.id]: m } })); }).catch(() => {}).finally(() => { loadingFor = null; });
+    api.method.get(st.methodologyId, st.projectId || undefined).then((m) => { store.set((s) => ({ methodCache: { ...s.methodCache, [m.id]: m } })); }).catch(() => {}).finally(() => { loadingFor = null; });
   }
 
   function waitingCard(st) {

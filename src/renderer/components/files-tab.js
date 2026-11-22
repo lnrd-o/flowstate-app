@@ -61,6 +61,7 @@ export function mountFilesTab(el, { store, api }) {
     st.focus = entry.rel;
     if (entry.isDir) { toggle(pid, entry); return; }
     st.selected = entry.rel;
+    store.set({ openFile: entry.rel });
     viewer.show(pid, entry.rel);
     paint();
   }
@@ -183,6 +184,7 @@ export function mountFilesTab(el, { store, api }) {
     const clean = normRel(rel);
     const parts = clean.split('/');
     st.selected = clean;
+    store.set({ openFile: clean });
     st.focus = clean;
     let dir = '';
     const loads = [];

@@ -1,5 +1,6 @@
 import { AgentAdapter } from './base.js';
 import { NORMALIZERS } from '../../shared/events.js';
+import { modelArgs } from './model-spec.js';
 
 /** Never leave agy in always-proceed: default/acceptEdits -> accept-edits, plan -> plan. */
 export function agyModeFor(mode) {
@@ -13,9 +14,16 @@ export class AgyAdapter extends AgentAdapter {
     return [
       '--output-format', 'stream-json',
       ...(project.sessionId ? ['--conversation', project.sessionId] : []),
+      ...modelArgs(project),
       '--mode', agyModeFor(project.mode),
       `-p=${text}`, // the value MUST be attached with '='
     ];
+  }
+
+  /** agy reads image files itself: one '[Image attached: <absolute path>]' line per image appended to the prompt. */
+  prepareText(text, images = []) {
+    const lines = images.filter((i) => i?.abs).map((i) => `[Image attached: ${i.abs}]`);
+    return lines.length ? `${text}\n\n${lines.join('\n')}` : text;
   }
 
   // Verified on agy 1.5.14: init always reports permission_mode 'always-proceed' in print mode, but we always

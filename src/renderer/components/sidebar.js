@@ -4,20 +4,23 @@ import { t } from '../lib/i18n.js';
 import { filterProjects } from '../lib/store.js';
 import { openProjectMenu } from './project-menu.js';
 import { agentIcon } from './agent-icon.js';
+import { taskCount } from '../lib/tasks.js';
 
 export function mountRail(el, { store, actions }) {
   const render = () => {
     const s = store.get();
     clear(el);
+    const n = taskCount(s.tasks);
     const btn = (view, ic, label) => h('button', {
       class: 'rail__btn' + (s.view === view ? ' is-active' : ''), type: 'button',
-      attrs: { 'aria-label': label, title: label, 'aria-pressed': String(s.view === view) },
+      attrs: { 'aria-label': view === 'tasks' && n ? label + ' (' + t('tasks.badge', { n }) + ')' : label, title: label, 'aria-pressed': String(s.view === view) },
       on: { click: () => actions.setView(view) },
-    }, icon(ic));
+    }, icon(ic), view === 'tasks' && n ? h('span', { class: 'rail__badge', attrs: { 'aria-hidden': 'true' }, text: String(n) }) : null);
     el.append(
       btn('project', 'message', t('nav.projects')),
       btn('prompts', 'file', t('nav.prompts')),
       btn('methodologies', 'layers', t('nav.methodologies')),
+      btn('tasks', 'tasks', t('nav.tasks')),
       h('div', { class: 'rail__spacer' }),
       h('button', {
         class: 'rail__btn', type: 'button', attrs: { 'aria-label': t('nav.settings'), title: t('nav.settings') },
@@ -28,7 +31,7 @@ export function mountRail(el, { store, actions }) {
   let sig = '';
   const update = () => {
     const s = store.get();
-    const next = s.view + '|' + t('nav.projects');
+    const next = s.view + '|' + t('nav.projects') + '|' + taskCount(s.tasks);
     if (next === sig) return;
     sig = next;
     render();
@@ -92,6 +95,11 @@ export function mountSidebar(el, { store, actions }) {
         class: 'nav-item' + (s.view === 'methodologies' ? ' is-active' : ''), type: 'button',
         on: { click: () => actions.setView('methodologies') },
       }, h('span', { class: 'nav-item__icon' }, icon('layers')), h('span', { class: 'nav-item__label', text: t('nav.methodologies') })),
+      h('button', {
+        class: 'nav-item' + (s.view === 'tasks' ? ' is-active' : ''), type: 'button',
+        on: { click: () => actions.setView('tasks') },
+      }, h('span', { class: 'nav-item__icon' }, icon('tasks')), h('span', { class: 'nav-item__label', text: t('nav.tasks') }),
+      taskCount(s.tasks) ? h('span', { class: 'nav-item__count', attrs: { 'aria-label': t('tasks.badge', { n: taskCount(s.tasks) }) }, text: String(taskCount(s.tasks)) }) : null),
     );
   }
 
@@ -122,7 +130,7 @@ export function mountSidebar(el, { store, actions }) {
     const signature = JSON.stringify([
       s.view, s.activeProjectId, s.search,
       s.projects.map((p) => [p.id, p.name, p.agent, !!(s.chats[p.id] && s.chats[p.id].running), s.runs[p.id] && s.runs[p.id].status]),
-      s.health && [s.health.vpn.active, s.health.anthropicReachable],
+      s.health && [s.health.vpn.active, s.health.anthropicReachable], taskCount(s.tasks),
     ]) + t('nav.projects');
     if (signature === sig) return;
     sig = signature;

@@ -21,6 +21,7 @@ import { createPhase3 } from './mock-phase3.js';
 import { createPhase4 } from './mock-phase4.js';
 import { wantsRich, richScript } from './mock-phase5.js';
 import { wantsBlocked, devPreset, allowCovers, blockedNeeds, blockedScript } from './mock-phase6.js';
+import { createPhase7, wantsLimit } from './mock-phase7.js';
 
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -29,18 +30,25 @@ export function createMockApi() {
     lastProjectId: null, autoLaunch: false,
     walkthroughDone: !/#(walkthrough|first)/.test(location.hash),
     developerMode: devPreset(location.hash) !== false,
+    deepseekEnabled: /#deepseek/.test(location.hash),
   };
   let projects = [
-    { id: 'p1', name: 'ClaudeClient', path: 'C:\\Users\\leo\\Code\\ClaudeClient', agent: 'claude', mode: 'default', sessionId: 'abc', lastOpened: new Date().toISOString(), autoCommit: true },
-    { id: 'p2', name: 'dashboards-with-a-rather-long-project-name', path: 'C:\\Users\\leo\\Code\\dashboards', agent: 'agy', mode: 'plan', sessionId: null, lastOpened: new Date().toISOString(), autoCommit: false },
-    { id: 'p3', name: 'notes', path: 'C:\\Users\\leo\\Notes', agent: 'claude', mode: 'acceptEdits', sessionId: null, lastOpened: new Date().toISOString(), autoCommit: false },
+    { id: 'p1', name: 'ClaudeClient', path: 'C:\\Users\\leo\\Code\\ClaudeClient', agent: 'claude', mode: 'default', sessionId: 'abc', lastOpened: new Date().toISOString(), autoCommit: true, model: null, effort: null, developerMode: null },
+    { id: 'p2', name: 'dashboards-with-a-rather-long-project-name', path: 'C:\\Users\\leo\\Code\\dashboards', agent: 'agy', mode: 'plan', sessionId: null, lastOpened: new Date().toISOString(), autoCommit: false, model: null, effort: null, developerMode: null },
+    { id: 'p3', name: 'notes', path: 'C:\\Users\\leo\\Notes', agent: 'claude', mode: 'acceptEdits', sessionId: null, lastOpened: new Date().toISOString(), autoCommit: false, model: null, effort: null, developerMode: null },
   ];
   const agentSubs = new Set();
   const healthSubs = new Set();
   const running = new Map();
   const flags = { pythonInstalled: false, gitInstalled: false, nodeInstalled: false, loggedIn: false };
   let p2 = null;
-  const emit = (projectId, event) => { if (p2) p2.record(projectId, event); agentSubs.forEach((cb) => cb({ projectId, event })); };
+  let p7 = null;
+  const emit = (projectId, event) => {
+    if (event && event.__limit) event = p7.realiseLimit(projectId, event);
+    if (p2) p2.record(projectId, event);
+    if (p7) p7.observe(projectId, event);
+    agentSubs.forEach((cb) => cb({ projectId, event }));
+  };
 
   const health = () => ({
     claude: { found: !/#noclaude/.test(location.hash), path: 'C:\\bin\\claude.exe', version: '2.1.0', loggedIn: p4.signed().claude },
@@ -53,6 +61,10 @@ export function createMockApi() {
   });
   const p4 = createPhase4({ onSignedChange: () => healthSubs.forEach((cb) => cb(health())) });
   p2 = createPhase2({ projects: () => projects, emitAgent: emit, flags });
+  p7 = createPhase7({
+    projects: () => projects, getSettings: () => settings, emitAgent: emit, isSigned: (a) => p4.signed()[a],
+    addProject: async (p) => api.projects.add(p), getRunning: () => [...running.keys()], stopAgent: (id) => api.agent.stop(id), history: { clear: (pid) => p2.api.history.clear(pid) },
+  });
   const p3 = createPhase3({ projects: () => projects, getHistory: (pid) => p2.api.history.get(pid), emitAgent: emit });
   window.addEventListener('hashchange', () => healthSubs.forEach((cb) => cb(health())));
 
@@ -84,6 +96,9 @@ export function createMockApi() {
   }
 
   function runTurn(projectId, text, allow) {
+    const limitKind = wantsLimit(location.hash);
+    const lproj = projects.find((p) => p.id === projectId);
+    if (limitKind && lproj && lproj.agent === 'claude') { runScript(projectId, text, p7.limitScript(projectId, limitKind)); return; }
     const variant = wantsBlocked(location.hash);
     const bproj = projects.find((p) => p.id === projectId);
     if (variant && bproj && bproj.agent === 'claude') {
@@ -98,6 +113,11 @@ export function createMockApi() {
     const at = (ms, fn) => timers.push(setTimeout(fn, ms));
     let t = 100;
     at(t, () => emit(projectId, { type: 'session', sessionId: 'abc', warning: proj.agent === 'agy' ? 'always-proceed' : undefined }));
+    if (proj.agent === 'claude') {
+      at(t + 40, () => emit(projectId, { type: 'todos', items: [{ content: 'Read the failing test', status: 'completed' }, { content: 'Fix the comparison', status: 'in_progress' }, { content: 'Add a regression test', status: 'pending' }] }));
+      at(t + 60, () => emit(projectId, { type: 'subagent', id: 'sa-' + t, name: 'Explore', description: 'Find the helper', state: 'running' }));
+      at(t + 1500, () => emit(projectId, { type: 'subagent', id: 'sa-' + t, name: 'Explore', state: 'done' }));
+    }
     // streamed text in small chunks
     const chunks = [];
     for (const part of MOCK_REPLY.slice(0, 3)) for (let i = 0; i < part.length; i += 9) chunks.push(part.slice(i, i + 9));
@@ -129,7 +149,7 @@ export function createMockApi() {
     running.set(projectId, { timers, text });
   }
 
-  return {
+  const api = {
     isMock: true,
     settings: {
       get: async () => clone(settings),
@@ -141,7 +161,7 @@ export function createMockApi() {
         const proj = {
           id: 'p' + (projects.length + 10), name: p.name || String(p.path).split(/[\\/]/).pop(), path: p.path,
           agent: p.agent || 'claude', mode: p.mode || 'default', sessionId: null, lastOpened: new Date().toISOString(),
-          autoCommit: !!p.autoCommit,
+          autoCommit: !!p.autoCommit, model: null, effort: null, developerMode: null,
         };
         projects = [...projects, proj];
         return clone(proj);
@@ -154,7 +174,7 @@ export function createMockApi() {
       pickFolder: async () => 'C:\\Users\\leo\\Code\\NewProject',
     },
     agent: {
-      send: async ({ projectId, text, allow }) => { p2.onUserSend(projectId, text); runTurn(projectId, text, allow); return { turnId: 't' + Date.now() }; },
+      send: async ({ projectId, text, allow, images }) => { p2.onUserSend(projectId, text, images); runTurn(projectId, text, allow); return { turnId: 't' + Date.now() }; },
       stop: async (projectId) => {
         const r = running.get(projectId);
         if (r) r.timers.forEach(clearTimeout);
@@ -169,6 +189,7 @@ export function createMockApi() {
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
     ...p2.api,
+    ...p7.api,
     auth: { login: async () => { const r = await p2.api.auth.login(); p4.setSigned('claude', true); return r; } },
     ...p4.api,
     onLogin: p4.subscribe.onLogin,
@@ -179,7 +200,12 @@ export function createMockApi() {
     onDashboard: p2.subscribe.onDashboard,
     onInstall: p2.subscribe.onInstall,
     onRemote: p2.subscribe.onRemote,
+    onUsage: p7.subscribe.onUsage,
+    onTasks: p7.subscribe.onTasks,
+    onMenu: p7.subscribe.onMenu,
+    onBeforeQuit: p7.subscribe.onBeforeQuit,
     onAgentEvent: (cb) => { agentSubs.add(cb); return () => agentSubs.delete(cb); },
     onHealth: (cb) => { healthSubs.add(cb); return () => healthSubs.delete(cb); },
   };
+  return api;
 }

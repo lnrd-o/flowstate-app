@@ -7,6 +7,7 @@ import { mountComposer } from './composer.js';
 import { mountPrompts } from './prompts.js';
 import { mountMethods } from './methods.js';
 import { mountRunPanel } from './run-panel.js';
+import { mountTasksPanel } from './tasks-panel.js';
 import { openProjectMenu } from './project-menu.js';
 import { copyText } from '../lib/clipboard.js';
 import { toast } from './modal.js';
@@ -16,11 +17,12 @@ export function mountMain(el, deps) {
   const crumbs = h('span', { class: 'topbar__crumbs' });
   const title = h('span', { class: 'topbar__title truncate' });
   const status = h('span', { class: 'badge' });
+  const savedBadge = h('span', { class: 'badge badge--muted topbar__saved', hidden: true, attrs: { tabindex: '0' } }, icon('folder'), h('span', { class: 'topbar__saved-text' }));
   const toggleSide = h('button', { class: 'btn btn--ghost btn--icon btn--sm', type: 'button', on: { click: () => actions.toggleSidebar() } }, icon('panelLeft'));
   const toggleArt = h('button', { class: 'btn btn--ghost btn--icon btn--sm', type: 'button', on: { click: () => actions.toggleArtifacts() } }, icon('panelRight'));
   const menuBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm', type: 'button', attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false' } }, icon('more'));
   menuBtn.addEventListener('click', () => { const id = store.get().activeProjectId; if (id) openProjectMenu(menuBtn, id, { store, actions }); });
-  const topbar = h('div', { class: 'topbar' }, crumbs, title, status, h('div', { class: 'topbar__actions' }, menuBtn, toggleSide, toggleArt));
+  const topbar = h('div', { class: 'topbar' }, crumbs, title, status, savedBadge, h('div', { class: 'topbar__actions' }, menuBtn, toggleSide, toggleArt));
   const subbar = h('div', { class: 'subbar', hidden: true });
   const remoteCard = h('div', { class: 'remote-card-wrap', hidden: true });
 
@@ -36,6 +38,8 @@ export function mountMain(el, deps) {
   const methodsHost = h('div', { class: 'prompts-host methods-host' });
   const methods = mountMethods(methodsHost, deps);
   const runPanel = mountRunPanel(runHost, deps);
+  const tasksHost = h('div', { class: 'prompts-host tasks-host' });
+  const tasksPanel = mountTasksPanel(tasksHost, deps);
 
   const chat = mountChat(chatInner, deps);
   const composer = mountComposer(composerWrap, deps);
@@ -54,7 +58,12 @@ export function mountMain(el, deps) {
     menuBtn.hidden = !p || s.view !== 'project';
     if (p) { menuBtn.setAttribute('aria-label', t('menu.projectActions', { name: p.name })); menuBtn.title = t('menu.projectActions', { name: p.name }); }
     renderRemote(s, showChat ? p : null);
-    const section = s.view === 'prompts' ? t('nav.prompts') : s.view === 'methodologies' ? t('nav.methodologies') : t('nav.projects');
+    const section = s.view === 'prompts' ? t('nav.prompts') : s.view === 'methodologies' ? t('nav.methodologies') : s.view === 'tasks' ? t('nav.tasks') : t('nav.projects');
+    const saved = showChat && !!(s.storeStatus[p.id] && s.storeStatus[p.id].exists);
+    savedBadge.hidden = !saved;
+    savedBadge.title = t('pdata.badgeTip');
+    savedBadge.setAttribute('aria-label', t('pdata.badge') + '. ' + t('pdata.badgeTip'));
+    savedBadge.lastChild.textContent = t('pdata.badge');
     crumbs.replaceChildren(section, ' ', h('span', { class: 'sep', text: '/' }));
     if (showChat) {
       const running = !!(s.chats[p.id] && s.chats[p.id].running);
@@ -65,6 +74,7 @@ export function mountMain(el, deps) {
       title.textContent = s.view === 'project' ? t('app.name') : section;
       if (s.view === 'prompts') { page.classList.add('page--fill'); page.replaceChildren(promptsHost); prompts.render(); }
       else if (s.view === 'methodologies') { page.classList.add('page--fill'); page.replaceChildren(methodsHost); methods.render(); }
+      else if (s.view === 'tasks') { page.classList.add('page--fill'); page.replaceChildren(tasksHost); tasksPanel.render(); }
       else { page.classList.remove('page--fill'); page.replaceChildren(buildPage(s, p)); }
     }
   }
@@ -112,7 +122,7 @@ export function mountMain(el, deps) {
   function update(force) {
     const s = store.get();
     const p = activeProject(s);
-    const signature = JSON.stringify([isDev(s), s.view, p && [p.id, p.name, p.mode], p && !!(s.chats[p.id] && s.chats[p.id].running), !!p, p && s.remote[p.id]]) + t('nav.projects');
+    const signature = JSON.stringify([isDev(s), s.view, p && [p.id, p.name, p.mode], p && !!(s.storeStatus[p.id] && s.storeStatus[p.id].exists), p && !!(s.chats[p.id] && s.chats[p.id].running), !!p, p && s.remote[p.id]]) + t('nav.projects');
     if (!force && signature === sig) return;
     sig = signature;
     render();

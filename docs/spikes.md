@@ -54,3 +54,25 @@ Real `agy` stream-json capture, looking for what a rich activity view can show:
 - `system_message`: no content.
 
 Consequence: FlowState computes file changes itself (src/main/changes.js): snapshot the file at tool-use, re-read at the matching tool-result and emit a `file-change` event with a unified diff (src/main/diff.js). If the snapshot raced with the tool, `git show HEAD:<path>` is the fallback "before".
+
+## `claude -p "/usage"` and image input (phase 7)
+
+- **Probe (local, no model tokens):** `claude -p "/usage" --output-format text`, run through Node `spawn` (NOT from Git Bash: MSYS rewrites a leading `/usage` into `C:/Program Files/Git/usage`, and the model then answers with an explanation; that first attempt was wasted and did cost a model call, so two probes were spent in total). Exit code 0, ~7.5 s wall time on claude 2.1.330 with a subscription login. Open stdin makes claude print `Warning: no stdin data received in 3s` and wait, so spawn it with stdin `ignore`. Exact output (U+00B7 middle dots shown as `[dot]`):
+
+```
+You are currently using your subscription to power your Claude Code usage
+
+Current session: 28% used [dot] resets Nov 22, 2:10am (America/Mexico_City)
+Current week (all models): 17% used [dot] resets Nov 25, 6am (America/Mexico_City)
+
+What's contributing to your usage?
+Approximate [dot] sessions on this machine only [dot] shares overlap
+
+Last 24h [dot] 1140 requests [dot] 9 sessions
+  79%  Start fresh when you switch tasks [dot] run /clear
+  ... (more tips, top sub-agents / MCP servers)
+```
+
+  It carries parseable percentages and reset times WITH a time zone name, so `src/main/svc/usage.js` implements `refresh()` (`parseUsageText` + `parseResetsAt`: wall clock in the named zone to epoch via Intl, year rollover handled). It runs at most once every 5 minutes (lazily, from `usage:get`) and merges into `windows.five_hour` ("Current session") and `windows.seven_day` ("Current week (all models)"). Per-model weekly lines are ignored. The real e2e (`npm run e2e:p7`) saw both windows merged after about 8 s.
+- **Image input, claude:** stream-json user message `content: [{type:'image', source:{type:'base64', media_type:'image/png', data}}, {type:'text', ...}]` (image blocks first). Real run (model `haiku`, 64x64 solid red PNG, "What colour is this image? One word."): answered `Red.`.
+- **Image input, agy:** no image flag in print mode; the prompt gets one `[Image attached: <absolute path>]` line per image and agy reads the file itself (its `read_file` tool). Real run on the same PNG: answered `Red`. agy also has `--model <id>` and `--effort low|medium|high|xhigh|max`; `agy models` prints `Fetching available models...` on stderr and `<id><TAB><name>` lines on stdout.

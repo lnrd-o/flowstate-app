@@ -16,8 +16,11 @@
 //               from the turn: tool cards with status 'blocked' + pending permission messages)
 //   error       { id, role, kind, message, stderr }
 //   system      { id, role, key?, text? }       key is an i18n key rendered by the UI
+//   limit       { id, role, agent, kind, status:'warning'|'rejected', resetsAt?, utilization?, message? }   usage limit card (one per kind/status per turn)
+// user messages may carry images: [rel] (attachment paths inside <project>/.flowstate/attachments).
+// 'todos' and 'subagent' events never create messages: they fill state.todos (agent task list) and state.subagents.
 
-import { classifyTool } from '../../shared/events.js';
+import { classifyTool, looksLikeLimitText } from '../../shared/events.js';
 import { turnMessages, turnStats, hasActivity } from './activity.js';
 import { classifyBlocked, blockedItems, reasonOf } from './approvals.js';
 
@@ -27,7 +30,7 @@ const MAX_COMMAND_OUTPUT = 60000;
 export function createChatState() {
   return {
     messages: [], running: false, seq: 0, turnHadText: false,
-    needsAuth: false, alwaysProceed: false, rateLimited: false, lastPrompt: null,
+    needsAuth: false, alwaysProceed: false, rateLimited: false, lastPrompt: null, todos: [], subagents: [],
     turn: { id: 0, agent: null, startedAt: null, lastEventAt: null, endedAt: null },
   };
 }
@@ -80,7 +83,8 @@ export function addUserMessage(state, text, opts) {
   const s = closeOpenAssistant(state);
   const now = typeof o.now === 'number' ? o.now : null;
   const turn = { id: s.turn.id + 1, agent: o.agent || null, startedAt: now, lastEventAt: now, endedAt: null };
-  const next = push({ ...s, turn }, { role: 'user', text: String(text ?? ''), ...(now != null ? { at: now } : {}) });
+  const images = Array.isArray(o.images) ? o.images.filter((r) => typeof r === 'string' && r) : [];
+  const next = push({ ...s, turn }, { role: 'user', text: String(text ?? ''), ...(images.length ? { images } : {}), ...(now != null ? { at: now } : {}) });
   return { ...next, running: true, turnHadText: false, lastPrompt: String(text ?? ''), needsAuth: false };
 }
 
@@ -100,6 +104,11 @@ export function addSystemNote(state, key) {
 export function failTurn(state, message) {
   const s = closeOpenAssistant(state);
   return { ...push(s, { role: 'error', kind: 'process', message: String(message || ''), stderr: '' }), running: false };
+}
+
+/** Did a usage limit already get rejected in this turn? Then the matching generic error would only repeat it. */
+function turnHasLimit(state) {
+  return state.messages.some((m) => m.role === 'limit' && m.turn === state.turn.id && m.status === 'rejected');
 }
 
 function findTool(state, id) {
@@ -246,19 +255,49 @@ function reduceCore(state, ev, now) {
       if (limited === state.rateLimited) return state;
       return { ...state, rateLimited: limited };
     }
+    case 'limit': {
+      const s = closeOpenAssistant(state);
+      const kind = ['five_hour', 'seven_day', 'quota', 'unknown'].includes(ev.kind) ? ev.kind : 'unknown';
+      const status = ev.status === 'warning' ? 'warning' : 'rejected';
+      const card = {
+        role: 'limit', agent: ev.agent || s.turn.agent || null, kind: kind === 'unknown' ? 'quota' : kind, status,
+        ...(Number.isFinite(ev.resetsAt) ? { resetsAt: ev.resetsAt } : {}),
+        ...(typeof ev.utilization === 'number' ? { utilization: ev.utilization } : {}),
+        ...(typeof ev.message === 'string' && ev.message ? { message: ev.message } : {}),
+      };
+      // The same limit reported again during the turn refines the existing card (the CLI sends the event, then its own text).
+      const i = s.messages.findIndex((m) => m.role === 'limit' && m.turn === s.turn.id && m.status === status);
+      if (i >= 0) return replaceAt(s, i, { ...s.messages[i], ...card, kind: s.messages[i].kind === 'quota' ? card.kind : s.messages[i].kind });
+      return push(s, card);
+    }
+    case 'todos': {
+      const items = (Array.isArray(ev.items) ? ev.items : []).filter((x) => x && typeof x.content === 'string')
+        .map((x) => ({ content: x.content, status: ['pending', 'in_progress', 'completed'].includes(x.status) ? x.status : 'pending' }));
+      return { ...state, todos: items };
+    }
+    case 'subagent': {
+      if (ev.id == null) return state;
+      const entry = { id: ev.id, name: String(ev.name || 'agent'), description: ev.description || '', state: ['running', 'done', 'error'].includes(ev.state) ? ev.state : 'running' };
+      const i = state.subagents.findIndex((x) => x.id === ev.id);
+      const subagents = state.subagents.slice();
+      if (i >= 0) subagents[i] = { ...subagents[i], ...entry, description: entry.description || subagents[i].description };
+      else subagents.push(entry);
+      return { ...state, subagents: subagents.slice(-30) };
+    }
     case 'result': {
       let s = closeOpenAssistant(state);
       if (!s.turnHadText && ev.ok !== false && ev.text) {
         s = push(s, { role: 'assistant', text: String(ev.text), open: false, fromDelta: false });
       }
       if (ev.stopped) s = push(s, { role: 'system', key: 'chat.stopped' });
-      else if (ev.ok === false) s = push(s, { role: 'error', kind: 'api', message: ev.text || '', stderr: '' });
+      else if (ev.ok === false && !turnHasLimit(s)) s = push(s, { role: 'error', kind: 'api', message: ev.text || '', stderr: '' });
       if (blockedItems(s.messages, s.turn.id).length && !ev.stopped) s = push(s, { role: 'approval', status: 'pending' });
       if (hasActivity(turnStats(turnMessages(s.messages, s.turn.id)))) s = push(s, { role: 'summary' });
       return { ...s, running: false };
     }
     case 'error': {
       const s = closeOpenAssistant(state);
+      if (turnHasLimit(s) && looksLikeLimitText(ev.message)) return { ...s, running: false }; // the limit card already says it
       const next = push(s, {
         role: 'error', kind: ev.kind || 'process', message: ev.message || '', stderr: ev.stderr || '',
       });

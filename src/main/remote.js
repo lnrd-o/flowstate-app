@@ -43,7 +43,7 @@ export function createRemote({
   getProject, findExe, spawn = nodeSpawn, kill = killTree, run = runCommand, push = () => {}, settleMs = 2500, platform = process.platform,
 } = {}) {
   const claudeRuns = new Map(); // projectId -> {child, lines, consoleOnly}
-  const agyOwners = new Set();  // projects whose start() registered the daemon
+  const agyOwners = new Map();  // projectId -> startedAt, for projects whose start() registered the daemon
   const need = (id) => {
     const p = typeof id === 'string' ? getProject(id) : null;
     if (!p) throw new Error('Unknown project');
@@ -62,7 +62,7 @@ export function createRemote({
     if (!exe) throw new Error('claude executable not found');
     const args = claudeRemoteArgs(p);
     const child = spawn(exe, args, { cwd: p.path, ...childSpawnOptions({ platform }), stdio: ['pipe', 'pipe', 'pipe'] });
-    const rec = { child, lines: [], consoleOnly: false };
+    const rec = { child, lines: [], consoleOnly: false, startedAt: Date.now() };
     claudeRuns.set(p.id, rec);
     let exited = null;
     let buf = '';
@@ -107,7 +107,7 @@ export function createRemote({
     if (!exe) throw new Error('agy executable not found');
     const r = await run(exe, agyRemoteArgs(p), { timeout: 30000 });
     if (r.code !== 0) return { running: false, error: 'failed', info: `${r.stdout}${r.stderr}`.trim().slice(0, 2000) };
-    agyOwners.add(p.id);
+    agyOwners.set(p.id, Date.now());
     const info = `${r.stdout}${r.stderr}`.trim().slice(0, 2000);
     emit(p.id, true, info);
     return { running: true, info };
@@ -144,6 +144,11 @@ export function createRemote({
       emit(projectId, false);
       return { running: false };
     },
+    /** Sessions this app started (tasks service). */
+    list: () => [
+      ...[...claudeRuns].map(([projectId, r]) => ({ projectId, agent: 'claude', startedAt: r.startedAt })),
+      ...[...agyOwners].map(([projectId, startedAt]) => ({ projectId, agent: 'agy', startedAt })),
+    ],
     /** Project removed: stop whatever we started for it (never touches an agy daemon we did not start). */
     async stopForRemoved(project) {
       const rec = claudeRuns.get(project.id);

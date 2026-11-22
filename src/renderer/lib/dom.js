@@ -87,6 +87,12 @@ const ICONS = {
   lock: [['rect', { x: 4, y: 11, width: 16, height: 10, rx: 2 }], ['path', { d: 'M8 11V7a4 4 0 0 1 8 0v4M12 15v2' }]],
   code: [['path', { d: 'm16 18 6-6-6-6M8 6l-6 6 6 6' }]],
   smile: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8 14a5 5 0 0 0 8 0M9 9.5h.01M15 9.5h.01' }]],
+  image: [['rect', { x: 3, y: 4, width: 18, height: 16, rx: 2 }], ['circle', { cx: 9, cy: 10, r: 1.6 }], ['path', { d: 'm21 16-5-5-8 9' }]],
+  tasks: [['path', { d: 'M10 6h11M10 12h11M10 18h11M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17' }]],
+  gauge: [['path', { d: 'M4 18a9 9 0 1 1 16 0' }], ['path', { d: 'm12 14 4-5' }]],
+  circle: [['circle', { cx: 12, cy: 12, r: 8 }]],
+  half: [['circle', { cx: 12, cy: 12, r: 8 }], ['path', { d: 'M12 4a8 8 0 0 1 0 16z', fill: 'currentColor' }]],
+  checkCircle: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'm8 12 3 3 5-6' }]],
 };
 
 export function icon(name, cls = '') {

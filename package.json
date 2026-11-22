@@ -25,6 +25,7 @@
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "e2e": "node tests/e2e/smoke.mjs",
     "e2e:method": "node tests/e2e/methodology.mjs",
+    "e2e:p7": "node tests/e2e/phase7.mjs",
     "vendor": "node scripts/vendor.js",
     "icon": "node scripts/make-icon.mjs",
     "dist": "electron-builder --win --x64 --publish never",

@@ -20,6 +20,9 @@ export function openProjectMenu(anchor, projectId, { store, actions }) {
     { label: t('project.autoCommit'), checked: !!project.autoCommit, role: 'menuitemcheckbox', onClick: () => actions.updateProject(project.id, { autoCommit: !project.autoCommit }) },
     ...(dev ? [{ label: t('remote.label'), checked: !!(remote && remote.running), role: 'menuitemcheckbox', onClick: () => actions.toggleRemote(project.id) }] : []),
     { sep: true },
+    { label: t('menu.projectSettings'), onClick: () => actions.openProjectSettings(project.id) },
+    { label: t('menu.projectData'), onClick: () => actions.openProjectData(project.id) },
+    { sep: true },
     { label: t('history.clear'), onClick: () => actions.clearHistory(project.id) },
     { label: t('menu.remove'), danger: true, onClick: () => actions.removeProject(project.id) },
   ], { label: t('menu.projectActions', { name: project.name }) });

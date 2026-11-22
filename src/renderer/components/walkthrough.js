@@ -8,7 +8,7 @@ import { createLogBox } from './log-box.js';
 import { buildVarsForm } from './vars-form.js';
 import { runDefaults } from '../lib/method-utils.js';
 import { statusChip } from '../lib/login-state.js';
-import { isDev } from '../lib/store.js';
+import { isDev, isGlobalDev } from '../lib/store.js';
 
 function loginChip(loggedIn) {
   const c = statusChip(loggedIn);
@@ -117,7 +117,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
 
   /** Two big selectable cards: Simple / Developer. Applies immediately (persisted through settings). */
   function modeCards() {
-    const dev = isDev(store.get());
+    const dev = isGlobalDev(store.get());
     const card = (isDevCard, ic, titleKey, textKey) => {
       const on = dev === isDevCard;
       return h('button', {
@@ -209,13 +209,14 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
     }
     return [h('div', { class: 'row' }, h('span', { class: 'badge badge--green' }, h('span', { class: 'badge__dot' }), t('common.ok')),
       h('strong', { text: created ? created.name : '' })), text,
+      h('div', { class: 'wt-note wt-note--data', attrs: { role: 'note' } }, icon('folder'), h('span', { text: t('walkthrough.doneData') })),
       runError ? h('div', { class: 'field__error', attrs: { role: 'alert' }, text: t('walkthrough.runFailed', { message: runError }) }) : null];
   }
 
   async function pickMethod(id) {
     if (!id) { data.methodId = ''; data.method = null; data.varValues = {}; error = ''; render(); return; }
     try {
-      const m = await api.method.get(id);
+      const m = await api.method.get(id, store.get().activeProjectId || undefined);
       data.methodId = id; data.method = m; data.varValues = runDefaults(m.vars || []); error = '';
     } catch (e) { error = (e && e.message) || t('errors.generic'); }
     render();

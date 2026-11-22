@@ -229,7 +229,7 @@ test('ipc: phase 2 handlers validate arguments', async () => {
   await assert.rejects(async () => handlers[CH.promptsDelete]({}, ''), /id required/);
   await handlers[CH.filesRead]({}, 'p', 'a.txt');
   await handlers[CH.projectsRemove]({}, 'p');
-  assert.ok(called.includes('files.read') && called.includes('history.clear') && called.includes('dashboards.stop') && called.includes('runner.forgetProject'));
+  assert.ok(called.includes('files.read') && called.includes('history.forget') && called.includes('dashboards.stop') && called.includes('runner.forgetProject'));
 
   // phase 3 validation
   const h = handlers;
