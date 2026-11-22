@@ -1,7 +1,7 @@
 {
   "name": "flowstate",
   "productName": "FlowState",
-  "version": "1.1.0",
+  "version": "0.1.6",
   "description": "FlowState - a desktop GUI for Claude Code and Antigravity CLIs",
   "author": {
     "name": "FlowState contributors",
