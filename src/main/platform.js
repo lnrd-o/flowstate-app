@@ -94,13 +94,14 @@ export function augmentedEnv(env = process.env, platform = process.platform, fsx
 let cache = null;
 /**
  * Env to hand to child processes. undefined on win32 (inherit as before). On posix the augmented env,
- * memoised per inherited PATH so hot paths (runCommand) do not hit the disk each time.
+ * Only the augmented PATH is memoised (per inherited PATH/HOME) so hot paths (runCommand) do not hit the disk each time; every
+ * other variable is read live, so variables set after the first spawn (per-run settings, tests) still reach the child.
  */
 export function spawnEnv(platform = process.platform) {
   if (platform === 'win32') return undefined;
   const key = `${platform}|${process.env.PATH ?? ''}|${process.env.HOME ?? ''}`;
-  if (!cache || cache.key !== key) cache = { key, env: augmentedEnv(process.env, platform) };
-  return cache.env;
+  if (!cache || cache.key !== key) cache = { key, path: augmentedEnv(process.env, platform).PATH };
+  return { ...process.env, PATH: cache.path };
 }
 
 /** First executable named `name` in the search path (posix only; win32 uses `where`). */
