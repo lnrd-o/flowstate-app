@@ -114,3 +114,49 @@ export function isSafeHref(href) {
 export function isSafeClass(value) {
   return /^language-[\w+#.-]+$/.test(String(value ?? '').trim());
 }
+
+// ---- LaTeX-ish math -> readable text -------------------------------------------------------------------------------------
+// Models often write "$30 - 35\text{ cm}$". We have no math renderer, so inline/display math that really uses LaTeX syntax is turned
+// into plain text ("30 - 35 cm"). Plain money like "$30 and $40" is left alone (no backslash / ^ / _ inside the dollars).
+
+const SYMBOLS = {
+  times: '×', cdot: '·', approx: '≈', pm: '±', le: '≤', leq: '≤', ge: '≥', geq: '≥', neq: '≠', ne: '≠',
+  rightarrow: '→', to: '→', leftarrow: '←', sim: '~', infty: '∞', pi: 'π', Delta: 'Δ', delta: 'δ', mu: 'µ',
+  alpha: 'α', beta: 'β', gamma: 'γ', theta: 'θ', lambda: 'λ', sigma: 'σ', omega: 'ω', degree: '°', circ: '°',
+  div: '÷', ldots: '...', dots: '...', cdots: '...', quad: ' ', qquad: '  ',
+};
+const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻' };
+const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉' };
+const mapChars = (s, table) => (s.length && [...s].every((c) => table[c] !== undefined) ? [...s].map((c) => table[c]).join('') : null);
+
+/** One math expression (without the dollars) -> plain text. */
+export function mathToText(expr) {
+  let s = String(expr ?? '');
+  for (let i = 0; i < 4; i++) { // nested \text{\textbf{..}} and \frac{\sqrt{..}}{..}
+    s = s.replace(/\(?:text|textbf|textit|mathrm|mathbf|mathit|operatorname|mbox)\s*\{([^{}]*)\}/g, '$1')
+      .replace(/\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)')
+      .replace(/\sqrt\s*\{([^{}]*)\}/g, '√($1)');
+  }
+  s = s.replace(/\^\s*\{?\circ\}?/g, '°')
+    .replace(/\^\s*\{([^{}]*)\}|\^\s*([0-9+-])/g, (_m, a, b) => { const x = a ?? b; return mapChars(x, SUP) ?? `^(${x})`; })
+    .replace(/_\s*\{([^{}]*)\}|_\s*([0-9])/g, (_m, a, b) => { const x = a ?? b; return mapChars(x, SUB) ?? `_${x}`; })
+    .replace(/\([%$&#_{}])/g, '$1')
+    .replace(/\[,;:! ]/g, ' ')
+    .replace(/\([A-Za-z]+)/g, (_m, name) => (name in SYMBOLS ? SYMBOLS[name] : name))
+    .replace(/[{}]/g, '');
+  return s.replace(/[ \t]+/g, ' ').trim();
+}
+
+const LATEX_HINT = /\[A-Za-z]|\^\s*[{0-9+-]|_\s*\{/;
+
+/** Replace $...$ and $$...$$ spans that use LaTeX syntax with plain text. Fenced code and `inline code` are left untouched. */
+export function simplifyMath(text) {
+  const src = String(text ?? '');
+  if (!src.includes('$')) return src;
+  return src.split(/(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)|`[^`\n]*`)/).map((part, i) => {
+    if (i % 2 === 1) return part;
+    return part
+      .replace(/\$\$([\s\S]+?)\$\$/g, (m, e) => (LATEX_HINT.test(e) ? `\n\n${mathToText(e)}\n\n` : m))
+      .replace(/\$(?=\S)([^$\n]+?)(?<=\S)\$/g, (m, e) => (LATEX_HINT.test(e) ? mathToText(e) : m));
+  }).join('');
+}

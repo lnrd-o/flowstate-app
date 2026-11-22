@@ -1614,7 +1614,8 @@
       "excel": "Un archivo de Excel",
       "web": "Una p\u00e1gina HTML / web",
       "data": "Analizar o crear un dashboard desde un archivo TXT/CSV",
-      "research": "Investigar algo en internet"
+      "research": "Investigar algo en internet",
+      "empty": "Proyecto vac\u00edo (lo decido despu\u00e9s)"
     },
     "more": "M\u00e1s ideas",
     "search": "Buscar ideas...",

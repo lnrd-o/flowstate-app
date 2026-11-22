@@ -48,7 +48,7 @@
         "en": "Audit and fix formulas",
         "es": "Revisar y corregir fórmulas"
       },
-      "text": "The user gave you the workbook {{inputFile}} (inside data/). Their question: {{question}}\n\nDo this:\n1. Read every sheet with openpyxl (formulas, not only values) and list the formulas, grouped by pattern. Never change the original in data/.\n2. Audit them: errors (#REF!, #DIV/0!, #N/A, #VALUE!), inconsistent formulas inside a column, hard-coded numbers inside formulas, ranges that miss rows, text stored as numbers, circular or fragile references, and volatile or slow patterns.\n3. Explain the important formulas in plain, non-technical language, answering the user's question directly.\n4. Write artifacts/formulas-report.md with: a short answer to the question, a table (sheet, cell, original formula, what it does, problem found, fixed formula), and any assumptions.\n5. Save a corrected copy as artifacts/<original-name>-corrected.xlsx with the fixes applied (keep formatting) and changed cells highlighted in light yellow. If a fix is uncertain, leave the cell as is and flag it in the report.\n\nGROUND RULES (follow strictly):\n- Any user-provided input file lives in data/ inside this project. NEVER modify, move or delete the originals: work on copies inside the project.\n- Put every deliverable in artifacts/ (create the folder if needed). Do not write deliverables anywhere else.\n- Prefer Python. Create a virtual environment (python -m venv .venv) and pip install ONLY what you need from: openpyxl pandas xlsxwriter matplotlib python-docx. If Python is not installed or cannot be run, say so plainly in one short message and STOP (do not try to install Python yourself).\n- Do not ask questions mid-way unless you are truly blocked. Instead, make sensible choices and write your assumptions down in the deliverable and in your final message.\n- Write the deliverables and the final message in the same language as the user's request (Spanish or English).\n- Be safe: do not run anything destructive, do not touch files outside this project, do not send data over the network (except where this task explicitly needs web search).\n- FINISH with a short plain-language summary for a non-technical person: what you produced, where it is (exact paths under artifacts/), the assumptions you made, and anything they should double-check."
+      "text": "The user gave you the workbook {{inputFile}} (inside data/). Their question: {{question}}\n\nDo this:\n1. Read every sheet with openpyxl (formulas, not only values) and list the formulas, grouped by pattern. Never change the original in data/.\n2. Audit them: errors (#REF!, #DIV/0!, #N/A, #VALUE!), inconsistent formulas inside a column, hard-coded numbers inside formulas, ranges that miss rows, text stored as numbers, circular or fragile references, and volatile or slow patterns.\n3. Explain the important formulas in plain, non-technical language, answering the user's question directly.\n4. Write outputs/formulas-report.md with: a short answer to the question, a table (sheet, cell, original formula, what it does, problem found, fixed formula), and any assumptions.\n5. Save a corrected copy as outputs/<original-name>-corrected.xlsx with the fixes applied (keep formatting) and changed cells highlighted in light yellow. If a fix is uncertain, leave the cell as is and flag it in the report.\n\nGROUND RULES (follow strictly):\n- Any user-provided input file lives in data/ inside this project. NEVER modify, move or delete the originals: work on copies inside the project.\n- Put every deliverable in outputs/ (create the folder if needed). Do not write deliverables anywhere else.\n- Prefer Python. Use the Python packages already installed globally; create a virtual environment (python -m venv .venv) ONLY if a needed package is missing, and pip install ONLY what you need from: openpyxl pandas xlsxwriter matplotlib python-docx. If Python is not installed or cannot be run, say so plainly in one short message and STOP (do not try to install Python yourself).\n- Do not ask questions mid-way unless you are truly blocked. Instead, make sensible choices and write your assumptions down in the deliverable and in your final message.\n- Write the deliverables and the final message in the same language as the user's request (Spanish or English).\n- Be safe: do not run anything destructive, do not touch files outside this project, do not send data over the network (except where this task explicitly needs web search).\n- FINISH with a short plain-language summary for a non-technical person: what you produced, where it is (exact paths under outputs/), the assumptions you made, and anything they should double-check."
     },
     {
       "id": "check",
@@ -57,7 +57,7 @@
         "en": "Formulas report exists",
         "es": "Existe el informe de fórmulas"
       },
-      "path": "artifacts/formulas-report.md"
+      "path": "outputs/formulas-report.md"
     },
     {
       "id": "review",
@@ -66,7 +66,7 @@
         "en": "Review the result",
         "es": "Revisa el resultado"
       },
-      "message": "Read artifacts/formulas-report.md and open the corrected copy. Approve if the fixes look right."
+      "message": "Read outputs/formulas-report.md and open the corrected copy. Approve if the fixes look right."
     },
     {
       "id": "save",

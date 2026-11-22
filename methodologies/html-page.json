@@ -81,7 +81,7 @@
         "en": "Write the page",
         "es": "Escribir la página"
       },
-      "text": "Create ONE self-contained, responsive HTML page. What it should show or do: {{what}}\nAudience: {{audience}}. Visual style: {{style}}.\nOptional content file (ignore if empty): {{inputFile}} (inside data/; read it and use its content, never modify it).\n\nRequirements:\n- A single file, artifacts/index.html, with all CSS and JavaScript inline. No external network at all: no CDN, no web fonts, no remote images (use system fonts, inline SVG or CSS shapes).\n- Responsive (works on phone and desktop), accessible (semantic HTML, good contrast, alt text, keyboard friendly) and printable.\n- Real, sensible content written for the audience (no lorem ipsum). If you invent placeholder text or numbers, mark them clearly so the user can replace them.\n- Keep the code tidy and commented where the user may want to edit text or colours.\n- Add a short artifacts/HOW-TO-OPEN.md explaining how to open the page (double-click index.html), how to change the text and colours, and how to share it.\n\nGROUND RULES (follow strictly):\n- Any user-provided input file lives in data/ inside this project. NEVER modify, move or delete the originals: work on copies inside the project.\n- Put every deliverable in artifacts/ (create the folder if needed). Do not write deliverables anywhere else.\n- Prefer Python. Create a virtual environment (python -m venv .venv) and pip install ONLY what you need from: openpyxl pandas xlsxwriter matplotlib python-docx. If Python is not installed or cannot be run, say so plainly in one short message and STOP (do not try to install Python yourself).\n- Do not ask questions mid-way unless you are truly blocked. Instead, make sensible choices and write your assumptions down in the deliverable and in your final message.\n- Write the deliverables and the final message in the same language as the user's request (Spanish or English).\n- Be safe: do not run anything destructive, do not touch files outside this project, do not send data over the network (except where this task explicitly needs web search).\n- FINISH with a short plain-language summary for a non-technical person: what you produced, where it is (exact paths under artifacts/), the assumptions you made, and anything they should double-check."
+      "text": "Create ONE self-contained, responsive HTML page. What it should show or do: {{what}}\nAudience: {{audience}}. Visual style: {{style}}.\nOptional content file (ignore if empty): {{inputFile}} (inside data/; read it and use its content, never modify it).\n\nRequirements:\n- A single file, outputs/index.html, with all CSS and JavaScript inline. No external network at all: no CDN, no web fonts, no remote images (use system fonts, inline SVG or CSS shapes).\n- Responsive (works on phone and desktop), accessible (semantic HTML, good contrast, alt text, keyboard friendly) and printable.\n- Real, sensible content written for the audience (no lorem ipsum). If you invent placeholder text or numbers, mark them clearly so the user can replace them.\n- Keep the code tidy and commented where the user may want to edit text or colours.\n- Add a short outputs/HOW-TO-OPEN.md explaining how to open the page (double-click index.html), how to change the text and colours, and how to share it.\n\nGROUND RULES (follow strictly):\n- Any user-provided input file lives in data/ inside this project. NEVER modify, move or delete the originals: work on copies inside the project.\n- Put every deliverable in outputs/ (create the folder if needed). Do not write deliverables anywhere else.\n- Prefer Python. Use the Python packages already installed globally; create a virtual environment (python -m venv .venv) ONLY if a needed package is missing, and pip install ONLY what you need from: openpyxl pandas xlsxwriter matplotlib python-docx. If Python is not installed or cannot be run, say so plainly in one short message and STOP (do not try to install Python yourself).\n- Do not ask questions mid-way unless you are truly blocked. Instead, make sensible choices and write your assumptions down in the deliverable and in your final message.\n- Write the deliverables and the final message in the same language as the user's request (Spanish or English).\n- Be safe: do not run anything destructive, do not touch files outside this project, do not send data over the network (except where this task explicitly needs web search).\n- FINISH with a short plain-language summary for a non-technical person: what you produced, where it is (exact paths under outputs/), the assumptions you made, and anything they should double-check."
     },
     {
       "id": "check",
@@ -90,7 +90,7 @@
         "en": "index.html exists",
         "es": "Existe index.html"
       },
-      "path": "artifacts/index.html"
+      "path": "outputs/index.html"
     },
     {
       "id": "review",
@@ -99,7 +99,7 @@
         "en": "Review the result",
         "es": "Revisa el resultado"
       },
-      "message": "Open artifacts/index.html in your browser and check it. Approve if it is what you wanted."
+      "message": "Open outputs/index.html in your browser and check it. Approve if it is what you wanted."
     },
     {
       "id": "save",

@@ -4,6 +4,7 @@ import path from 'node:path';
 import nodeOs from 'node:os';
 import { resolveInside } from '../files.js';
 import { folderNameFromTitle, uniqueFolderName } from '../../shared/folder-name.js';
+import { layoutFor, detectLayout, layoutNote } from '../../shared/layout.js';
 
 export const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
 export const OFFICE_EXT = Object.freeze(['xlsx', 'xlsm', 'xls', 'csv', 'tsv', 'txt', 'json', 'md', 'docx', 'pdf', 'html', 'htm', 'xml']);
@@ -32,7 +33,11 @@ export function create({ electron, getProject, getWindow = () => null, fsx = fs,
     if (!p) throw new Error('Unknown project');
     return p;
   };
+  const langNow = () => (settings?.get?.()?.language === 'es' ? 'es' : 'en');
+  const layoutOf = (p) => detectLayout((n) => { try { return fsx.statSync(path.join(p.path, n)).isDirectory(); } catch { return false; } }, langNow());
   return {
+    /** Prompt note with the project's real data/outputs folder names (null for an unknown project). */
+    layoutNote(projectId) { const p = typeof projectId === 'string' ? getProject(projectId) : null; return p ? layoutNote(layoutOf(p)) : null; },
     async pick({ kind = 'office', multi = false } = {}) {
       const filters = kind === 'data' ? [{ name: 'Data', extensions: [...DATA_EXT] }]
         : kind === 'any' ? []
@@ -55,7 +60,7 @@ export function create({ electron, getProject, getWindow = () => null, fsx = fs,
       if (!st.isFile()) throw new Error('Only regular files can be imported');
       if (st.size > MAX_IMPORT_BYTES) throw new Error('File too large (max 200 MB)');
       try { fsx.accessSync(p.path, fs.constants.W_OK); } catch { throw new Error('The project folder is not writable'); }
-      const { abs: dir } = resolveInside(p.path, DATA_DIR, fsx);
+      const { abs: dir } = resolveInside(p.path, layoutOf(p).data, fsx);
       fsx.mkdirSync(dir, { recursive: true });
       const clean = sanitizeName(path.basename(sourcePath));
       const cext = path.extname(clean);
@@ -68,7 +73,7 @@ export function create({ electron, getProject, getWindow = () => null, fsx = fs,
           if (e?.code === 'EEXIST') continue;
           throw new Error(`Could not copy the file: ${e?.message ?? e}`);
         }
-        return { rel: `${DATA_DIR}/${name}`, name, size: st.size };
+        return { rel: `${layoutOf(p).data}/${name}`, name, size: st.size };
       }
       throw new Error('Too many files with the same name');
     },
@@ -102,6 +107,8 @@ export function create({ electron, getProject, getWindow = () => null, fsx = fs,
         const rel = path.relative(parent, abs);
         if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || rel !== folder) throw new Error('Invalid project folder name');
         fsx.mkdirSync(abs); // not recursive: a race fails loudly
+        const lay = layoutFor(lang);
+        for (const d of [lay.data, lay.outputs]) { try { fsx.mkdirSync(path.join(abs, d)); } catch { /* best effort */ } }
         return { path: abs, folder };
       };
       try { return make([]); } catch (e) {

@@ -35,7 +35,7 @@ test('bundled cases: valid, bilingual, safe prompts', () => {
       if (v.type === 'select') assert.ok(v.options.includes(v.default), `${f}:${v.key} default`);
     }
     const prompts = m.nodes.filter((n) => n.type === 'prompt').map((n) => n.text).join('\n');
-    assert.ok(prompts.includes('artifacts/') && prompts.includes('data/'), f);
+    assert.ok(prompts.includes('outputs/') && prompts.includes('data/'), f);
     assert.ok(m.nodes.some((n) => n.type === 'checkpoint'), f);
   }
 });

@@ -130,6 +130,8 @@ export function openWalkthrough({ store, api, actions }) {
     const L = getLanguage();
     const quick = h('div', { class: 'wt-quick' }, ...QUICK_PICKS.map((p) => h('button', { class: 'wt-quick__btn', type: 'button', disabled: allCases === null, on: { click: () => quickPick(p) } },
       h('span', { class: 'wt-mode__ic' }, icon(p.icon, 'icon--lg')), h('span', { class: 'wt-quick__t strong', text: t('wizard.quick.' + p.id) }))));
+    quick.append(h('button', { class: 'wt-quick__btn', type: 'button', on: { click: async () => { await pickCase(''); go(1); } } },
+      h('span', { class: 'wt-mode__ic' }, icon('folder', 'icon--lg')), h('span', { class: 'wt-quick__t strong', text: t('wizard.quick.empty') })));
     const search = h('input', { class: 'input', id: 'wz-search', type: 'search', value: data.query, placeholder: t('wizard.search'), attrs: { 'aria-label': t('wizard.search') } });
     search.addEventListener('input', () => { data.query = search.value; fillGrid(); });
     const chipBtn = (c) => {

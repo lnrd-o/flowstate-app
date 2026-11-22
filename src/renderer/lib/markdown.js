@@ -28,6 +28,7 @@ import kotlin from '../vendor/hljs/languages/kotlin.js';
 import swift from '../vendor/hljs/languages/swift.js';
 import plaintext from '../vendor/hljs/languages/plaintext.js';
 import { t } from './i18n.js';
+import { simplifyMath } from './md-utils.js';
 import { h } from './dom.js';
 import { readStore } from './storage.js';
 import {
@@ -153,7 +154,7 @@ function enhanceCodeBlocks(fragment, opts) {
  */
 export function renderMarkdown(text, opts = {}) {
   installHooks();
-  const src = opts.streaming ? closeOpenFence(text) : String(text ?? '');
+  const src = simplifyMath(opts.streaming ? closeOpenFence(text) : String(text ?? ''));
   const dirty = marked.parse(src, { async: false });
   const frag = DOMPurify.sanitize(dirty, SANITIZE);
   enhanceCodeBlocks(frag, opts);
