@@ -7,6 +7,8 @@ import { statusChip } from '../lib/login-state.js';
 import { isGlobalDev } from '../lib/store.js';
 import { balanceText, cleanKey, deepseekError } from '../lib/deepseek.js';
 import { copyText } from '../lib/clipboard.js';
+import { agentIcon } from './agent-icon.js';
+import { SOURCES, isSourceEnabled, canDisableSource, normalizeAgentsEnabled } from '../../shared/sources.js';
 import { toast } from './modal.js';
 
 export const CODE_THEMES = ['vs-dark', 'github-dark', 'github-light', 'dracula', 'one-dark', 'solarized-dark', 'monokai', 'gold-dark'];
@@ -41,15 +43,8 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     const st = store.get();
     const on = !!st.settings.deepseekEnabled;
     const ds = st.deepseek;
-    const enable = h('input', { type: 'checkbox', id: 'set-ds-enabled', checked: on });
-    enable.addEventListener('change', async () => {
-      await actions.updateSettings({ deepseekEnabled: enable.checked });
-      if (enable.checked) actions.refreshDeepseek(false);
-    });
-    const head = h('div', { class: 'field settings-ds__head' },
-      h('label', { class: 'toggle', for: 'set-ds-enabled' }, enable, h('span', { class: 'toggle__track' }), h('span', { class: 'strong', text: t('deepseek.title') + ' - ' + t('deepseek.enable') })),
-      h('div', { class: 'field__hint', text: t('deepseek.hint') }));
-    if (!on) return h('div', { class: 'settings-ds' }, head);
+    const head = h('div', { class: 'field__hint', text: t('deepseek.hint') });
+    if (!on) return null;
 
     const saveBtn = h('button', { class: 'btn btn--primary', type: 'button', text: t('deepseek.save'), disabled: dsBusy || !dsKey.trim() });
     const input = h('input', {
@@ -158,19 +153,42 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     const redo = h('button', { class: 'btn', type: 'button', text: t('settings.restartWalkthrough') });
     redo.addEventListener('click', () => { dlg.close('walkthrough'); onWalkthrough(); });
 
-    const accounts = h('div', { class: 'settings-accounts' },
-      h('div', { class: 'field__label', text: t('settings.accounts') }),
-      h('div', { class: 'card card--flush' }, ...['claude', 'agy'].map((a) => {
-        const known = store.get().signedIn[a];
-        const c = statusChip(known);
-        const acts = known === true
-          ? [h('button', { class: 'btn btn--sm', type: 'button', text: t('login.signOut'), on: { click: () => (a === 'claude' ? actions.signOut(a) : actions.openLogin(a)) } })]
-          : [h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(a) } })];
-        return h('div', { class: 'list-row' },
-          h('div', { class: 'list-row__main' }, h('div', { class: 'list-row__title', text: t('health.' + a) })),
-          h('span', { class: 'badge badge--' + c.tone }, h('span', { class: 'badge__dot' }), t(c.key)), ...acts);
-      })),
-      h('div', { class: 'field__hint', text: t('settings.accountsHint') }));
+    const sourcesSection = () => {
+      const st = store.get();
+      const map = normalizeAgentsEnabled(st.settings.agentsEnabled, st.settings.deepseekEnabled);
+      const rows = SOURCES.map((id) => {
+        const on = isSourceEnabled(st.settings, id);
+        const lastOn = on && !canDisableSource(st.settings, id);
+        const sw = h('input', { type: 'checkbox', id: 'set-src-' + id, checked: on, disabled: lastOn, attrs: { role: 'switch', 'aria-checked': String(on), 'aria-label': t('sources.name.' + id) } });
+        sw.addEventListener('change', async () => {
+          await actions.updateSettings({ agentsEnabled: { ...map, [id]: sw.checked } });
+          if (id === 'deepseek' && sw.checked) actions.refreshDeepseek(false);
+        });
+        const swEl = h('label', { class: 'toggle', for: 'set-src-' + id, title: lastOn ? t('sources.lastOn') : '' }, sw, h('span', { class: 'toggle__track' }));
+        let chip; const acts = [];
+        if (!on) chip = h('span', { class: 'badge badge--muted' }, t('sources.off'));
+        else if (id === 'deepseek') {
+          const ok = !!(st.deepseek && st.deepseek.configured);
+          chip = h('span', { class: 'badge badge--' + (ok ? 'green' : 'amber') }, h('span', { class: 'badge__dot' }), t(ok ? 'sources.keySaved' : 'sources.needsKey'));
+        } else {
+          const known = st.signedIn[id];
+          const c = statusChip(known);
+          chip = h('span', { class: 'badge badge--' + c.tone }, h('span', { class: 'badge__dot' }), t(c.key));
+          if (id === 'opencode') { if (known !== true) acts.push(h('span', { class: 'xs faint', text: t('sources.opencodeHint') })); }
+          else if (known === true) acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('login.signOut'), on: { click: () => (id === 'claude' ? actions.signOut(id) : actions.openLogin(id)) } }));
+          else acts.push(h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(id) } }));
+        }
+        return h('div', { class: 'list-row' + (on ? '' : ' is-off') },
+          agentIcon(id === 'deepseek' ? 'claude' : id, { size: 18 }),
+          h('div', { class: 'list-row__main' }, h('div', { class: 'list-row__title', text: t('sources.name.' + id) })),
+          chip, ...acts, swEl);
+      });
+      return h('div', { class: 'settings-accounts' },
+        h('div', { class: 'field__label', text: t('settings.sources') }),
+        h('div', { class: 'card card--flush' }, ...rows),
+        h('div', { class: 'field__hint', text: t('settings.sourcesHint') }),
+        deepseekSection());
+    };
 
     body.replaceChildren(
       h('div', { class: 'settings-grid' },
@@ -179,8 +197,7 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       devRow,
       field(t('settings.codeTheme'), code),
       h('div', { class: 'settings-preview-wrap', attrs: { 'aria-label': t('settings.codeTheme') } }, preview),
-      accounts,
-      deepseekSection(),
+      sourcesSection(),
       field(t('settings.claudePath'), pathInput('set-claude-path', 'claudePath'), t('settings.pathHint')),
       field(t('settings.agyPath'), pathInput('set-agy-path', 'agyPath'), t('settings.pathHint')),
       field(t('settings.opencodePath'), pathInput('set-opencode-path', 'opencodePath'), t('settings.pathHint')),
@@ -194,9 +211,11 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
   const unsubLang = onChange(() => render());
   let lastSigned = store.get().signedIn;
   let lastDs = store.get().deepseek;
+  let lastEnabled = store.get().settings.agentsEnabled;
   const unsubStore = store.subscribe((st) => {
     if (st.signedIn !== lastSigned) { lastSigned = st.signedIn; render(); }
     else if (st.deepseek !== lastDs) { lastDs = st.deepseek; render(); }
+    else if (st.settings.agentsEnabled !== lastEnabled) { lastEnabled = st.settings.agentsEnabled; render(); }
   });
   unsub = () => { unsubLang(); unsubStore(); };
   return dlg;

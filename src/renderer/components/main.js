@@ -4,6 +4,7 @@ import { t } from '../lib/i18n.js';
 import { activeProject, isDev } from '../lib/store.js';
 import { mountChat } from './chat.js';
 import { mountComposer } from './composer.js';
+import { mountThreadsBar } from './threads-bar.js';
 import { mountPrompts } from './prompts.js';
 import { mountMethods } from './methods.js';
 import { mountRunPanel } from './run-panel.js';
@@ -30,7 +31,8 @@ export function mountMain(el, deps) {
   const runHost = h('div', { class: 'run-host' });
   const chatInner = h('div', { class: 'chat__list' });
   const composerWrap = h('div', { class: 'composer-wrap' });
-  chatRoot.append(runHost, chatInner, composerWrap);
+  const threadsHost = h('div');
+  chatRoot.append(threadsHost, runHost, chatInner, composerWrap);
   const page = h('div', { class: 'page', hidden: true });
   const promptsHost = h('div', { class: 'prompts-host' });
   el.append(topbar, subbar, remoteCard, chatRoot, page);
@@ -41,6 +43,7 @@ export function mountMain(el, deps) {
   const tasksHost = h('div', { class: 'prompts-host tasks-host' });
   const tasksPanel = mountTasksPanel(tasksHost, deps);
 
+  mountThreadsBar(threadsHost, deps);
   const chat = mountChat(chatInner, deps);
   const composer = mountComposer(composerWrap, deps);
 

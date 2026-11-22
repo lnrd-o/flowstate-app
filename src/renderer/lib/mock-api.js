@@ -194,6 +194,17 @@ export function createMockApi() {
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
     versions: mockVersions(),
+    threads: (() => {
+      let st = { active: '00000000', threads: [{ id: '00000000', title: 'Main', agent: 'claude', model: null, turns: 3, updatedAt: Date.now(), main: true, contextPath: '.flowstate/context/main.md' }], projectContextPath: '.flowstate/context/PROJECT.md' };
+      const ok = () => ({ ok: true, ...st });
+      return {
+        list: async () => st,
+        create: async (_id, o) => { const id = Math.random().toString(16).slice(2, 10).padEnd(8, '0'); st = { ...st, active: id, threads: [...st.threads, { id, title: (o && o.title) || 'Conversation ' + st.threads.length, agent: 'claude', model: null, turns: 0, updatedAt: Date.now(), main: false, contextPath: '.flowstate/context/' + id + '.md' }] }; return ok(); },
+        switch: async (_id, tid) => { st = { ...st, active: tid }; return ok(); },
+        rename: async (_id, tid, title) => { st = { ...st, threads: st.threads.map((x) => (x.id === tid ? { ...x, title } : x)) }; return ok(); },
+        remove: async (_id, tid) => { st = { ...st, active: '00000000', threads: st.threads.filter((x) => x.id !== tid) }; return ok(); },
+      };
+    })(),
     ...p2.api,
     ...p7.api,
     auth: { login: async () => { const r = await p2.api.auth.login(); p4.setSigned('claude', true); return r; } },

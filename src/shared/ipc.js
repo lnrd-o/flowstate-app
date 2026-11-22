@@ -38,6 +38,11 @@ export const CH = Object.freeze({
   versionsSave: 'versions:save',             // (projectId, {label, note?, ref?}) -> {ok, tag} | {ok:false, reason, message}   checkpoints dirty work, then tags HEAD as checkpoint/<slug>
   versionsCompare: 'versions:compare',       // (projectId, {from, to='WORKING', path?}) -> {ok, files:[{path,status,added,removed}], added, removed} | with path {ok, diff}
   versionsRestore: 'versions:restore',       // (projectId, {ref, path?}) -> {ok, safety:tagName} (always checkpoints first; restore safety to undo)
+  threadsList: 'threads:list',               // (projectId) -> {active, threads:[{id,title,agent,model,turns,updatedAt,main,contextPath}], projectContextPath}   conversations of a project (svc/threads.js)
+  threadsCreate: 'threads:create',           // (projectId, {title?, agent?}) -> {ok, id, ...list} | {ok:false, reason:'running'|'limit'}   creates and switches to it
+  threadsSwitch: 'threads:switch',           // (projectId, threadId) -> {ok, ...list} | {ok:false, reason}   mirrors that conversation into the project (agent, model, session) and its history
+  threadsRename: 'threads:rename',           // (projectId, threadId, title) -> {ok, ...list}
+  threadsRemove: 'threads:remove',           // (projectId, threadId) -> {ok, ...list} | {ok:false, reason:'main'|'running'|'unknown'}
   versionsBranch: 'versions:branch',         // (projectId, {op:'create'|'switch'|'rename'|'delete'|'previewMerge'|'merge', name, from?, to?}) -> {ok,...} | {ok:false, reason, message, conflicts?}
   gitUndoTurn: 'git:undo-turn',              // (projectId) -> {ok, message}
   // ---- Phase 2 ----
@@ -228,6 +233,7 @@ export const API_SHAPE = Object.freeze({
   health: ['check'],
   git: ['status', 'undoTurn'],
   versions: ['list', 'save', 'compare', 'restore', 'branch'],
+  threads: ['list', 'create', 'switch', 'rename', 'remove'],
   prompts: ['list', 'save', 'delete', 'export'],
   files: ['list', 'read', 'preview', 'reveal', 'open', 'watch', 'pick', 'import'],
   dashboard: ['status', 'setup', 'start', 'stop'],

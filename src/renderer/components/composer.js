@@ -10,6 +10,7 @@ import { suggestionChips } from '../lib/images.js';
 import { toast } from './modal.js';
 
 const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
+import { disabledSourceOf, enabledAgents } from '../../shared/sources.js';
 const AGENTS = ['claude', 'agy', 'opencode'];
 /** Agents offered in the switch: opencode only when detected (or already this project's agent). */
 export function visibleAgents(project, health) {
@@ -17,8 +18,10 @@ export function visibleAgents(project, health) {
 }
 
 /** Why sending is blocked, as an i18n key + vars (or null). Pure; exported for tests of the logic. */
-export function sendBlockReason(project, health, signedIn) {
+export function sendBlockReason(project, health, signedIn, settings) {
   if (!project) return { key: 'composer.disabledNoProject' };
+  const off = settings ? disabledSourceOf(settings, project) : null;
+  if (off) return { key: 'composer.disabledSource', vars: { source: t('sources.name.' + off) } };
   if (!health) return null;
   if (health.vpn && health.vpn.active) return { key: 'composer.disabledVpn' };
   const a = health[project.agent];
@@ -129,7 +132,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     const chat = p && s.chats[p.id];
     const refs = p ? att.refs(p.id) : [];
     const text = input.value.trim() || (refs.length ? t('images.sugg.describe') : '');
-    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health, s.signedIn) || att.busy(p.id)) return;
+    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health, s.signedIn, s.settings) || att.busy(p.id)) return;
     input.value = '';
     drafts.delete(p.id);
     if (actions.draftChanged) actions.draftChanged(p.id, '');
@@ -195,7 +198,8 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
       autosize();
       att.repaint();
     }
-    const block = sendBlockReason(p, s.health, s.signedIn);
+    const block = sendBlockReason(p, s.health, s.signedIn, s.settings);
+    const shown = enabledAgents(s.settings);
     input.placeholder = t('composer.placeholder', { agent: p ? t('agent.' + p.agent) : t('app.name') });
     input.setAttribute('aria-label', input.placeholder);
     input.disabled = !p;
@@ -207,6 +211,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
       segButtons[i].setAttribute('aria-checked', String(on));
       segButtons[i].tabIndex = on || (!p && i === 0) ? 0 : -1;
       segButtons[i].disabled = !p || running;
+      segButtons[i].hidden = !(shown.includes(a) || on);
     });
     segmented.setAttribute('aria-label', t('agent.switch'));
     const dev = isDev(s);

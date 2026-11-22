@@ -66,12 +66,13 @@ if (!app.requestSingleInstanceLock()) {
     const history = createHistory({
       dir,
       storeDirOf: (id) => { const p = projects.get(id); return p ? path.join(p.path, '.flowstate') : null; },
+      threadOf: (id) => { const a = projects.get(id)?.activeThread; return a && a !== '00000000' ? a : null; }, // conversations: see svc/threads.js
     });
     const findCli = (agent) => (agent === 'agy' ? health.findAgy() : agent === 'opencode' ? health.findOpencode() : health.findClaude());
     const agents = createAgentManager({
       // DeepSeek route: the key is read from safeStorage here in main and goes ONLY into the child env (see agents/routes.js).
       routeEnv: async (project, route) => (route === 'deepseek' ? services.deepseek?.routeEnv?.(project.model) ?? { error: 'DeepSeek is not available' } : null),
-      contextNote: (project, text) => dashboards?.pythonNote(project.id, text),
+      contextNote: async (project, text) => [await dashboards?.pythonNote(project.id, text), services?.threads?.handoffNote?.(project)].filter(Boolean).join('\n\n') || null,
       projects, git, history,
       emit: (id, ev, meta) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); runner?.onAgentEvent(id, ev); fanoutAgentEvent(services, id, ev, meta); },
       resolveLauncher: async (agent) => {

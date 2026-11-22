@@ -3,6 +3,7 @@
 import { h, icon, nextId } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { activeProject, isDev } from '../lib/store.js';
+import { filterModelsBySource } from '../../shared/sources.js';
 import { currentModelLabel, displayEffort, effortValues, groupModelOptions, modelOptions, modelToStore, modelsNeedSignIn } from '../lib/models.js';
 
 export function mountModelPicker({ store, actions }) {
@@ -79,7 +80,7 @@ export function mountModelPicker({ store, actions }) {
         need ? h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('model.signIn'), on: { click: () => { setOpen(false); actions.openLogin(p.agent); } } }) : null));
     }
     if (loading && list && list.models && list.models.length) body.push(h('div', { class: 'mp__state muted', attrs: { role: 'status' } }, h('span', { class: 'spinner' }), t('model.loading')));
-    const opts = modelOptions(list, p, dev);
+    const opts = filterModelsBySource(modelOptions(list, p, dev), s.settings);
     if (!opts.length && !loading && !(list && list.error)) body.push(h('div', { class: 'mp__state muted', text: t('model.none') }));
     const groups = groupModelOptions(opts);
     const showHeads = groups.length > 1 || (groups[0] && groups[0].kind === 'opencode');

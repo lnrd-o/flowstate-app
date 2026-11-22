@@ -3,19 +3,22 @@ import { h, icon, clear } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { activeProject } from '../lib/store.js';
 import { limitBanner } from '../lib/usage.js';
+import { disabledSourceOf } from '../../shared/sources.js';
 import { resetTexts } from './limit-card.js';
 
 const dismissed = new Set();
 
 /** Pure: which banners apply. Returns [{ id, level, text, actions: ['recheck'|'settings'|'dismiss'] }]. */
-export function computeBanners(project, health, chat, signedIn, usage, now = Date.now()) {
+export function computeBanners(project, health, chat, signedIn, usage, now = Date.now(), settings = null) {
   const si = (a) => (signedIn && typeof signedIn[a] === 'boolean' ? signedIn[a] : health && health[a] ? health[a].loggedIn : null);
   const out = [];
   if (health && health.vpn && health.vpn.active) {
     const reach = health.anthropicReachable ? t('health.reachable') : t('health.unreachable');
     out.push({ id: 'vpn', level: 'danger', text: t('banner.vpn') + ' ' + t('health.anthropic') + ': ' + reach, actions: ['recheck'] });
   }
-  if (project && health) {
+  const offSource = project && settings ? disabledSourceOf(settings, project) : null;
+  if (offSource) out.push({ id: 'source-off:' + offSource, level: 'warn', text: t('banner.sourceOff', { source: t('sources.name.' + offSource) }), actions: ['settings'] });
+  if (project && health && !offSource) {
     if (project.agent === 'claude') {
       if (!health.claude.found) out.push({ id: 'claude-missing', level: 'warn', text: t('banner.claudeMissing') + ' ' + t('banner.claudeMissingHint'), actions: ['settings', 'recheck'] });
       else if (si('claude') === false || (chat && chat.needsAuth)) out.push({ id: 'claude-login', level: 'warn', text: t('banner.notLoggedIn'), actions: ['signin', 'recheck'] });
@@ -54,7 +57,7 @@ export function mountBanners(el, { store, actions }) {
     const s = store.get();
     const project = activeProject(s);
     const chat = project ? s.chats[project.id] : null;
-    const banners = computeBanners(project, s.health, chat, s.signedIn, s.usage);
+    const banners = computeBanners(project, s.health, chat, s.signedIn, s.usage, Date.now(), s.settings);
     const next = JSON.stringify(banners);
     if (next === sig) return;
     sig = next;

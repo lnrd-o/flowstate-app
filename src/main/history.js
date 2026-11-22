@@ -11,6 +11,7 @@ export const RETURN_LAST = 500;
 const FIELD_CAP = 20000;
 export const DIFF_CAP = 200 * 1024;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+export const THREAD_RE = /^[a-f0-9]{8}$/;
 
 /** Cap very long string fields so a single record cannot blow up the file. */
 export function capEvent(ev) {
@@ -28,7 +29,9 @@ export function capEvent(ev) {
 }
 
 /** storeDirOf(projectId) -> absolute <project>/.flowstate path | null (unknown project). */
-export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null } = {}) {
+export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null, threadOf = null } = {}) {
+  // threadOf(projectId) -> id of the project's ACTIVE conversation (null = the main one, history.jsonl). Other conversations use history-<id>.jsonl.
+  const tidOf = (id) => { let t = null; try { t = threadOf?.(id) ?? null; } catch { t = null; } return typeof t === 'string' && THREAD_RE.test(t) ? t : null; };
   const root = path.join(dir, 'history');
   const pending = new Map(); // projectId -> accumulated text-delta string
   const readonly = new Set(); // projects whose folder could not be written: they use the userData copy
@@ -38,11 +41,11 @@ export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null
     if (typeof id !== 'string' || !ID_RE.test(id)) throw new TypeError('invalid project id');
     return path.join(root, `${id}.jsonl`);
   };
-  const folderOf = (id) => {
+  const folderOf = (id, tid = tidOf(id)) => {
     if (readonly.has(id)) return null;
     let d = null;
     try { d = storeDirOf?.(id) ?? null; } catch { d = null; }
-    return d ? path.join(d, 'history.jsonl') : null;
+    return d ? path.join(d, tid ? `history-${tid}.jsonl` : 'history.jsonl') : null;
   };
   /** One-time move of an old userData history file into the folder (best effort; never loses data). */
   const migrate = (id, folderFile) => {
@@ -56,16 +59,17 @@ export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null
     } catch { /* keep the old copy */ }
   };
   // File to use for a project. For a folder file when writing, make sure the folder (and its .gitignore) exists and is writable.
-  const fileOf = (id, forWrite = false) => {
-    const legacy = legacyOf(id);
-    const ff = folderOf(id);
+  const fileOf = (id, forWrite = false, tid = tidOf(id)) => {
+    const legacy = tid ? path.join(root, `${id}-${tid}.jsonl`) : legacyOf(id);
+    legacyOf(id);
+    const ff = folderOf(id, tid);
     if (!ff) return legacy;
     const storeDir = path.dirname(ff);
     if (forWrite) {
       try { ensureStoreDir(path.dirname(storeDir), fsx); } catch { readonly.add(id); return legacy; }
-      migrate(id, ff);
+      if (!tid) migrate(id, ff);
     } else {
-      if (fsx.existsSync(storeDir)) migrate(id, ff);
+      if (fsx.existsSync(storeDir) && !tid) migrate(id, ff);
       if (!fsx.existsSync(ff) && fsx.existsSync(legacy)) return legacy; // not migrated yet (no folder): still readable
     }
     return ff;
@@ -107,10 +111,10 @@ export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null
       } catch { /* history is best effort */ }
     },
     flush,
-    get(id) {
+    get(id, tid) {
       legacyOf(id);
       flush(id);
-      const f = fileOf(id);
+      const f = fileOf(id, false, tid === undefined ? tidOf(id) : tid);
       let text;
       try { text = fsx.readFileSync(f, 'utf8'); } catch { return []; }
       if (Buffer.byteLength(text) > MAX_BYTES) {
@@ -128,12 +132,13 @@ export function createHistory({ dir, fsx = fs, now = Date.now, storeDirOf = null
       return recs.slice(-RETURN_LAST);
     },
     /** Truncate the history (folder copy and any leftover userData copy). */
-    clear(id) {
+    clear(id, tid) {
       legacyOf(id);
       pending.delete(id);
-      const ff = folderOf(id);
+      const t = tid === undefined ? tidOf(id) : tid;
+      const ff = folderOf(id, t);
       if (ff) { try { fsx.unlinkSync(ff); } catch { /* none */ } }
-      try { fsx.unlinkSync(legacyOf(id)); } catch { /* none */ }
+      try { fsx.unlinkSync(t ? path.join(root, `${id}-${t}.jsonl`) : legacyOf(id)); } catch { /* none */ }
     },
     /** Project removed from the registry: drop in-memory state and the userData copy only. The folder history stays. */
     forget(id) {

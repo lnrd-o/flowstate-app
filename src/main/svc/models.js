@@ -2,6 +2,7 @@
 import { runCommand } from '../run.js';
 import { EFFORTS } from '../agents/model-spec.js';
 import { DEEPSEEK_BUILTIN, isDeepseekModel } from '../agents/routes.js';
+import { isSourceEnabled } from '../../shared/sources.js';
 
 export const CLAUDE_ALIASES = Object.freeze([
   { id: 'default', name: 'Default (recommended)' },
@@ -63,7 +64,8 @@ export function deepseekModels(hasKey, fetched = []) {
   return [...ids].map(([id, name]) => ({ id, name, group: 'deepseek', ...(hasKey ? {} : { disabled: true, needsKey: true }) }));
 }
 
-export function createModels({ health, run = runCommand, now = Date.now, getProject = () => null, services = {} } = {}) {
+export function createModels({ health, run = runCommand, now = Date.now, getProject = () => null, services = {}, getSettings = null } = {}) {
+  const off = (id) => !!getSettings && !isSourceEnabled(getSettings() || {}, id);
   let claudeSeen = null;
   const cache = new Map(); // agent -> {at, value}
 
@@ -86,6 +88,7 @@ export function createModels({ health, run = runCommand, now = Date.now, getProj
   }
 
   async function deepseekExtra() {
+    if (off('deepseek')) return [];
     const ds = services.deepseek;
     const hasKey = !!ds?.hasKey?.();
     let fetched = [];
@@ -95,6 +98,7 @@ export function createModels({ health, run = runCommand, now = Date.now, getProj
 
   return {
     async list(agent) {
+      if ((agent === 'agy' || agent === 'opencode') && off(agent)) return { agent, source: 'live', models: [], efforts: [], error: 'disabled' }; // never spawn a disabled CLI
       if (agent === 'claude') return claudeList(claudeSeen, await deepseekExtra());
       if (agent === 'opencode') {
         const oh = cache.get('opencode');
@@ -119,5 +123,5 @@ export function createModels({ health, run = runCommand, now = Date.now, getProj
 }
 
 export function create(deps) {
-  return createModels({ health: deps.health, getProject: deps.getProject, services: deps.services });
+  return createModels({ health: deps.health, getProject: deps.getProject, services: deps.services, getSettings: deps.settings?.get });
 }

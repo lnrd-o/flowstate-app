@@ -106,6 +106,7 @@ function openProject(id, opts) {
   actions.refreshRemote(id);
   actions.refreshDashboard(id);
   actions.refreshStoreStatus(id);
+  actions.loadThreads(id);
   if (!(opts && opts.initial)) actions.loadMethods({ quiet: true });
   const p = store.get().projects.find((x) => x.id === id);
   if (p) actions.loadModels(p.agent);
@@ -303,6 +304,53 @@ const actions = {
     } catch (e) {
       toast((e && e.message) || t('auth.loginFailed'), 'error');
     }
+  },
+  /** Conversations of a project (main/svc/threads.js). Main mirrors the active one into the project record, so refresh both. */
+  async loadThreads(pid) {
+    if (!api.threads) return;
+    try {
+      const r = await api.threads.list(pid);
+      store.set((s) => ({ threads: { ...(s.threads || {}), [pid]: r } }));
+      await actions.refreshProject(pid);
+    } catch { /* optional feature */ }
+  },
+  async refreshProject(pid) {
+    try {
+      const list = await api.projects.list();
+      const n = (list || []).find((x) => x.id === pid);
+      if (n) store.set((s) => ({ projects: s.projects.map((p) => (p.id === pid ? { ...p, ...n } : p)) }));
+    } catch { /* ignore */ }
+  },
+  /** Run a conversation operation; on success reload that conversation's chat from its own history. */
+  async threadOp(pid, fn, reload) {
+    if (!api.threads) return false;
+    let r;
+    try { r = await fn(); } catch { toast(t('errors.generic'), 'error'); return false; }
+    if (!r || !r.ok) { toast(t('threads.err.' + ((r && r.reason) || 'generic')), 'error'); return false; }
+    store.set((s) => ({ threads: { ...(s.threads || {}), [pid]: { active: r.active, threads: r.threads, projectContextPath: r.projectContextPath } } }));
+    await actions.refreshProject(pid);
+    if (reload) {
+      store.updateChat(pid, () => createChatState());
+      histLoaded.delete(pid);
+      await loadHistory(pid, true);
+      const p = store.get().projects.find((x) => x.id === pid);
+      if (p) actions.loadModels(p.agent);
+    }
+    return true;
+  },
+  createThread: (pid, o) => actions.threadOp(pid, () => api.threads.create(pid, o || {}), true),
+  switchThread: (pid, tid) => actions.threadOp(pid, () => api.threads.switch(pid, tid), true),
+  renameThread: (pid, tid, title) => actions.threadOp(pid, () => api.threads.rename(pid, tid, title), false),
+  async removeThread(pid, tid) {
+    const ok = await confirmDialog({ title: t('threads.delete'), message: t('threads.deleteConfirm'), confirmLabel: t('threads.delete'), danger: true });
+    if (!ok) return false;
+    return actions.threadOp(pid, () => api.threads.remove(pid, tid), true);
+  },
+  /** Open the markdown notes of the active conversation (the project overview lives next to it). */
+  openContext(pid) {
+    const info = (store.get().threads || {})[pid];
+    const cur = info && info.threads.find((x) => x.id === info.active);
+    actions.openFile(cur ? cur.contextPath : '.flowstate/context/PROJECT.md');
   },
   async updateProject(id, patch) {
     try {

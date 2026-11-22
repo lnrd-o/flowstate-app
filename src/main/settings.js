@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { defaultAgentsEnabled, isAgentsEnabled, normalizeAgentsEnabled, hasEnabledSource } from '../shared/sources.js';
 
 export function defaultSettings(locale = 'en') {
   return {
@@ -16,6 +17,8 @@ export function defaultSettings(locale = 'en') {
     developerMode: true,
     // DeepSeek usage/models panel (the API key itself is NOT a setting: it lives encrypted via svc/deepseek.js)
     deepseekEnabled: false,
+    // Per-source switches (claude / agy / opencode / deepseek). deepseekEnabled is kept in sync with agentsEnabled.deepseek.
+    agentsEnabled: defaultAgentsEnabled(),
   };
 }
 
@@ -43,6 +46,7 @@ const TYPES = {
   walkthroughDone: (v) => typeof v === 'boolean',
   developerMode: (v) => typeof v === 'boolean',
   deepseekEnabled: (v) => typeof v === 'boolean',
+  agentsEnabled: (v) => isAgentsEnabled(v),
 };
 
 export function createSettings({ dir, locale = 'en', fsx = fs }) {
@@ -51,6 +55,10 @@ export function createSettings({ dir, locale = 'en', fsx = fs }) {
   let cache = { ...defaults };
   const stored = readJson(file, {}, fsx);
   for (const k of Object.keys(defaults)) if (k in stored && TYPES[k](stored[k])) cache[k] = stored[k];
+  // Migration: files without agentsEnabled derive it from the old deepseekEnabled flag. Never leave every source off.
+  cache.agentsEnabled = normalizeAgentsEnabled(stored.agentsEnabled, TYPES.deepseekEnabled(stored.deepseekEnabled) ? stored.deepseekEnabled : undefined);
+  if (!hasEnabledSource(cache.agentsEnabled)) cache.agentsEnabled = defaultAgentsEnabled();
+  cache.deepseekEnabled = cache.agentsEnabled.deepseek;
 
   return {
     file,
@@ -63,6 +71,11 @@ export function createSettings({ dir, locale = 'en', fsx = fs }) {
         if (!TYPES[k](v)) throw new TypeError(`invalid value for setting ${k}`);
         next[k] = v;
       }
+      // agentsEnabled (partial allowed) and deepseekEnabled stay one setting; the last enabled source cannot be switched off.
+      if ('agentsEnabled' in patch) next.agentsEnabled = normalizeAgentsEnabled({ ...cache.agentsEnabled, ...patch.agentsEnabled });
+      else if ('deepseekEnabled' in patch) next.agentsEnabled = { ...cache.agentsEnabled, deepseek: patch.deepseekEnabled };
+      if (!hasEnabledSource(next.agentsEnabled)) throw new TypeError('at least one source must stay enabled');
+      next.deepseekEnabled = next.agentsEnabled.deepseek;
       cache = next;
       writeJsonAtomic(file, cache, fsx);
       return { ...cache };

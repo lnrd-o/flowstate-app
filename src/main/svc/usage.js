@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { writeJsonAtomic, readJson } from '../settings.js';
+import { isSourceEnabled } from '../../shared/sources.js';
 import { spawnEnv } from '../platform.js';
 import { CH } from '../../shared/ipc.js';
 
@@ -279,6 +280,7 @@ export function createUsage({
   /** `claude -p "/usage"` -> merge windows. At most every 5 minutes unless force. -> {ok, windows?} */
   async function refresh(force = false) {
     if (refreshing) return refreshing;
+    if (settings?.get && !isSourceEnabled(settings.get(), 'claude')) return { ok: false, error: 'disabled' }; // disabled source: no `claude -p /usage`
     if (!force && now() - lastRefreshAt < REFRESH_MS) return { ok: false, error: 'throttled' };
     refreshing = (async () => {
       lastRefreshAt = now();

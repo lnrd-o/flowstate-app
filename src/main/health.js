@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import https from 'node:https';
 import { runCommand } from './run.js';
 import { isAgyLoggedInOutput, isOpencodeLoggedInOutput } from './auth-check.js';
+import { isSourceEnabled } from '../shared/sources.js';
 import {
   pathFor, cmpVersion, homeDir, isExecutableFile, findOnPath, findNamed, safeReaddir, augmentedEnv,
 } from './platform.js';
@@ -250,13 +251,16 @@ export function createHealth({
     const claude = { found: !!cPath, path: cPath, version: null, loggedIn: false };
     const agy = { found: !!aPath, path: aPath, version: null, loggedIn: null };
     const jobs = [];
-    if (cPath) {
+    // Disabled sources are not probed (no version / sign-in commands): their state stays unknown (loggedIn null).
+    const on = (id) => isSourceEnabled(getSettings() || {}, id);
+    if (!on('claude')) claude.loggedIn = null;
+    if (cPath && on('claude')) {
       jobs.push(version(cPath).then((v) => { claude.version = v; }));
       jobs.push(run(cPath, ['auth', 'status'], { timeout: 10000 }).then((r) => {
         try { claude.loggedIn = JSON.parse(r.stdout).loggedIn === true; } catch { claude.loggedIn = false; }
       }));
     }
-    if (aPath) {
+    if (aPath && !on('agy')) { /* not probed */ } else if (aPath) {
       jobs.push(version(aPath).then((v) => { agy.version = v; }));
       jobs.push(run(aPath, ['models'], { timeout: 15000 }).then((r) => {
         const state = isAgyLoggedInOutput(`${r.stdout}\n${r.stderr}`);
@@ -264,7 +268,7 @@ export function createHealth({
         agy.loggedIn = lastAgyLoggedIn;
       }));
     } else lastAgyLoggedIn = null;
-    if (oPath) {
+    if (oPath && on('opencode')) {
       jobs.push(version(oPath).then((v) => { opencode.version = v; }));
       jobs.push(run(oPath, ['auth', 'list'], { timeout: 10000 }).then((r) => { opencode.loggedIn = isOpencodeLoggedInOutput(`${r.stdout}
 ${r.stderr}`); }));

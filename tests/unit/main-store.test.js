@@ -18,6 +18,7 @@ test('settings defaults and locale', () => {
   assert.deepEqual(s.get(), {
     language: 'es', theme: 'dark', codeTheme: 'github-dark', claudePath: null, agyPath: null, opencodePath: null,
     lastProjectId: null, autoLaunch: false, walkthroughDone: false, developerMode: true, deepseekEnabled: false,
+    agentsEnabled: { claude: true, agy: true, opencode: true, deepseek: false },
   });
 });
 

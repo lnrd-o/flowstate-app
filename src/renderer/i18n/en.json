@@ -73,7 +73,8 @@
     "slashInsert": "Insert",
     "slashNone": "No matching templates",
     "disabledLoginAgy": "Antigravity is not signed in.",
-    "disabledLoginOpencode": "OpenCode has no provider configured. Run opencode auth login in a terminal, then recheck."
+    "disabledLoginOpencode": "OpenCode has no provider configured. Run opencode auth login in a terminal, then recheck.",
+    "disabledSource": "{source} is turned off. Turn it on in Settings > Sources or switch agent."
   },
   "project": {
     "title": "Project",
@@ -135,7 +136,8 @@
     "signIn": "Sign in",
     "gitMissing": "Git was not found, so auto-commit and undo are unavailable.",
     "agyNotLoggedIn": "Antigravity is not signed in. Sign in to start chatting.",
-    "opencodeNotLoggedIn": "OpenCode has no provider configured. Run opencode auth login in a terminal, then recheck."
+    "opencodeNotLoggedIn": "OpenCode has no provider configured. Run opencode auth login in a terminal, then recheck.",
+    "sourceOff": "{source} is turned off in Settings > Sources. Turn it on, or switch this project to another agent."
   },
   "health": {
     "title": "System check",
@@ -175,7 +177,9 @@
     "saved": "Settings saved",
     "pathHint": "Leave empty to detect automatically.",
     "accounts": "Accounts",
-    "accountsHint": "Sign in to the agents you use. Credentials stay in each CLI's own store; FlowState never reads them."
+    "accountsHint": "Sign in to the agents you use. Credentials stay in each CLI's own store; FlowState never reads them.",
+    "sources": "Sources",
+    "sourcesHint": "Turn each source on or off. A source that is off disappears from the agent switch and the model lists. Credentials stay in each CLI's own store; FlowState never reads them."
   },
   "walkthrough": {
     "title": "Set up your project",
@@ -1219,7 +1223,12 @@
   },
   "model": {
     "label": "Model",
-    "group": { "claude": "Claude", "gemini": "Gemini", "deepseek": "DeepSeek", "opencode": "OpenCode" },
+    "group": {
+      "claude": "Claude",
+      "gemini": "Gemini",
+      "deepseek": "DeepSeek",
+      "opencode": "OpenCode"
+    },
     "groupOpencode": "OpenCode: {provider}",
     "addKey": "Add API key in Settings",
     "openSettings": "Open Settings",
@@ -1646,5 +1655,34 @@
     "failed": "Something went wrong: {message}",
     "retry": "Try again",
     "start": "Start"
+  },
+  "sources": {
+    "off": "Off",
+    "lastOn": "At least one source must stay on.",
+    "needsKey": "Needs API key",
+    "keySaved": "Key saved",
+    "opencodeHint": "Run: opencode auth login",
+    "name": {
+      "claude": "Claude Code",
+      "agy": "Antigravity",
+      "opencode": "OpenCode",
+      "deepseek": "DeepSeek (API key)"
+    }
+  },
+  "threads": {
+    "label": "Conversation",
+    "main": "Main",
+    "new": "New conversation",
+    "rename": "Rename conversation",
+    "delete": "Delete conversation",
+    "deleteConfirm": "Delete this conversation and its history? The files it changed stay in the project.",
+    "context": "Context notes",
+    "err": {
+      "running": "Wait for the current turn to finish first.",
+      "limit": "This project already has the maximum number of conversations.",
+      "main": "The main conversation cannot be deleted.",
+      "unknown": "That conversation no longer exists.",
+      "generic": "Could not change the conversation."
+    }
   }
 }

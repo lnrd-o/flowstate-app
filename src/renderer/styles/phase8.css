@@ -64,3 +64,9 @@
 /* Auto-accept everything: persistent warning badge in the composer */
 .composer__auto-badge { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: var(--fw-medium); }
 .composer.is-auto { box-shadow: 0 0 0 1px var(--amber); }
+
+/* conversations bar above the chat */
+.threads-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+.threads-bar[hidden] { display: none; }
+.threads-bar__label { display: inline-flex; align-items: center; gap: var(--space-1); }
+.threads-bar__select, .threads-bar__input { min-width: 220px; max-width: 360px; }
