@@ -2,12 +2,13 @@
 // actions of a turn, decide what "Allow this once" can narrowly allow, and build the per-turn allow rules.
 // No DOM. Mirrors the validation of src/main/permissions.js (the main process stays the authority).
 import { kindOf, commandOf, displayPath, changeOf, baseName } from './activity.js';
+import { protectedCategory } from '../../shared/protections.js';
 
-export const ALLOW_TOOLS = Object.freeze(['Bash', 'PowerShell', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'WebFetch', 'WebSearch']);
+export const ALLOW_TOOLS = Object.freeze(['Bash', 'PowerShell', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'Read', 'WebFetch', 'WebSearch']);
 export const MAX_RULES = 5;
 export const MAX_PATTERN = 300;
 
-const BLOCKED_RE = /requires?\s+(?:your\s+)?(?:approval|permission)|needs?\s+(?:your\s+)?(?:approval|permission)|permission\s+(?:required|to\s+use)|requested\s+permissions?|was\s+blocked|not\s+allowed\s+(?:to|in)|haven'?t\s+(?:granted|been\s+granted)|(?:hasn'?t|has\s+not)\s+been\s+granted|user\s+(?:has\s+)?(?:denied|rejected|doesn'?t\s+want)/i;
+const BLOCKED_RE = /requires?\s+(?:your\s+)?(?:approval|permission)|needs?\s+(?:your\s+)?(?:approval|permission)|permission\s+(?:required|to\s+use)|requested\s+permissions?|was\s+blocked|not\s+allowed\s+(?:to|in)|haven'?t\s+(?:granted|been\s+granted)|(?:hasn'?t|has\s+not)\s+been\s+granted|user\s+(?:has\s+)?(?:denied|rejected|doesn'?t\s+want)|has\s+been\s+denied|denied\s+by\s+your\s+permission/i;
 const OUTSIDE_RE = /outside\s+(?:of\s+)?(?:the\s+)?(?:project|working|allowed)|working\s+director|workingDir/i;
 const SAFETY_RE = /safety\s*check|safetyCheck|dangerous|sensitive|protected\s+(?:file|path)/i;
 
@@ -35,6 +36,7 @@ function toolKindByName(name) {
   if (n === 'bash' || n === 'powershell' || n === 'run_command') return 'command';
   if (n === 'write') return 'write';
   if (n === 'edit' || n === 'multiedit' || n === 'notebookedit') return 'edit';
+  if (n === 'read') return 'read';
   if (n === 'webfetch' || n === 'websearch') return 'web';
   return 'other';
 }
@@ -146,23 +148,51 @@ export function projectModeFor(items, selectedIds) {
 }
 
 /**
- * What the primary button does for the selected items (selectedIds: Set of item ids, or null for all).
- *   { mode: 'once', rules }       re-send with allow:[...]   (claude only, every selected item narrowable, 1..5 rules)
- *   { mode: 'switch', rules: [] } no narrow rule is possible: offer "Switch to Accept edits and retry"
- *   { mode: 'none', rules: [] }   nothing selected
+ * The "Always asked" category of a blocked item (files|delete|install|network|git|outside) or null. Only claude in Auto-accept mode
+ * has protections. ctx = { agent, mode, protections (project setting, missing = all ON), root (project folder) }.
  */
-export function allowPlan(items, selectedIds, agent) {
+export function protectionOf(item, ctx) {
+  if (!ctx || ctx.agent !== 'claude' || ctx.mode !== 'auto' || !item) return null;
+  return protectedCategory({ tool: item.tool, input: item.input }, ctx.protections, ctx.root);
+}
+
+/** What a protected item hands to the main process so only ITS deny rules are lifted for the retried turn: {tool, value} or null. */
+export function unprotectFor(item) {
+  if (!item) return null;
+  const isCmd = item.tool === 'Bash' || item.tool === 'PowerShell';
+  const value = (isCmd ? commandInput(item.input) : pathInput(item.input)).trim();
+  return value && value.length <= 4000 ? { tool: item.tool, value } : null;
+}
+
+/**
+ * What the primary button does for the selected items (selectedIds: Set of item ids, or null for all).
+ *   { mode: 'once', rules, unprotect, protectedSelected } re-send with allow:[...] (+ unprotect:[...] for protected items)  (claude only)
+ *   { mode: 'switch', rules: [] }  no narrow rule is possible: offer "Switch to Accept edits and retry"
+ *   { mode: 'none', rules: [] }    nothing selected
+ * ctx (optional, see protectionOf): a protected item can be allowed once even when its command / path cannot be a narrow CLI rule
+ * (in Auto only its deny rules are lifted), but it can NEVER be allowed "for the project": protectedSelected hides that button.
+ */
+export function allowPlan(items, selectedIds, agent, ctx) {
   const sel = (items || []).filter((it) => !selectedIds || selectedIds.has(it.id));
   if (!sel.length) return { mode: 'none', rules: [] };
   if (agent !== 'claude') return { mode: 'switch', rules: [] };
   const rules = [];
+  const unprotect = [];
+  let protectedSelected = false;
   for (const it of sel) {
+    const cat = protectionOf(it, ctx);
     const r = ruleFor(it);
-    if (!r) return { mode: 'switch', rules: [] };
+    if (cat) {
+      protectedSelected = true;
+      const u = unprotectFor(it);
+      if (!u) return { mode: 'switch', rules: [], protectedSelected };
+      if (!unprotect.some((x) => x.tool === u.tool && x.value === u.value)) unprotect.push(u);
+    }
+    if (!r) { if (cat) continue; return { mode: 'switch', rules: [] }; }
     if (!rules.some((x) => x.tool === r.tool && x.pattern === r.pattern)) rules.push(r);
   }
-  if (rules.length > MAX_RULES) return { mode: 'switch', rules: [] };
-  return { mode: 'once', rules };
+  if (rules.length > MAX_RULES || unprotect.length > 10) return { mode: 'switch', rules: [], protectedSelected };
+  return protectedSelected ? { mode: 'once', rules, unprotect, protectedSelected } : { mode: 'once', rules };
 }
 
 /** Plain-language description of one blocked item: { key, vars } for i18n 'approval.wants.*'. `root` = project folder. */
@@ -171,6 +201,7 @@ export function describeItem(item, root) {
   const path = m ? displayPath(m, root) : pathInput(item.input).replace(/\\/g, '/');
   const file = path ? baseName(path) : '';
   if (item.kind === 'command') return { key: 'approval.wants.run', vars: {} };
+  if (item.kind === 'read') return file ? { key: 'approval.wants.read', vars: { file } } : { key: 'approval.wants.readNoFile', vars: {} };
   if (item.kind === 'web') {
     if (item.tool === 'WebSearch') return { key: 'approval.wants.search', vars: {} };
     const host = hostOf(webTarget(item));
@@ -186,7 +217,8 @@ export function describeItem(item, root) {
 }
 
 /** i18n key of the plain-words reason. */
-export function whyKey(reason) {
+export function whyKey(reason, category) {
+  if (category) return 'approval.why.protected.' + category;
   return reason === 'workingDir' ? 'approval.why.workingDir' : reason === 'safetyCheck' ? 'approval.why.safetyCheck' : 'approval.why.approval';
 }
 

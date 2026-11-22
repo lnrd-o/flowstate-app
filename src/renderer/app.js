@@ -329,7 +329,7 @@ const actions = {
       try { const ui = api.ui && api.ui.projectGet ? await api.ui.projectGet(id) : null; known = !!(ui && ui.autoAcceptOk === true); } catch { known = false; }
       if (!known) {
         const ok = await confirmDialog({
-          title: t('mode.autoConfirmTitle'), message: t('mode.autoConfirm', { agent: t('agent.' + p.agent) }), confirmLabel: t('mode.autoConfirmOk'), danger: true,
+          title: t('mode.autoConfirmTitle'), message: t('mode.autoConfirm', { agent: t('agent.' + p.agent) }) + ' ' + t(p.agent === 'claude' ? 'mode.autoGuardClaude' : 'mode.autoGuardNone', { agent: t('agent.' + p.agent) }), confirmLabel: t('mode.autoConfirmOk'), danger: true,
         });
         if (!ok) return false;
         try { if (api.ui && api.ui.projectSet) await api.ui.projectSet(id, { autoAcceptOk: true }); } catch { /* the choice still applies; it will just ask again */ }
@@ -358,7 +358,8 @@ const actions = {
     ui.main.chat.stickToBottom();
     try {
       const allow = opts && Array.isArray(opts.allow) && opts.allow.length ? opts.allow : null;
-      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}), ...(images.length ? { images } : {}) });
+      const unprotect = opts && Array.isArray(opts.unprotect) && opts.unprotect.length ? opts.unprotect : null;
+      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}), ...(unprotect ? { unprotect } : {}), ...(images.length ? { images } : {}) });
     } catch (e) {
       store.updateChat(p.id, (c) => failTurn(c, (e && e.message) || t('errors.spawnFailed', { agent: t('agent.' + p.agent) })));
     }
@@ -377,13 +378,15 @@ const actions = {
     if (id) { try { await api.agent.stop(id); } catch { /* ignore */ } }
   },
   /** Approval card: "Allow this once" = re-send the last prompt of the turn with narrow per-turn allow rules. */
-  async allowOnce(approvalId, rules) {
+  async allowOnce(approvalId, rules, unprotect) {
     const s = store.get();
     const p = activeProject(s);
     const chat = p && s.chats[p.id];
-    if (!p || !chat || !chat.lastPrompt || chat.running || !Array.isArray(rules) || !rules.length) return;
+    const unp = Array.isArray(unprotect) ? unprotect : [];
+    if (!p || !chat || !chat.lastPrompt || chat.running || !Array.isArray(rules) || (!rules.length && !unp.length)) return;
     store.updateChat(p.id, (c) => resolvePermission(c, approvalId, 'allowed'));
-    await actions.send(stripRetryNote(chat.lastPrompt) + '\n\n' + RETRY_NOTE, { allow: rules });
+    // unprotect = the "always asked" actions approved now: only their deny rules are lifted, for this one turn (never persisted)
+    await actions.send(stripRetryNote(chat.lastPrompt) + '\n\n' + RETRY_NOTE, { allow: rules, ...(unp.length ? { unprotect: unp } : {}) });
   },
   /**
    * "Allow for this project" (and the only option for AGY / actions that cannot be narrowed): switch the project to `mode`

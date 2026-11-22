@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { writeJsonAtomic } from '../settings.js';
 import { isModel, isEffort } from '../agents/model-spec.js';
+import { validProtections, normalizeProtections } from '../../shared/protections.js';
 import { STORE_DIR, ensureStoreDir, readJsonSafe, fileSize, dirBytes, storeDirOf } from './store-fs.js';
 
 const AGENTS = ['claude', 'agy', 'opencode'];
@@ -45,6 +46,7 @@ export function parseProjectJson(raw) {
   if (typeof raw.autoCommit === 'boolean') out.autoCommit = raw.autoCommit;
   if (raw.developerMode === null || typeof raw.developerMode === 'boolean') out.developerMode = raw.developerMode;
   if (['auto', 'global', 'venv'].includes(raw.pythonEnv)) out.pythonEnv = raw.pythonEnv;
+  if (validProtections(raw.protections)) out.protections = normalizeProtections(raw.protections);
   return out;
 }
 
@@ -53,6 +55,7 @@ export function buildProjectJson(project, createdAt, now = new Date().toISOStrin
     version: 1, name: project.name, agent: project.agent, mode: project.mode, model: project.model ?? null, effort: project.effort ?? null,
     autoCommit: !!project.autoCommit, developerMode: typeof project.developerMode === 'boolean' ? project.developerMode : null,
     ...(project.pythonEnv === 'global' || project.pythonEnv === 'venv' ? { pythonEnv: project.pythonEnv } : {}),
+    ...(project.protections && validProtections(project.protections) ? { protections: normalizeProtections(project.protections) } : {}),
     createdAt: createdAt || now, updatedAt: now,
   };
 }

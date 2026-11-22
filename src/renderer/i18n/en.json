@@ -113,6 +113,8 @@
     "autoConfirmTitle": "Auto-accept everything?",
     "autoConfirm": "{agent} will run commands, change or delete files and use the web without asking you first. Only turn this on for projects where that is safe. You can switch back at any time; it applies from your next message.",
     "autoConfirmOk": "Yes, accept everything",
+    "autoGuardClaude": "Some actions still ask first, even here: sensitive files, deleting or moving files, installing software, downloading from the internet, git push, and anything outside the project folder. You can change that in the project settings.",
+    "autoGuardNone": "Warning: the \"always ask\" protections work with Claude only. {agent} has no way to block individual actions, so in this mode it really will do everything without asking.",
     "friendly": {
       "default": "Ask me before changing files",
       "acceptEdits": "Change files automatically (still ask before running commands)",
@@ -1131,12 +1133,22 @@
       "use": "{agent} wants to use {tool}",
       "fetch": "{agent} wants to read {site}",
       "fetchNoSite": "{agent} wants to read a web page",
+      "read": "{agent} wants to read {file}",
+      "readNoFile": "{agent} wants to read a file",
       "search": "{agent} wants to search the web"
     },
     "why": {
       "approval": "This kind of action always needs your approval.",
       "workingDir": "It is outside your project folder.",
-      "safetyCheck": "It tripped a safety check."
+      "safetyCheck": "It tripped a safety check.",
+      "protected": {
+        "files": "Always asked: it touches a sensitive file (passwords, keys, .env) or a protected folder.",
+        "delete": "Always asked: it deletes or moves files.",
+        "install": "Always asked: it installs software or packages.",
+        "network": "Always asked: it downloads from or talks to the internet from a command.",
+        "git": "Always asked: it pushes or changes git remotes and settings.",
+        "outside": "Always asked: it reaches outside your project folder."
+      }
     },
     "seeExactly": "See exactly what it will do",
     "codeLabel": "Exact code of the blocked action",
@@ -1158,6 +1170,8 @@
     "statusDismissed": "Not allowed.",
     "statusStale": "This request is no longer open.",
     "noNarrowClaude": "This action cannot be allowed on its own. Switching the project mode lets it continue.",
+    "noNarrowProtected": "This always-asked action cannot be allowed on its own. You can turn that protection off in the project settings.",
+    "protectedNote": "Auto-accept keeps this kind of action behind your OK. Allowing it once does not change that for other actions. You can turn this protection off in the project settings.",
     "noNarrowAgy": "{agent} does not support one-time permissions: its approvals depend on the project mode. Switch the project mode and retry to continue.",
     "projectConfirmTitle": "Allow for this project?",
     "projectConfirm": "This switches the project to Auto-accept edits only: {agent} can then change files without asking each time, until you change the mode back. Your last request is sent again.",
@@ -1477,7 +1491,24 @@
     "pyAuto": "Automatic (global if possible)",
     "pyGlobal": "Global packages",
     "pyVenv": "Project environment (.venv)",
-    "pyEnvHint": "Automatic uses the packages already installed on this computer and only creates a project .venv when you choose it."
+    "pyEnvHint": "Automatic uses the packages already installed on this computer and only creates a project .venv when you choose it.",
+    "prot": {
+      "title": "Always ask, even in Auto-accept",
+      "hint": "These actions still stop and ask you, even when the project accepts everything. Turn one off only if you trust this project with it.",
+      "agyNote": "{agent} cannot enforce these. They apply to Claude only.",
+      "files": "Sensitive files",
+      "filesHint": "Reading or writing .env, keys, credentials, secrets; writing into .git, .claude or .flowstate.",
+      "delete": "Deleting or moving files",
+      "deleteHint": "rm, del, rmdir, Remove-Item, mv, move.",
+      "install": "Installing software",
+      "installHint": "pip, npm, pnpm, yarn, winget, choco, brew, apt, npx.",
+      "network": "Internet from commands",
+      "networkHint": "curl, wget, Invoke-WebRequest, Invoke-RestMethod.",
+      "git": "Git remote operations",
+      "gitHint": "git push, git remote, git config.",
+      "outside": "Outside the project folder",
+      "outsideHint": "Reading or changing files that are not inside this project."
+    }
   },
   "about": {
     "title": "About FlowState",

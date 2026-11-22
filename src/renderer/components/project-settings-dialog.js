@@ -5,6 +5,7 @@ import { t, onChange } from '../lib/i18n.js';
 import { effectiveDeveloperMode } from '../lib/store.js';
 import { displayEffort, effectiveModelId, effortValues, modelOptions, modelToStore } from '../lib/models.js';
 import { openDialog } from './modal.js';
+import { CATEGORIES, normalizeProtections } from '../../shared/protections.js';
 
 const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
 
@@ -71,12 +72,28 @@ export function openProjectSettingsDialog({ store, actions, projectId }) {
     pyEnv.value = ['global', 'venv'].includes(p.pythonEnv) ? p.pythonEnv : 'auto';
     pyEnv.addEventListener('change', () => actions.updateProject(p.id, { pythonEnv: pyEnv.value }));
 
+    // "Always ask" protections: stay active in Auto-accept mode (claude only; agy has no deny rules).
+    const prot = normalizeProtections(p.protections);
+    const protRows = CATEGORIES.map((c) => {
+      const id = 'pset-prot-' + c;
+      const cb = h('input', { type: 'checkbox', id, checked: prot[c] });
+      cb.addEventListener('change', () => actions.updateProject(p.id, { protections: { ...normalizeProtections(p.protections), [c]: cb.checked } }));
+      return h('div', { class: 'pset-prot__row' },
+        h('label', { class: 'toggle', for: id }, cb, h('span', { class: 'toggle__track' }), h('span', { text: t('pset.prot.' + c) })),
+        h('div', { class: 'field__hint', text: t('pset.prot.' + c + 'Hint') }));
+    });
+    const protBox = h('div', { class: 'field pset-prot' }, h('div', { class: 'field__label', text: t('pset.prot.title') }),
+      h('div', { class: 'field__hint', text: t('pset.prot.hint') }),
+      p.agent === 'claude' ? null : h('div', { class: 'field__hint', text: t('pset.prot.agyNote', { agent: t('agent.' + p.agent) }) }),
+      ...protRows);
+
     body.replaceChildren(
       h('div', { class: 'field' }, h('div', { class: 'field__label', text: t('pset.agent') }), h('div', null, seg)),
       h('div', { class: 'settings-grid' }, field(t('pset.mode'), mode), field(t('pset.model'), model)),
       h('div', { class: 'settings-grid' }, field(dev ? t('pset.effort') : t('model.speed'), effort), field(t('pset.dev'), devSel, t('pset.devHint'))),
       h('div', { class: 'settings-grid' }, field(t('pset.pyEnv'), pyEnv, t('pset.pyEnvHint'))),
-      h('label', { class: 'toggle', for: 'pset-autocommit' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('pset.autoCommit') })));
+      h('label', { class: 'toggle', for: 'pset-autocommit' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('pset.autoCommit') })),
+      protBox);
     if (activeId) { const el = dlg.el.querySelector('#' + activeId); if (el) el.focus(); }
   }
 

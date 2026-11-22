@@ -244,6 +244,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
       return agents.send({
         projectId: req.projectId, text: req.text,
         ...(req.allow !== undefined ? { allow: req.allow } : {}),
+        ...(req.unprotect !== undefined ? { unprotect: req.unprotect } : {}),
         ...(req.images !== undefined ? { images: req.images.map((i) => ({ rel: i.rel })) } : {}),
       });
     },

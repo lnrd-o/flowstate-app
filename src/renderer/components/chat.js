@@ -69,7 +69,7 @@ export function mountChat(root, { store, api, actions, thumbs }) {
     approvalItems: (turnId) => blockedItems(curMessages, turnId),
     isActionable: (m) => !!curChat && !curChat.running && m.turn === curChat.turn.id,
     approve: {
-      once: (id, rules) => actions.allowOnce(id, rules),
+      once: (id, rules, unprotect) => actions.allowOnce(id, rules, unprotect),
       project: (id, mode) => actions.allowForProject(id, mode),
       dismiss: (id) => actions.dismissApproval(id),
     },
@@ -214,6 +214,8 @@ export function mountChat(root, { store, api, actions, thumbs }) {
     cardCtx.dev = dev;
     cardCtx.agent = project ? project.agent : 'claude';
     cardCtx.agentName = t('agent.' + cardCtx.agent);
+    cardCtx.mode = project ? project.mode : 'default';
+    cardCtx.protections = project ? project.protections : undefined;
     curChat = chat;
     curProject = project;
     const order = [];

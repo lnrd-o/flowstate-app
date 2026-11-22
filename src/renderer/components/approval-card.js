@@ -3,12 +3,12 @@
 // Buttons: Allow this once (per-turn allow rule) / Allow for this project / Don't allow. See lib/approvals.js.
 import { h, icon, nextId } from '../lib/dom.js';
 import { t, getLanguage } from '../lib/i18n.js';
-import { allowPlan, describeItem, whyKey, itemCommand, webTarget, projectModeFor } from '../lib/approvals.js';
+import { allowPlan, describeItem, whyKey, itemCommand, webTarget, projectModeFor, protectionOf } from '../lib/approvals.js';
 import { diffFromInput } from '../lib/diff.js';
 import { createDiffView } from './diff-view.js';
 import { agentIcon } from './agent-icon.js';
 
-const KIND_ICON = { command: 'terminal', write: 'file', edit: 'edit', web: 'globe', other: 'tool' };
+const KIND_ICON = { command: 'terminal', write: 'file', edit: 'edit', read: 'file', web: 'globe', other: 'tool' };
 
 /** The exact code of one blocked item: a terminal block for commands, a diff / new-file view for edits. */
 export function codeBlock(item) {
@@ -21,6 +21,11 @@ export function codeBlock(item) {
     const target = webTarget(item);
     return h('pre', { class: 'tc-term__pre approval-term', attrs: { tabindex: '0', role: 'region', 'aria-label': t('approval.codeLabel') } },
       h('span', { class: 'tc-term__cmd', text: (item.tool === 'WebSearch' ? t('approval.searchPrefix') + ' ' : '') + (target || item.tool) }));
+  }
+  if (item.kind === 'read') {
+    const p = item.input && typeof item.input === 'object' ? (item.input.file_path || item.input.path || '') : '';
+    return h('pre', { class: 'tc-term__pre approval-term', attrs: { tabindex: '0', role: 'region', 'aria-label': t('approval.codeLabel') } },
+      h('span', { class: 'tc-term__cmd', text: String(p || item.tool) }));
   }
   const ch = (item.kind === 'write' || item.kind === 'edit') ? diffFromInput(item.kind, item.input) : null;
   if (ch && ch.diff) return h('div', { class: 'approval-diff' }, createDiffView({ diff: ch.diff, path: ch.path, hideNumbers: ch.op !== 'create' }).el);
@@ -45,9 +50,10 @@ export function buildApprovalCard() {
     const d = describeItem(item, ctx.root);
     const agent = ctx.agentName;
     const what = t(d.key, { ...d.vars, agent });
-    const why = t(whyKey(item.reason));
+    const cat = protectionOf(item, ctx);
+    const why = t(whyKey(item.reason, cat));
     const head = h('div', { class: 'approval-item__what' }, icon(KIND_ICON[item.kind] || 'tool', 'approval-item__ic'), h('strong', { text: what }));
-    const whyEl = h('div', { class: 'approval-item__why small muted', text: why });
+    const whyEl = h('div', { class: 'approval-item__why small muted' + (cat ? ' approval-item__why--protected' : ''), text: why });
     const code = codeBlock(item);
     let codeHost;
     if (ctx.dev) codeHost = h('div', { class: 'approval-item__code' }, code);
@@ -69,9 +75,9 @@ export function buildApprovalCard() {
     const key = items.map((i) => i.id).join(',');
     if (key !== itemsKey) { itemsKey = key; selected = new Set(items.map((i) => i.id)); }
     const actionable = m.status === 'pending' && ctx.isActionable(m) && items.length > 0;
-    const plan = allowPlan(items, selected, ctx.agent);
+    const plan = allowPlan(items, selected, ctx.agent, { agent: ctx.agent, mode: ctx.mode, protections: ctx.protections, root: ctx.root });
     const projMode = projectModeFor(items, selected);
-    const nextSig = JSON.stringify([m.status, actionable, ctx.dev, getLanguage(), key, [...selected], plan.mode, plan.rules, projMode, ctx.agent, ctx.root,
+    const nextSig = JSON.stringify([m.status, actionable, ctx.dev, getLanguage(), key, [...selected], plan.mode, plan.rules, plan.unprotect, plan.protectedSelected, projMode, ctx.agent, ctx.root, ctx.mode, ctx.protections,
       items.map((i) => [i.reason, i.input && (i.input.command || i.input.file_path || i.input.url || i.input.query)])]);
     if (nextSig === sig) return;
     sig = nextSig;
@@ -99,9 +105,15 @@ export function buildApprovalCard() {
       const actions = h('div', { class: 'approval-card__actions' });
       primaryBtn = null;
       if (plan.mode === 'once') {
-        primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', text: multi ? t('approval.allowSelected') : t('approval.allowOnce'), on: { click: () => ctx.approve.once(m.id, plan.rules) } });
-        actions.append(primaryBtn,
+        primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', text: multi ? t('approval.allowSelected') : t('approval.allowOnce'), on: { click: () => ctx.approve.once(m.id, plan.rules, plan.unprotect) } });
+        if (plan.protectedSelected) {
+          // Protections stay on in Auto-accept: "for this project" would only be refused again, so only "once" is offered.
+          parts.push(h('div', { class: 'approval-card__note small', attrs: { role: 'note' } }, icon('lock'), t('approval.protectedNote')));
+          actions.append(primaryBtn);
+        } else actions.append(primaryBtn,
           h('button', { class: 'btn', type: 'button', text: t(projMode === 'auto' ? 'approval.allowProjectAuto' : 'approval.allowProject'), title: t(projMode === 'auto' ? 'approval.allowProjectAutoTitle' : 'approval.allowProjectTitle'), on: { click: () => ctx.approve.project(m.id, projMode) } }));
+      } else if (plan.protectedSelected) {
+        parts.push(h('div', { class: 'approval-card__note small', attrs: { role: 'note' } }, icon('lock'), t('approval.noNarrowProtected')));
       } else {
         parts.push(h('div', { class: 'approval-card__note small', attrs: { role: 'note' } }, icon('info'),
           ctx.agent === 'claude' ? t('approval.noNarrowClaude') : t('approval.noNarrowAgy', { agent: ctx.agentName })));

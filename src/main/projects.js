@@ -2,12 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { writeJsonAtomic, readJson } from './settings.js';
+import { validProtections } from '../shared/protections.js';
 import { isModel, isEffort } from './agents/model-spec.js';
 
 const AGENTS = ['claude', 'agy', 'opencode'];
 const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
-const PATCHABLE = ['name', 'agent', 'mode', 'sessionId', 'lastOpened', 'autoCommit', 'model', 'effort', 'developerMode', 'sessionRoute', 'pythonEnv'];
-const FOLDER_FIELDS = ['name', 'agent', 'mode', 'model', 'effort', 'autoCommit', 'developerMode', 'pythonEnv']; // merged from <project>/.flowstate/project.json
+const PATCHABLE = ['name', 'agent', 'mode', 'sessionId', 'lastOpened', 'autoCommit', 'model', 'effort', 'developerMode', 'sessionRoute', 'pythonEnv', 'protections'];
+const FOLDER_FIELDS = ['name', 'agent', 'mode', 'model', 'effort', 'autoCommit', 'developerMode', 'pythonEnv', 'protections']; // merged from <project>/.flowstate/project.json
 
 const samePath = (a, b) => (process.platform === 'win32' || process.platform === 'darwin' ? a.toLowerCase() === b.toLowerCase() : a === b);
 
@@ -41,6 +42,7 @@ export function createProjects({ dir, fsx = fs, uuid = () => crypto.randomUUID()
     if ('effort' in patch && !isEffort(patch.effort)) throw new TypeError('invalid effort');
     if ('sessionRoute' in patch && patch.sessionRoute !== null && !['anthropic', 'deepseek', 'agy', 'opencode'].includes(patch.sessionRoute)) throw new TypeError('invalid sessionRoute');
     if ('developerMode' in patch && patch.developerMode !== null && typeof patch.developerMode !== 'boolean') throw new TypeError('invalid developerMode');
+    if ('protections' in patch && !validProtections(patch.protections)) throw new TypeError('invalid protections');
     if ('pythonEnv' in patch && !['auto', 'global', 'venv'].includes(patch.pythonEnv)) throw new TypeError('invalid pythonEnv');
   }
 

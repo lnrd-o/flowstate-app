@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sanitizeAllow, allowArgs, validDomain, MAX_RULES } from '../../src/main/permissions.js';
-import { ClaudeAdapter } from '../../src/main/agents/claude.js';
+import { ClaudeAdapter, claudeModeFor } from '../../src/main/agents/claude.js';
+import { CATEGORIES } from '../../src/shared/protections.js';
 import { AgyAdapter } from '../../src/main/agents/agy.js';
 import { defaultSettings, createSettings } from '../../src/main/settings.js';
 import fs from 'node:fs';
@@ -26,7 +27,7 @@ test('sanitizeAllow rejects anything that would widen or break a rule', () => {
     [{ tool: 'Bash', pattern: 'x'.repeat(301) }],
     [{ tool: 'WebFetch', pattern: 'https://x' }], [{ tool: 'WebFetch', pattern: 'domain:*.com' }], [{ tool: 'WebFetch', pattern: 'domain:a.com/path' }],
     [{ tool: 'WebFetch', pattern: 'domain:evil.com:8080' }], [{ tool: 'WebFetch', pattern: 'localhost' }], [{ tool: 'WebFetch' }], [{ tool: 'WebFetch', pattern: 'domain:a.com)' }],
-    [{ tool: '*', pattern: 'x' }], [{ tool: 'Read', pattern: 'x' }], [{ pattern: 'x' }],
+    [{ tool: '*', pattern: 'x' }], [{ tool: 'Grep', pattern: 'x' }], [{ pattern: 'x' }],
     ['Bash(ls)'], [null], 'Bash(ls)', { tool: 'Bash', pattern: 'ls' },
     Array.from({ length: MAX_RULES + 1 }, (_, i) => ({ tool: 'Bash', pattern: `cmd${i}` })),
   ];
@@ -64,7 +65,13 @@ test('claude adapter adds per-turn rules after the permission mode; agy ignores 
 
 test('claude adapter maps mode auto to bypassPermissions; unknown modes fall back to default', () => {
   const mode = (m) => { const a = new ClaudeAdapter().buildArgs({ mode: m }); return a[a.indexOf('--permission-mode') + 1]; };
-  assert.equal(mode('auto'), 'bypassPermissions');
+  assert.equal(claudeModeFor('auto'), 'bypassPermissions');
+  // Auto with the default "always ask" protections runs as acceptEdits + broad allows + deny rules (see protections tests below);
+  // with every protection off it is the plain bypassPermissions.
+  const off = Object.fromEntries(CATEGORIES.map((c) => [c, false]));
+  const a = new ClaudeAdapter().buildArgs({ mode: 'auto', protections: off });
+  assert.equal(a[a.indexOf('--permission-mode') + 1], 'bypassPermissions');
+  assert.ok(!a.includes('--disallowedTools') && !a.includes('--allowedTools'));
   assert.equal(mode('acceptEdits'), 'acceptEdits');
   assert.equal(mode('plan'), 'plan');
   assert.equal(mode('nope'), 'default');

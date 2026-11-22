@@ -1,6 +1,6 @@
 import { AgentAdapter } from './base.js';
 import { NORMALIZERS } from '../../shared/events.js';
-import { allowArgs } from '../permissions.js';
+import { allowArgs, protectionArgs } from '../permissions.js';
 import { modelArgs } from './model-spec.js';
 import { routeOf } from './routes.js';
 
@@ -18,12 +18,15 @@ export class ClaudeAdapter extends AgentAdapter {
   }
 
   buildArgs(project) {
-    const mode = claudeModeFor(project.mode);
+    // Auto-accept keeps "always ask" protections (deny rules; acceptEdits + broad allows when the outside-project guard is on).
+    const prot = project.mode === 'auto' ? protectionArgs(project) : null;
+    const mode = prot ? prot.permissionMode : claudeModeFor(project.mode);
     return [
       '-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '--input-format', 'stream-json',
       ...(project.sessionId ? ['--resume', project.sessionId] : []),
       ...modelArgs(routeOf(project) === 'deepseek' ? { ...project, effort: null } : project), // --effort is Anthropic-only
       '--permission-mode', mode,
+      ...(prot ? prot.args : []),
       ...allowArgs(project.allow), // per-turn narrow rules (see permissions.js); empty unless the user pressed "Allow this once"
     ];
   }

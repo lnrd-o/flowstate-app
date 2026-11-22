@@ -113,6 +113,8 @@
     "autoConfirmTitle": "\u00bfAceptar todo autom\u00e1ticamente?",
     "autoConfirm": "{agent} ejecutar\u00e1 comandos, cambiar\u00e1 o borrar\u00e1 archivos y usar\u00e1 la web sin preguntarte antes. Act\u00edvalo solo en proyectos donde sea seguro. Puedes volver atr\u00e1s cuando quieras; se aplica desde tu pr\u00f3ximo mensaje.",
     "autoConfirmOk": "S\u00ed, aceptar todo",
+    "autoGuardClaude": "Algunas acciones siguen preguntando antes, incluso aqu\u00ed: archivos sensibles, borrar o mover archivos, instalar software, descargar de internet, git push y cualquier cosa fuera de la carpeta del proyecto. Puedes cambiarlo en los ajustes del proyecto.",
+    "autoGuardNone": "Atenci\u00f3n: las protecciones de \u00abpreguntar siempre\u00bb solo funcionan con Claude. {agent} no puede bloquear acciones concretas, as\u00ed que en este modo har\u00e1 todo de verdad sin preguntar.",
     "friendly": {
       "auto": "Aceptar todo autom\u00e1ticamente (sin preguntar)",
       "default": "Preg\u00fantame antes de cambiar archivos",
@@ -1131,12 +1133,22 @@
       "use": "{agent} quiere usar {tool}",
       "fetch": "{agent} quiere leer {site}",
       "fetchNoSite": "{agent} quiere leer una p\u00e1gina web",
+      "read": "{agent} quiere leer {file}",
+      "readNoFile": "{agent} quiere leer un archivo",
       "search": "{agent} quiere buscar en la web"
     },
     "why": {
       "approval": "Este tipo de acci\u00f3n siempre necesita tu aprobaci\u00f3n.",
       "workingDir": "Est\u00e1 fuera de la carpeta de tu proyecto.",
-      "safetyCheck": "Activ\u00f3 una revisi\u00f3n de seguridad."
+      "safetyCheck": "Activ\u00f3 una revisi\u00f3n de seguridad.",
+      "protected": {
+        "files": "Se pregunta siempre: toca un archivo sensible (contrase\u00f1as, claves, .env) o una carpeta protegida.",
+        "delete": "Se pregunta siempre: borra o mueve archivos.",
+        "install": "Se pregunta siempre: instala software o paquetes.",
+        "network": "Se pregunta siempre: descarga de internet o se conecta a internet desde un comando.",
+        "git": "Se pregunta siempre: env\u00eda cambios o modifica remotos y ajustes de git.",
+        "outside": "Se pregunta siempre: sale de la carpeta de tu proyecto."
+      }
     },
     "seeExactly": "Ver exactamente qu\u00e9 va a hacer",
     "codeLabel": "C\u00f3digo exacto de la acci\u00f3n bloqueada",
@@ -1158,6 +1170,8 @@
     "statusDismissed": "No permitido.",
     "statusStale": "Esta solicitud ya no est\u00e1 abierta.",
     "noNarrowClaude": "Esta acci\u00f3n no se puede permitir por separado. Cambiar el modo del proyecto le permite continuar.",
+    "noNarrowProtected": "Esta acci\u00f3n de \u00abpreguntar siempre\u00bb no se puede permitir por separado. Puedes desactivar esa protecci\u00f3n en los ajustes del proyecto.",
+    "protectedNote": "El modo autom\u00e1tico mantiene este tipo de acci\u00f3n bajo tu aprobaci\u00f3n. Permitirla una vez no cambia eso para otras acciones. Puedes desactivar esta protecci\u00f3n en los ajustes del proyecto.",
     "noNarrowAgy": "{agent} no admite permisos de una sola vez: sus aprobaciones dependen del modo del proyecto. Cambia el modo del proyecto y reintenta para continuar.",
     "projectConfirmTitle": "\u00bfPermitir en este proyecto?",
     "projectConfirm": "Esto cambia el proyecto a Aceptar solo ediciones: {agent} podr\u00e1 modificar archivos sin preguntar cada vez, hasta que vuelvas a cambiar el modo. Tu \u00faltima solicitud se enviar\u00e1 de nuevo.",
@@ -1477,7 +1491,24 @@
     "pyAuto": "Automático (global si es posible)",
     "pyGlobal": "Paquetes globales",
     "pyVenv": "Entorno del proyecto (.venv)",
-    "pyEnvHint": "Automático usa los paquetes ya instalados en este equipo y solo crea un .venv del proyecto cuando lo eliges."
+    "pyEnvHint": "Automático usa los paquetes ya instalados en este equipo y solo crea un .venv del proyecto cuando lo eliges.",
+    "prot": {
+      "title": "Preguntar siempre, incluso en modo autom\u00e1tico",
+      "hint": "Estas acciones se detienen y te preguntan aunque el proyecto acepte todo. Desactiva una solo si conf\u00edas en este proyecto para eso.",
+      "agyNote": "{agent} no puede aplicarlas. Solo valen para Claude.",
+      "files": "Archivos sensibles",
+      "filesHint": "Leer o escribir .env, claves, credenciales, secretos; escribir en .git, .claude o .flowstate.",
+      "delete": "Borrar o mover archivos",
+      "deleteHint": "rm, del, rmdir, Remove-Item, mv, move.",
+      "install": "Instalar software",
+      "installHint": "pip, npm, pnpm, yarn, winget, choco, brew, apt, npx.",
+      "network": "Internet desde comandos",
+      "networkHint": "curl, wget, Invoke-WebRequest, Invoke-RestMethod.",
+      "git": "Operaciones remotas de git",
+      "gitHint": "git push, git remote, git config.",
+      "outside": "Fuera de la carpeta del proyecto",
+      "outsideHint": "Leer o cambiar archivos que no est\u00e1n dentro de este proyecto."
+    }
   },
   "about": {
     "title": "Acerca de FlowState",

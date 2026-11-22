@@ -4,7 +4,7 @@ import { AgyAdapter } from './agy.js';
 import { OpencodeAdapter } from './opencode.js';
 import { routeOf } from './routes.js';
 import { createChangeTracker } from '../changes.js';
-import { sanitizeAllow } from '../permissions.js';
+import { sanitizeAllow, sanitizeUnprotect } from '../permissions.js';
 import { loadAttachmentImages } from '../svc/attachments.js';
 
 /**
@@ -27,12 +27,14 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
     status: (projectId) => ({ running: running.has(projectId) || committing.has(projectId) }),
 
     /** agent/mode: optional per-turn override (methodology runner); the stored project is never changed by it. */
+    /** unprotect: optional per-turn [{tool, value}] of PROTECTED actions the user approved once (drops only their deny rules; never persisted). */
     /** allow: optional per-turn narrow permission rules [{tool, pattern}] (claude only; validated in permissions.js, never persisted). */
-    async send({ projectId, text, agent, mode, allow, images }) {
+    async send({ projectId, text, agent, mode, allow, unprotect, images }) {
       const base = projects.get(projectId);
       if (!base) throw new Error('Unknown project');
       const project = { ...base };
       project.allow = sanitizeAllow(allow); // throws TypeError on anything invalid
+      project.unprotect = sanitizeUnprotect(unprotect);
       const switched = agent !== undefined && agent !== base.agent;
       if (agent !== undefined) project.agent = agent;
       if (mode !== undefined) project.mode = mode;

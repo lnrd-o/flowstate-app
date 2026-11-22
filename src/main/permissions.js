@@ -12,7 +12,9 @@
 // Verified against claude 2.1.330 (-p): `Write(path)` / `MultiEdit(path)` / `NotebookEdit(path)` rules do NOT match
 // (the action stays blocked); `Edit(path)` is the rule that covers every file-editing tool, with backslash or slash paths.
 
-export const ALLOWED_TOOLS = Object.freeze(['Bash', 'PowerShell', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'WebFetch', 'WebSearch']);
+import { protectionPlan } from '../shared/protections.js';
+
+export const ALLOWED_TOOLS = Object.freeze(['Bash', 'PowerShell', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'Read', 'WebFetch', 'WebSearch']);
 export const MAX_RULES = 5;
 export const MAX_PATTERN = 300;
 
@@ -71,4 +73,39 @@ export function sanitizeAllow(list) {
 /** CLI args for the rules: one `--allowedTools <rule>` pair per rule (the flag is variadic, so repeat it). */
 export function allowArgs(rules) {
   return (rules ?? []).flatMap((rule) => ['--allowedTools', rule]);
+}
+
+// ---- "Always ask" protections (see src/shared/protections.js) ----
+export const MAX_UNPROTECT = 10;
+const UNPROTECT_TOOLS = ['Bash', 'PowerShell', 'Read', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit'];
+
+/**
+ * Per-turn "Allow this once" for a PROTECTED action: [{tool, value}] (value = the exact command or file path). It never reaches the
+ * CLI as an allow rule; it only removes the deny rules that action matches for this one turn. Strict: known tools, bounded strings.
+ * @returns {{tool:string, value:string}[]}
+ */
+export function sanitizeUnprotect(list) {
+  if (list === undefined || list === null) return [];
+  if (!Array.isArray(list)) throw new TypeError('unprotect must be an array');
+  if (list.length > MAX_UNPROTECT) throw new TypeError(`unprotect: at most ${MAX_UNPROTECT} items`);
+  const out = [];
+  for (const r of list) {
+    if (!r || typeof r !== 'object') throw new TypeError('unprotect: each item must be an object');
+    if (!UNPROTECT_TOOLS.includes(r.tool)) throw new TypeError('unprotect: tool not permitted');
+    if (typeof r.value !== 'string' || !r.value.trim() || r.value.length > 4000) throw new TypeError('unprotect: invalid value');
+    // eslint-disable-next-line no-control-regex
+    if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(r.value)) throw new TypeError("unprotect: value has control characters");
+    out.push({ tool: r.tool, value: r.value });
+  }
+  return out;
+}
+
+/** CLI args for Auto-accept with protections: { permissionMode, args } or null when no protection applies. */
+export function protectionArgs(project) {
+  const plan = protectionPlan(project.protections, project.unprotect, project.path);
+  if (!plan) return null;
+  return {
+    permissionMode: plan.permissionMode,
+    args: [...plan.allow.flatMap((r) => ['--allowedTools', r]), ...plan.deny.flatMap((r) => ['--disallowedTools', r])],
+  };
 }
