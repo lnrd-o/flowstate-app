@@ -6,8 +6,8 @@ import { writeJsonAtomic } from '../settings.js';
 import { isModel, isEffort } from '../agents/model-spec.js';
 import { STORE_DIR, ensureStoreDir, readJsonSafe, fileSize, dirBytes, storeDirOf } from './store-fs.js';
 
-const AGENTS = ['claude', 'agy'];
-const MODES = ['default', 'acceptEdits', 'plan'];
+const AGENTS = ['claude', 'agy', 'opencode'];
+const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
 const ci = process.platform === 'win32' || process.platform === 'darwin';
 const samePath = (a, b) => (ci ? a.toLowerCase() === b.toLowerCase() : a === b);
 
@@ -44,6 +44,7 @@ export function parseProjectJson(raw) {
   if (raw.effort !== undefined && isEffort(raw.effort)) out.effort = raw.effort;
   if (typeof raw.autoCommit === 'boolean') out.autoCommit = raw.autoCommit;
   if (raw.developerMode === null || typeof raw.developerMode === 'boolean') out.developerMode = raw.developerMode;
+  if (['auto', 'global', 'venv'].includes(raw.pythonEnv)) out.pythonEnv = raw.pythonEnv;
   return out;
 }
 
@@ -51,6 +52,7 @@ export function buildProjectJson(project, createdAt, now = new Date().toISOStrin
   return {
     version: 1, name: project.name, agent: project.agent, mode: project.mode, model: project.model ?? null, effort: project.effort ?? null,
     autoCommit: !!project.autoCommit, developerMode: typeof project.developerMode === 'boolean' ? project.developerMode : null,
+    ...(project.pythonEnv === 'global' || project.pythonEnv === 'venv' ? { pythonEnv: project.pythonEnv } : {}),
     createdAt: createdAt || now, updatedAt: now,
   };
 }

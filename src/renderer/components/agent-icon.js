@@ -1,5 +1,6 @@
 // Agent identity icons (inline SVG, original artwork).
 //   claude: a 12-ray irregular burst in Claude orange (var(--claude)).
+//   opencode: a teal terminal frame with a prompt chevron.
 //   agy:    a 4-point sparkle star filled with the four Gemini colours (red, yellow, green, blue; no purple).
 // Animation is pure CSS (styles/app.css) on `.agent-icon.is-running`; everything is disabled under prefers-reduced-motion.
 const NS = 'http://www.w3.org/2000/svg';
@@ -15,6 +16,15 @@ function el(tag, attrs, ...kids) {
   for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, String(v));
   for (const c of kids) n.appendChild(c);
   return n;
+}
+
+/** opencode: a rounded terminal frame with a '>' prompt and a blinking cursor bar (teal, var(--opencode)). */
+function opencodeSvg(size) {
+  const svg = el('svg', { viewBox: '0 0 24 24', width: size, height: size, 'aria-hidden': 'true', focusable: 'false', class: 'agent-icon__svg' });
+  svg.appendChild(el('rect', { x: 2.5, y: 4, width: 19, height: 16, rx: 3.5, class: 'ai-oc-frame' }));
+  svg.appendChild(el('path', { d: 'M7 9.5L10.5 12.5L7 15.5', class: 'ai-oc-glyph' }));
+  svg.appendChild(el('path', { d: 'M13 15.5H17', class: 'ai-oc-glyph ai-oc-cursor' }));
+  return svg;
 }
 
 /** The ray geometry (exported for tests): [{ x0, y0, x1, y1, w }]. */
@@ -66,12 +76,13 @@ export function agentIcon(agent, opts) {
   const o = opts || {};
   const size = o.size || 16;
   const span = document.createElement('span');
-  const known = agent === 'claude' || agent === 'agy';
+  const known = agent === 'claude' || agent === 'agy' || agent === 'opencode';
   span.className = 'agent-icon agent-icon--' + (known ? agent : 'none');
   span.style.setProperty('--ai-size', size + 'px');
   span.setAttribute('aria-hidden', 'true');
   if (agent === 'claude') span.appendChild(claudeSvg(size));
   else if (agent === 'agy') span.appendChild(agySvg(size));
+  else if (agent === 'opencode') span.appendChild(opencodeSvg(size));
   else {
     const svg = el('svg', { viewBox: '0 0 24 24', width: size, height: size, class: 'agent-icon__svg', 'aria-hidden': 'true', focusable: 'false' }, el('path', { d: STAR, class: 'ai-core' }));
     span.appendChild(svg);

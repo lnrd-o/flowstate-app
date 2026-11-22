@@ -6,7 +6,7 @@ import { effectiveDeveloperMode } from '../lib/store.js';
 import { displayEffort, effectiveModelId, effortValues, modelOptions, modelToStore } from '../lib/models.js';
 import { openDialog } from './modal.js';
 
-const MODES = ['default', 'acceptEdits', 'plan'];
+const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
 
 /** project.developerMode (null|true|false) <-> select value. Pure; exported for tests. */
 export const devToValue = (v) => (v === true ? 'on' : v === false ? 'off' : 'follow');
@@ -42,7 +42,7 @@ export function openProjectSettingsDialog({ store, actions, projectId }) {
 
     const mode = h('select', { class: 'select', id: 'pset-mode', disabled: running }, ...MODES.map((m) => h('option', { value: m, text: t((dev ? 'mode.' : 'mode.friendly.') + m) })));
     mode.value = p.mode;
-    mode.addEventListener('change', () => actions.updateProject(p.id, { mode: mode.value }));
+    mode.addEventListener('change', async () => { if (!(await (actions.setMode ? actions.setMode(p.id, mode.value) : actions.updateProject(p.id, { mode: mode.value })))) mode.value = p.mode; });
 
     const list = s.models[p.agent];
     if (!list && !s.modelsLoading[p.agent]) actions.loadModels(p.agent);
@@ -66,10 +66,16 @@ export function openProjectSettingsDialog({ store, actions, projectId }) {
     devSel.value = devToValue(p.developerMode);
     devSel.addEventListener('change', () => actions.updateProject(p.id, { developerMode: valueToDev(devSel.value) }));
 
+    const pyEnv = h('select', { class: 'select', id: 'pset-pyenv' },
+      h('option', { value: 'auto', text: t('pset.pyAuto') }), h('option', { value: 'global', text: t('pset.pyGlobal') }), h('option', { value: 'venv', text: t('pset.pyVenv') }));
+    pyEnv.value = ['global', 'venv'].includes(p.pythonEnv) ? p.pythonEnv : 'auto';
+    pyEnv.addEventListener('change', () => actions.updateProject(p.id, { pythonEnv: pyEnv.value }));
+
     body.replaceChildren(
       h('div', { class: 'field' }, h('div', { class: 'field__label', text: t('pset.agent') }), h('div', null, seg)),
       h('div', { class: 'settings-grid' }, field(t('pset.mode'), mode), field(t('pset.model'), model)),
       h('div', { class: 'settings-grid' }, field(dev ? t('pset.effort') : t('model.speed'), effort), field(t('pset.dev'), devSel, t('pset.devHint'))),
+      h('div', { class: 'settings-grid' }, field(t('pset.pyEnv'), pyEnv, t('pset.pyEnvHint'))),
       h('label', { class: 'toggle', for: 'pset-autocommit' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('pset.autoCommit') })));
     if (activeId) { const el = dlg.el.querySelector('#' + activeId); if (el) el.focus(); }
   }

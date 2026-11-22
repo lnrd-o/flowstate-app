@@ -4,7 +4,7 @@
 // Credentials are never read or stored here; tokens stay in the CLIs' own stores.
 import { spawn as nodeSpawn } from 'node:child_process';
 import os from 'node:os';
-import { extractFirstUrl, stripAnsi, parseClaudeAuthStatus, isAgyLoggedInOutput } from './auth-check.js';
+import { extractFirstUrl, stripAnsi, parseClaudeAuthStatus, isAgyLoggedInOutput, isOpencodeLoggedInOutput } from './auth-check.js';
 import { runCommand } from './run.js';
 import { killTree as defaultKillTree } from './agents/base.js';
 
@@ -44,8 +44,8 @@ export function createLoginManager({
   killTree = defaultKillTree, homedir = () => os.homedir(), env = process.env, timeoutMs = LIMITS.timeoutMs,
 } = {}) {
   const sessions = new Map(); // agent -> session
-  const known = { claude: null, agy: null }; // last conclusive status per agent
-  const tokens = { claude: 0, agy: 0 };
+  const known = { claude: null, agy: null, opencode: null }; // last conclusive status per agent
+  const tokens = { claude: 0, agy: 0, opencode: 0 };
   const send = (s, evt) => { if (sessions.get(s.agent) === s && !s.cancelled) { try { emit({ agent: s.agent, ...evt }); } catch { /* ignore */ } } };
 
   async function checkAgent(agent) {
@@ -57,6 +57,13 @@ export function createLoginManager({
       const st = parseClaudeAuthStatus(r.stdout);
       known.claude = st.loggedIn;
       return st;
+    }
+    if (agent === 'opencode') {
+      const ro = await run(cli, ['auth', 'list'], { timeout: 10000 });
+      const vo = isOpencodeLoggedInOutput(`${ro.stdout}
+${ro.stderr}`);
+      if (vo !== null) known.opencode = vo;
+      return { loggedIn: vo };
     }
     const r = await run(cli, ['models'], { timeout: 15000 });
     const v = isAgyLoggedInOutput(`${r.stdout}\n${r.stderr}`);
@@ -140,7 +147,7 @@ export function createLoginManager({
     const rows = clamp(opts.rows, LIMITS.minRows, LIMITS.maxRows, 30);
     let pty;
     try {
-      pty = spawnPty(cli, [], { name: 'xterm-256color', cols, rows, cwd: homedir(), env: { ...env, TERM: 'xterm-256color', COLORTERM: 'truecolor' } });
+      pty = spawnPty(cli, agent === 'opencode' ? ['auth', 'login'] : [], { name: 'xterm-256color', cols, rows, cwd: homedir(), env: { ...env, TERM: 'xterm-256color', COLORTERM: 'truecolor' } });
     } catch (e) {
       emit({ agent, kind: 'error', text: 'terminal-unavailable' });
       return { ok: false, mode: 'pty', error: String(e?.message ?? e) };
@@ -161,14 +168,14 @@ export function createLoginManager({
       if (sessions.get(agent) !== s || s.cancelled || s.finished) return;
       teardown(s, { kill: null });
       let lg = s.lastLoggedIn;
-      try { const st = await checkAgent('agy'); if (st.loggedIn !== null) lg = st.loggedIn; } catch { /* keep */ }
+      try { const st = await checkAgent(agent); if (st.loggedIn !== null) lg = st.loggedIn; } catch { /* keep */ }
       if (tokens[agent] === token && !s.cancelled) emit({ agent, kind: 'done', ok: !!lg, loggedIn: !!lg });
     });
     s.poll = setIntervalFn(async () => {
       if (s.inflight || s.finished || s.cancelled || sessions.get(agent) !== s) return;
       s.inflight = true;
       try {
-        const st = await checkAgent('agy');
+        const st = await checkAgent(agent);
         if (st.loggedIn === null || st.loggedIn === undefined || s.finished || s.cancelled || sessions.get(agent) !== s) return;
         if (st.loggedIn !== s.lastLoggedIn) {
           s.lastLoggedIn = st.loggedIn;
@@ -186,7 +193,7 @@ export function createLoginManager({
   }
 
   async function start(agent, opts = {}) {
-    if (agent !== 'claude' && agent !== 'agy') throw new TypeError('invalid agent');
+    if (agent !== 'claude' && agent !== 'agy' && agent !== 'opencode') throw new TypeError('invalid agent');
     cancel(agent);
     const token = ++tokens[agent];
     return agent === 'claude' ? startClaude(agent, opts ?? {}, token) : startAgy(agent, opts ?? {}, token);
@@ -212,12 +219,12 @@ export function createLoginManager({
   }
 
   async function status() {
-    const [c, a] = await Promise.all([checkAgent('claude').catch(() => ({ loggedIn: false })), checkAgent('agy').catch(() => ({ loggedIn: null }))]);
-    return { claude: { ...c, loggedIn: !!c.loggedIn }, agy: { loggedIn: a.loggedIn ?? known.agy ?? false } };
+    const [c, a, o] = await Promise.all([checkAgent('claude').catch(() => ({ loggedIn: false })), checkAgent('agy').catch(() => ({ loggedIn: null })), checkAgent('opencode').catch(() => ({ loggedIn: null }))]);
+    return { claude: { ...c, loggedIn: !!c.loggedIn }, agy: { loggedIn: a.loggedIn ?? known.agy ?? false }, opencode: { loggedIn: o.loggedIn ?? known.opencode ?? false } };
   }
 
   async function logout(agent) {
-    if (agent === 'agy') return { ok: false, error: 'use-terminal' };
+    if (agent === 'agy' || agent === 'opencode') return { ok: false, error: 'use-terminal' };
     if (agent !== 'claude') throw new TypeError('invalid agent');
     const cli = await resolveCli('claude');
     if (!cli) return { ok: false, error: 'not-found' };

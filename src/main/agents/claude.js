@@ -2,8 +2,14 @@ import { AgentAdapter } from './base.js';
 import { NORMALIZERS } from '../../shared/events.js';
 import { allowArgs } from '../permissions.js';
 import { modelArgs } from './model-spec.js';
+import { routeOf } from './routes.js';
 
 const MODES = new Set(['default', 'acceptEdits', 'plan']);
+/** FlowState mode -> claude --permission-mode ('auto' = accept everything = bypassPermissions). */
+export function claudeModeFor(mode) {
+  if (mode === 'auto') return 'bypassPermissions';
+  return MODES.has(mode) ? mode : 'default';
+}
 
 export class ClaudeAdapter extends AgentAdapter {
   constructor() {
@@ -12,11 +18,11 @@ export class ClaudeAdapter extends AgentAdapter {
   }
 
   buildArgs(project) {
-    const mode = MODES.has(project.mode) ? project.mode : 'default';
+    const mode = claudeModeFor(project.mode);
     return [
       '-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '--input-format', 'stream-json',
       ...(project.sessionId ? ['--resume', project.sessionId] : []),
-      ...modelArgs(project),
+      ...modelArgs(routeOf(project) === 'deepseek' ? { ...project, effort: null } : project), // --effort is Anthropic-only
       '--permission-mode', mode,
       ...allowArgs(project.allow), // per-turn narrow rules (see permissions.js); empty unless the user pressed "Allow this once"
     ];

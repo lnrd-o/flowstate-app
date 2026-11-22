@@ -10,7 +10,7 @@ export const CSP = [
   "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",
-  "frame-src http://127.0.0.1:*",
+  "frame-src http://127.0.0.1:* blob:",
 ].join('; ');
 
 export const EXTERNAL_ALLOW = ['claude.ai', 'anthropic.com', 'github.com', 'nodejs.org', 'git-scm.com', 'python.org', 'google.com'];

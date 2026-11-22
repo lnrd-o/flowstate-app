@@ -74,13 +74,13 @@ test('models service: claude static + current id, agy live with a 60 s cache, er
   let out = { code: 0, stdout: AGY_OUT, stderr: 'Fetching available models...\n' };
   const svc = createModels({ health: { findAgy: async () => 'C:\\x\\agy.exe' }, run: async (exe, args) => { calls++; assert.deepEqual(args, ['models']); return out; }, now: () => t, getProject: () => ({ agent: 'claude' }) });
   const c = await svc.list('claude');
-  assert.deepEqual(c.models.map((m) => m.id), ['default', 'opus', 'sonnet', 'haiku', 'fable']);
+  assert.deepEqual(c.models.filter((m) => m.group !== 'deepseek').map((m) => m.id), ['default', 'opus', 'sonnet', 'haiku', 'fable']);
   assert.deepEqual(c.efforts, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(c.models[0].name, 'Default (recommended)');
   svc.onAgentEvent('p', { type: 'session', model: 'claude-opus-4-6' }, { agent: 'claude' });
   svc.onAgentEvent('p', { type: 'session', model: 'gemini-x' }, { agent: 'agy' }); // other agent: ignored
   const c2 = await svc.list('claude');
-  assert.equal(c2.models.at(-1).id, 'claude-opus-4-6'); assert.equal(c2.models.at(-1).current, true);
+  const seenM = c2.models.find((m) => m.id === 'claude-opus-4-6'); assert.ok(seenM); assert.equal(seenM.current, true);
   assert.equal(claudeList('sonnet').models.find((m) => m.id === 'sonnet').current, true);
   const a1 = await svc.list('agy'); await svc.list('agy');
   assert.equal(a1.source, 'live'); assert.equal(a1.models.length, 4); assert.equal(calls, 1);
@@ -149,7 +149,7 @@ test('usage service: windows, limits verbatim, per-agent buckets, stale windows,
   assert.equal(s.claude.lastLimit.message, "You've hit your limit - resets 3pm");
   assert.equal(s.claude.lastLimit.projectId, 'pc');
   assert.equal(s.agy.lastLimit.message, 'out of quota until 5pm');
-  assert.deepEqual(s.deepseek, { configured: false });
+  assert.deepEqual(s.deepseek, { configured: false, today: { inputTokens: 0, outputTokens: 0, turns: 0 } });
   assert.ok(pushes.length >= 1 && pushes.length <= 2, `throttled to 1/s, got ${pushes.length}`);
   // flush -> persisted; a new instance reads it back; windows past their reset time become null
   u.flush();

@@ -131,7 +131,7 @@ test('corrupt project.json / state.json are renamed *.corrupt-<ts> and ignored (
   await wait(80);
   assert.ok(readJ(path.join(dir, 'project.json')).version === 1, 'a fresh project.json replaces the corrupt one');
   assert.deepEqual(parseProjectJson({ name: '  ', agent: 'gpt', mode: 'x', model: 'bad model', effort: 'ultra', autoCommit: 'yes', developerMode: 3 }), {});
-  assert.deepEqual(normalizeState({ sessions: { claude: 5, agy: 'x' }, counters: { turns: -1 }, ui: [] }).sessions, { claude: null, agy: 'x' });
+  assert.deepEqual(normalizeState({ sessions: { claude: 5, agy: 'x' }, counters: { turns: -1 }, ui: [] }).sessions, { claude: null, agy: 'x', opencode: null });
   assert.equal(parseProjectJson(null), null);
 });
 

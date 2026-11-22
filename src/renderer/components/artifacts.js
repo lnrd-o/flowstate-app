@@ -9,10 +9,11 @@ import { createFileViewer } from './file-viewer.js';
 import { mountFilesTab } from './files-tab.js';
 import { mountDashboardTab } from './dashboard-tab.js';
 import { mountActivityTab } from './activity-tab.js';
+import { mountVersionsTab } from './versions-tab.js';
 
 export const WIDTH_KEY = 'flowstate.artifactsWidth';
 export const COLLAPSED_KEY = 'flowstate.artifactsCollapsed';
-const TABS = ['preview', 'files', 'activity', 'dashboard', 'git'];
+const TABS = ['preview', 'files', 'activity', 'dashboard', 'versions', 'git'];
 
 /** Tabs shown for a mode: Simple hides the technical Activity tab. Pure. */
 export function tabsFor(dev) {
@@ -165,6 +166,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   const filesTab = mountFilesTab(panels.files, { store, api, actions });
   const dashTab = mountDashboardTab(panels.dashboard, { store, api, actions });
   const activityTab = mountActivityTab(panels.activity, { store, actions });
+  const versionsTab = mountVersionsTab(panels.versions, { store, api, actions });
 
   function syncPreview() {
     const s = store.get();
@@ -194,6 +196,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
       if (s.artifactsTab === 'files') filesTab.render();
       if (s.artifactsTab === 'dashboard') dashTab.render();
       if (s.artifactsTab === 'activity') activityTab.render();
+      if (s.artifactsTab === 'versions') versionsTab.render();
     }
     if (s.artifactsTab === 'preview') syncPreview();
   }
@@ -207,7 +210,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   });
   render();
   return {
-    update() { sig = ''; render(); previewViewer.update(); filesTab.update(); dashTab.update(); activityTab.update(); },
+    update() { sig = ''; render(); previewViewer.update(); filesTab.update(); dashTab.update(); activityTab.update(); versionsTab.update(); },
     openFile(rel) { filesTab.render(); filesTab.openPath(rel); },
     applyWidth(w) { setWidth(w, false); },
     onFiles(evt) {
@@ -216,5 +219,6 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
       if (p && evt && evt.projectId === p.id && previewViewer.current()) previewViewer.refresh();
     },
     dashboard: dashTab,
+    versions: versionsTab,
   };
 }

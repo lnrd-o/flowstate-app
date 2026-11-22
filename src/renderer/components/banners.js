@@ -19,6 +19,9 @@ export function computeBanners(project, health, chat, signedIn, usage, now = Dat
     if (project.agent === 'claude') {
       if (!health.claude.found) out.push({ id: 'claude-missing', level: 'warn', text: t('banner.claudeMissing') + ' ' + t('banner.claudeMissingHint'), actions: ['settings', 'recheck'] });
       else if (si('claude') === false || (chat && chat.needsAuth)) out.push({ id: 'claude-login', level: 'warn', text: t('banner.notLoggedIn'), actions: ['signin', 'recheck'] });
+    } else if (project.agent === 'opencode') {
+      if (!health.opencode || !health.opencode.found) out.push({ id: 'opencode-missing', level: 'warn', text: t('agent.opencode') + ': ' + t('health.missing') + ' ' + t('walkthrough.hint.opencode'), actions: ['settings', 'recheck'] });
+      else if (si('opencode') === false) out.push({ id: 'opencode-login', level: 'warn', text: t('banner.opencodeNotLoggedIn'), actions: ['recheck'] });
     } else if (project.agent === 'agy') {
       if (!health.agy.found) out.push({ id: 'agy-missing', level: 'warn', text: t('health.agy') + ': ' + t('health.missing'), actions: ['settings', 'recheck'] });
       else if (si('agy') === false) out.push({ id: 'agy-login', level: 'warn', text: t('banner.agyNotLoggedIn'), actions: ['signin', 'recheck'] });

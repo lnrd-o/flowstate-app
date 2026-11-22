@@ -70,7 +70,7 @@ export function mountChat(root, { store, api, actions, thumbs }) {
     isActionable: (m) => !!curChat && !curChat.running && m.turn === curChat.turn.id,
     approve: {
       once: (id, rules) => actions.allowOnce(id, rules),
-      project: (id) => actions.allowForProject(id),
+      project: (id, mode) => actions.allowForProject(id, mode),
       dismiss: (id) => actions.dismissApproval(id),
     },
     openFile: (rel) => actions.openFile(rel),

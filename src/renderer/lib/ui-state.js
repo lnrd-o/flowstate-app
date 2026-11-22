@@ -39,7 +39,7 @@ export function fitUi(obj) {
 
 const isNum = (n) => typeof n === 'number' && Number.isFinite(n);
 const VIEWS = ['project', 'prompts', 'methodologies', 'tasks'];
-const TABS = ['preview', 'files', 'activity', 'dashboard', 'git'];
+const TABS = ['preview', 'files', 'activity', 'dashboard', 'versions', 'git'];
 
 /**
  * What to apply at boot, validated. global = ui.get(), project = ui.projectGet(id).

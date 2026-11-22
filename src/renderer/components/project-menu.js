@@ -3,7 +3,7 @@ import { t } from '../lib/i18n.js';
 import { openMenu } from './menu.js';
 import { isDev } from '../lib/store.js';
 
-const MODES = ['default', 'acceptEdits', 'plan'];
+const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
 
 export function openProjectMenu(anchor, projectId, { store, actions }) {
   const project = store.get().projects.find((x) => x.id === projectId);
@@ -15,11 +15,15 @@ export function openProjectMenu(anchor, projectId, { store, actions }) {
     { label: t('menu.rename'), onClick: () => actions.renameProject(project.id) },
     { sep: true },
     { heading: t('mode.label') },
-    ...MODES.map((m) => ({ label: t((dev ? 'mode.' : 'mode.friendly.') + m), checked: project.mode === m, disabled: running, onClick: () => actions.updateProject(project.id, { mode: m }) })),
+    ...MODES.map((m) => ({ label: t((dev ? 'mode.' : 'mode.friendly.') + m), checked: project.mode === m, disabled: running, onClick: () => (actions.setMode ? actions.setMode(project.id, m) : actions.updateProject(project.id, { mode: m })) })),
     { sep: true },
     { label: t('project.autoCommit'), checked: !!project.autoCommit, role: 'menuitemcheckbox', onClick: () => actions.updateProject(project.id, { autoCommit: !project.autoCommit }) },
     ...(dev ? [{ label: t('remote.label'), checked: !!(remote && remote.running), role: 'menuitemcheckbox', onClick: () => actions.toggleRemote(project.id) }] : []),
     { sep: true },
+    { label: t('menu.versions'), onClick: async () => {
+      if (store.get().activeProjectId !== project.id) await actions.selectProject(project.id);
+      store.set({ artifactsTab: 'versions', artifactsCollapsed: false });
+    } },
     { label: t('menu.projectSettings'), onClick: () => actions.openProjectSettings(project.id) },
     { label: t('menu.projectData'), onClick: () => actions.openProjectData(project.id) },
     { sep: true },

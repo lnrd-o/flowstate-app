@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import https from 'node:https';
 import { runCommand } from './run.js';
-import { isAgyLoggedInOutput } from './auth-check.js';
+import { isAgyLoggedInOutput, isOpencodeLoggedInOutput } from './auth-check.js';
 import {
   pathFor, cmpVersion, homeDir, isExecutableFile, findOnPath, findNamed, safeReaddir, augmentedEnv,
 } from './platform.js';
@@ -187,6 +187,32 @@ export function createHealth({
     return null;
   }
 
+  function opencodeFixedCandidates() {
+    const out = [];
+    if (isWin) {
+      if (home) out.push(j(home, '.opencode', 'bin', 'opencode.exe'), j(home, '.local', 'bin', 'opencode.exe'), j(home, 'scoop', 'shims', 'opencode.exe'));
+      if (env.APPDATA) {
+        const pkg = j(env.APPDATA, 'npm', 'node_modules', 'opencode-ai');
+        out.push(j(env.APPDATA, 'npm', 'opencode.exe'));
+        const hit = findNamed(fsx, pkg, 'opencode.exe', { maxDepth: 4, platform });
+        if (hit) out.push(hit);
+      }
+    } else {
+      if (home) out.push(j(home, '.opencode', 'bin', 'opencode'), j(home, '.local', 'bin', 'opencode'), j(home, '.npm-global', 'bin', 'opencode'));
+      out.push('/usr/local/bin/opencode', '/opt/homebrew/bin/opencode');
+    }
+    return out;
+  }
+
+  /** opencode (optional third agent). Hidden in the UI unless found. Settings.opencodePath overrides. */
+  async function findOpencode() {
+    const configured = getSettings().opencodePath;
+    if (configured && isExe(configured)) return configured;
+    for (const p of await onPath('opencode')) return p;
+    for (const p of opencodeFixedCandidates()) if (isExe(p)) return p;
+    return null;
+  }
+
   const firstLine = (s) => String(s).split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? '';
 
   async function version(cmd, args = ['--version']) {
@@ -219,7 +245,8 @@ export function createHealth({
   }
 
   async function tools() {
-    const [cPath, aPath] = await Promise.all([findClaude(), findAgy()]);
+    const [cPath, aPath, oPath] = await Promise.all([findClaude(), findAgy(), findOpencode()]);
+    const opencode = { found: !!oPath, path: oPath, version: null, loggedIn: null };
     const claude = { found: !!cPath, path: cPath, version: null, loggedIn: false };
     const agy = { found: !!aPath, path: aPath, version: null, loggedIn: null };
     const jobs = [];
@@ -237,6 +264,11 @@ export function createHealth({
         agy.loggedIn = lastAgyLoggedIn;
       }));
     } else lastAgyLoggedIn = null;
+    if (oPath) {
+      jobs.push(version(oPath).then((v) => { opencode.version = v; }));
+      jobs.push(run(oPath, ['auth', 'list'], { timeout: 10000 }).then((r) => { opencode.loggedIn = isOpencodeLoggedInOutput(`${r.stdout}
+${r.stderr}`); }));
+    }
     const simple = {};
     const named = [['node', 'node', ['--version']], ['git', 'git', ['--version']], ['python', isWin ? 'python' : 'python3', ['--version']]];
     for (const [key, cmd, args] of named) {
@@ -247,7 +279,7 @@ export function createHealth({
       })());
     }
     await Promise.all(jobs);
-    return { claude, agy, node: simple.node, git: simple.git, python: simple.python };
+    return { claude, agy, opencode, node: simple.node, git: simple.git, python: simple.python };
   }
 
   async function dynamic() {
@@ -256,7 +288,7 @@ export function createHealth({
   }
 
   return {
-    findClaude, findAgy, detectVpn, claudeDataCandidates,
+    findClaude, findAgy, findOpencode, detectVpn, claudeDataCandidates,
     check: async () => ({ ...(await tools()), ...(await dynamic()) }),
     tools, dynamic,
   };

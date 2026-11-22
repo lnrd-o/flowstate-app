@@ -1,6 +1,7 @@
 import { spawn as nodeSpawn } from 'node:child_process';
 import { createNdjsonParser } from '../../shared/events.js';
 import { spawnEnv } from '../platform.js';
+import { mergeEnv } from './routes.js';
 
 /**
  * Kill a child and its whole process tree.
@@ -60,7 +61,7 @@ export class AgentAdapter {
   }
 
   /** Starts the child. Returns { child, done: Promise<{code, resultSeen, ok, stopped}>, stop() }. */
-  run({ project, text, launcher, emit, onSession, images = [], spawn = nodeSpawn, kill = killTree }) {
+  run({ project, text, launcher, emit, onSession, images = [], spawn = nodeSpawn, kill = killTree, env }) {
     const { command, args } = this.buildCommand(project, this.prepareText(text, images), launcher);
     let stopped = false;
     let resultSeen = false;
@@ -68,7 +69,10 @@ export class AgentAdapter {
     let finished = false;
     const stderrLines = [];
 
-    const child = spawn(command, args, { cwd: project.path, ...childSpawnOptions(), stdio: ['pipe', 'pipe', 'pipe'] });
+    const opts = childSpawnOptions();
+    // env: per-turn extra variables (e.g. a route's API key) merged into THIS child's environment only.
+    if (env) opts.env = mergeEnv(opts.env, env);
+    const child = spawn(command, args, { cwd: project.path, ...opts, stdio: ['pipe', 'pipe', 'pipe'] });
     child.stdin?.on?.('error', () => {});
 
     const handle = (obj) => {

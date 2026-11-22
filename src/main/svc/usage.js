@@ -22,6 +22,7 @@ export const dayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear(
 
 const emptyClaude = () => ({ costUsd: 0, inputTokens: 0, outputTokens: 0, turns: 0 });
 const emptyAgy = () => ({ inputTokens: 0, outputTokens: 0, thinkingTokens: 0, turns: 0 });
+const emptyTokens = () => ({ inputTokens: 0, outputTokens: 0, turns: 0 }); // deepseek route / opencode (cost is not tracked: not Anthropic pricing)
 
 /** Tolerant token extraction. claude: input = input + cache creation + cache read; thinking under output_tokens_details. agy: *_tokens. */
 export function tokensOf(usage) {
@@ -153,6 +154,8 @@ export function createUsage({
     const b = (state.days[k] ??= {});
     b.claude = { ...emptyClaude(), ...(b.claude ?? {}) };
     b.agy = { ...emptyAgy(), ...(b.agy ?? {}) };
+    b.deepseek = { ...emptyTokens(), ...(b.deepseek ?? {}) };
+    b.opencode = { ...emptyTokens(), ...(b.opencode ?? {}) };
     return b;
   };
 
@@ -171,7 +174,8 @@ export function createUsage({
       at: t,
       claude: { windows: freshWindows(), today: { ...b.claude }, lastLimit: state.claude.lastLimit, updatedAt: state.claude.updatedAt },
       agy: { today: { ...b.agy }, lastLimit: state.agy.lastLimit, updatedAt: state.agy.updatedAt },
-      deepseek: { configured: !!deepseek.configured, ...(deepseek.balance ? { balance: deepseek.balance } : {}), ...(deepseek.updatedAt ? { updatedAt: deepseek.updatedAt } : {}) },
+      opencode: { today: { ...b.opencode } },
+      deepseek: { today: { ...b.deepseek }, configured: !!deepseek.configured, ...(deepseek.balance ? { balance: deepseek.balance } : {}), ...(deepseek.updatedAt ? { updatedAt: deepseek.updatedAt } : {}) },
     };
     return out;
   }
@@ -224,14 +228,19 @@ export function createUsage({
         ...(typeof ev.message === 'string' ? { message: ev.message } : {}), // verbatim
         projectId,
       };
-      const target = (ev.agent ?? agent) === 'agy' ? state.agy : state.claude;
+      const la = ev.agent ?? agent;
+      const target = la === 'agy' ? state.agy : la === 'opencode' ? (state.opencode ??= { lastLimit: null, updatedAt: null }) : state.claude;
       target.lastLimit = info;
       target.updatedAt = info.at;
       notify();
     } else if (ev.type === 'result') {
       const b = bucket();
       const t = tokensOf(ev.usage);
-      if (agent === 'agy') {
+      if (meta?.route === 'deepseek' || agent === 'opencode') {
+        const tb = meta?.route === 'deepseek' ? b.deepseek : b.opencode;
+        tb.inputTokens += t.input; tb.outputTokens += t.output; tb.turns += 1;
+        if (meta?.route === 'deepseek') refreshDeepseek(true).then(notify).catch(() => {}); // balance after the turn
+      } else if (agent === 'agy') {
         b.agy.inputTokens += t.input; b.agy.outputTokens += t.output; b.agy.thinkingTokens += t.thinking; b.agy.turns += 1;
         state.agy.updatedAt = now();
       } else {

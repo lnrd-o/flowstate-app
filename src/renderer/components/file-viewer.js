@@ -1,9 +1,10 @@
 // Shared file viewer (Files tab + Preview tab): toolbar + markdown / code / image / html / binary rendering.
 import { h, icon } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
-import { renderMarkdown, buildCodeBlock, attachLinkHandler } from '../lib/markdown.js';
+import { attachLinkHandler } from '../lib/markdown.js';
 import { formatBytes, baseName } from '../lib/files.js';
 import { toast } from './modal.js';
+import { renderPreview } from './file-preview.js';
 
 export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyText }) {
   let projectId = null;
@@ -37,6 +38,8 @@ export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyTex
     try { await api.files[kind](projectId, rel); } catch (e) { toast((e && e.message) || t('errors.generic'), 'error'); }
   }
 
+  const legacy = (r) => ({ ...r, type: r.kind === 'binary' ? 'generic' : r.kind, ext: '' });
+
   function renderEmpty() {
     bar.hidden = true;
     content.replaceChildren(h('div', { class: 'empty-state' },
@@ -46,26 +49,7 @@ export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyTex
   }
 
   function body(res) {
-    const wrap = h('div', { class: 'fv__body' });
-    if (res.truncated) wrap.append(h('div', { class: 'fv__note', attrs: { role: 'status' } }, icon('alert'), t('files.truncated', { size: formatBytes(res.size) })));
-    if (res.kind === 'markdown') {
-      wrap.append(h('div', { class: 'md fv__md' }, renderMarkdown(res.content || '')));
-    } else if (res.kind === 'text') {
-      wrap.append(h('div', { class: 'fv__code' }, buildCodeBlock(res.content || '', res.lang || 'plaintext', { lineNumbers: true })));
-    } else if (res.kind === 'image') {
-      wrap.append(h('div', { class: 'fv__image' }, h('img', { src: res.dataUrl, alt: baseName(rel) })));
-    } else if (res.kind === 'html') {
-      wrap.append(
-        h('div', { class: 'fv__note fv__note--info' }, icon('shield'), h('span', { text: t('files.htmlHint') }),
-          h('button', { class: 'btn btn--sm', type: 'button', on: { click: () => act('open') } }, icon('external'), t('files.openBrowser'))),
-        h('iframe', { class: 'fv__frame', title: baseName(rel), sandbox: '', srcdoc: res.content || '' }));
-    } else {
-      wrap.append(h('div', { class: 'empty-state' },
-        h('div', { class: 'empty-state__icon' }, icon('file', 'icon--lg')),
-        h('div', { class: 'empty-state__title', text: t('files.binary') }),
-        h('div', { class: 'empty-state__text', text: formatBytes(res.size) + ' - ' + t('files.binaryText') })));
-    }
-    return wrap;
+    return renderPreview(res, { name: baseName(rel), act });
   }
 
   async function load(force) {
@@ -79,7 +63,7 @@ export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyTex
     lastKey = projectId + ':' + rel;
     labels();
     let res;
-    try { res = await api.files.read(projectId, rel); } catch (e) {
+    try { res = api.files.preview ? await api.files.preview(projectId, rel) : legacy(await api.files.read(projectId, rel)); } catch (e) {
       if (my !== token) return;
       content.replaceChildren(h('div', { class: 'fv__note', attrs: { role: 'alert' } }, icon('alert'), (e && e.message) || t('files.readFailed')));
       return;

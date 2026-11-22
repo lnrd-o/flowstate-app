@@ -33,10 +33,11 @@
 
 export const EVENT_TYPES = Object.freeze([
   'session', 'text-delta', 'text', 'thinking', 'tool-use', 'tool-result', 'file-change', 'permission-request', 'permission-denied',
-  'rate-limit', 'limit', 'todos', 'subagent', 'result', 'error',
+  'rate-limit', 'limit', 'todos', 'subagent', 'notice', 'result', 'error',
 ]);
+// notice { key } : main-side system note shown in the chat (i18n key), e.g. 'chat.routeChanged' when a resumed session cannot be reused.
 
-const LIMIT_TEXT = /(usage|rate|message) limit|limit reached|hit your limit|out of (quota|credits|tokens)|quota[_ ](exhausted|exceeded)|resource[_ ]exhausted|rate[_ ]limited|resets? (at|in|on)|try again (at|in|after)/i;
+const LIMIT_TEXT = /(usage|rate|message) limit|limit reached|hit your limit|out of (quota|credits|tokens)|quota[_ ](exhausted|exceeded)|insufficient[_ ](balance|quota|credits?)|payment required|resource[_ ]exhausted|rate[_ ]limited|resets? (at|in|on)|try again (at|in|after)/i;
 /** True when a CLI/model text looks like a usage-limit message. */
 export function looksLikeLimitText(text) { return LIMIT_TEXT.test(String(text ?? '')); }
 
@@ -58,11 +59,11 @@ export function parseResetFromText(text, now = Date.now()) {
 
 const TOOL_KINDS = {
   command: /^(bash|powershell|run_command|command_status|send_command_input|execute_command)$/i,
-  edit: /^(edit|multiedit|notebookedit|edit_file|replace_file_content|multi_replace_file_content|sed_file|apply_patch)$/i,
+  edit: /^(edit|multiedit|notebookedit|edit_file|replace_file_content|multi_replace_file_content|sed_file|apply_patch|patch)$/i,
   write: /^(write|write_file|write_to_file|create_file)$/i,
   read: /^(read|view_file|read_file|read_url_content|read_resource|webfetch)$/i,
   search: /^(grep|glob|grep_search|find_by_name|websearch|search_web|search_marketplace)$/i,
-  list: /^(ls|list_dir|list_directory)$/i,
+  list: /^(ls|list_dir|list_directory|list)$/i,
 };
 
 /** Classify a tool name (claude or agy) so the UI can pick a renderer. */
@@ -207,7 +208,95 @@ export function normalizeAgy(j) {
   return out;
 }
 
-export const NORMALIZERS = Object.freeze({ claude: normalizeClaude, agy: normalizeAgy });
+
+
+/**
+ * opencode `run --format json` (UNVERIFIED: opencode is not installed here; built from its documented behaviour, see docs/spikes.md).
+ * One JSON object per line: {type:'step_start'|'text'|'reasoning'|'tool_use'|'step_finish'|'error', sessionID, part:{...}}.
+ *  text        part.text                                   -> text
+ *  reasoning   part.text                                   -> thinking
+ *  tool_use    part.{callID,tool,state:{status,input,output,error,metadata,time}} -> tool-use (+ tool-result once completed/error)
+ *  step_finish part.{reason,cost,tokens:{input,output,reasoning,cache:{read,write}}} -> usage summed; reason !== 'tool-calls' ends the turn -> result
+ *  error       error.{name,data.message} | message          -> error (or limit when the text says quota/balance/rate limit)
+ * Stateful (usage sum, accumulated text, session announced once): create one per turn.
+ */
+export function createOpencodeNormalizer() {
+  let sessionSeen = null;
+  let text = '';
+  let cost = 0;
+  const usage = { input_tokens: 0, output_tokens: 0, thinking_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+  let startedAt = null;
+  const num = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
+  const errMsg = (e) => {
+    if (typeof e === 'string') return e;
+    return String(e?.data?.message ?? e?.message ?? e?.name ?? 'opencode error');
+  };
+  return function normalizeOpencode(j) {
+    const out = [];
+    if (!j || typeof j !== 'object') return out;
+    if (startedAt == null) startedAt = Date.now();
+    const sid = j.sessionID ?? j.part?.sessionID;
+    if (typeof sid === 'string' && sid && sid !== sessionSeen) { sessionSeen = sid; out.push({ type: 'session', sessionId: sid }); }
+    const p = j.part ?? {};
+    switch (j.type) {
+      case 'text':
+        if (typeof p.text === 'string' && p.text) { text += (text ? '\n' : '') + p.text; out.push({ type: 'text', text: p.text }); }
+        break;
+      case 'reasoning':
+        if (typeof p.text === 'string' && p.text) out.push({ type: 'thinking', text: p.text });
+        break;
+      case 'tool_use': {
+        const st = p.state ?? {};
+        const id = p.callID ?? p.id;
+        const kind = classifyTool('opencode', p.tool);
+        out.push({ type: 'tool-use', id, name: p.tool, kind, input: st.input });
+        if (p.tool === 'todowrite' && Array.isArray(st.input?.todos)) {
+          out.push({
+            type: 'todos',
+            items: st.input.todos.filter((t) => t && typeof t.content === 'string').slice(0, 100)
+              .map((t) => ({ content: t.content, status: ['pending', 'in_progress', 'completed'].includes(t.status) ? t.status : 'pending' })),
+          });
+        }
+        if (st.status === 'completed' || st.status === 'error') {
+          const output = typeof st.output === 'string' ? st.output : (st.error ?? '');
+          const ev = { type: 'tool-result', id, name: p.tool, kind, output, isError: st.status === 'error' };
+          const d = (st.time?.end ?? 0) - (st.time?.start ?? 0);
+          if (d > 0) ev.durationMs = d;
+          if (kind === 'command') {
+            const ec = st.metadata?.exit;
+            ev.exitCode = Number.isInteger(ec) ? ec : (st.status === 'error' ? 1 : null);
+            ev.commandOutput = String(output).replace(/\r\n/g, '\n').replace(/\n+$/, '');
+          }
+          out.push(ev);
+        }
+        break;
+      }
+      case 'step_finish': {
+        const tk = p.tokens ?? {};
+        usage.input_tokens += num(tk.input);
+        usage.output_tokens += num(tk.output);
+        usage.thinking_tokens += num(tk.reasoning);
+        usage.cache_read_input_tokens += num(tk.cache?.read);
+        usage.cache_creation_input_tokens += num(tk.cache?.write);
+        cost += num(p.cost);
+        if (p.reason !== 'tool-calls') {
+          out.push({ type: 'result', ok: true, text, costUsd: cost || undefined, durationMs: Date.now() - startedAt, usage: { ...usage } });
+        }
+        break;
+      }
+      case 'error': {
+        const message = errMsg(j.error ?? j);
+        if (looksLikeLimitText(message)) out.push({ type: 'limit', agent: 'opencode', kind: 'quota', status: 'rejected', resetsAt: parseResetFromText(message), message });
+        out.push({ type: 'error', kind: /auth|api key|unauthor|credential/i.test(message) ? 'auth' : 'api', message });
+        break;
+      }
+      default: break; // step_start and unknown types carry nothing to show
+    }
+    return out;
+  };
+}
+
+export const NORMALIZERS = Object.freeze({ claude: normalizeClaude, agy: normalizeAgy, opencode: createOpencodeNormalizer() });
 
 /** Split a stdout chunk stream into JSON objects (NDJSON). Keeps partial lines between calls. */
 export function createNdjsonParser(onObject, onBadLine) {

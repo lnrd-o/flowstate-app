@@ -3,12 +3,12 @@
 // Buttons: Allow this once (per-turn allow rule) / Allow for this project / Don't allow. See lib/approvals.js.
 import { h, icon, nextId } from '../lib/dom.js';
 import { t, getLanguage } from '../lib/i18n.js';
-import { allowPlan, describeItem, whyKey, itemCommand } from '../lib/approvals.js';
+import { allowPlan, describeItem, whyKey, itemCommand, webTarget, projectModeFor } from '../lib/approvals.js';
 import { diffFromInput } from '../lib/diff.js';
 import { createDiffView } from './diff-view.js';
 import { agentIcon } from './agent-icon.js';
 
-const KIND_ICON = { command: 'terminal', write: 'file', edit: 'edit', other: 'tool' };
+const KIND_ICON = { command: 'terminal', write: 'file', edit: 'edit', web: 'globe', other: 'tool' };
 
 /** The exact code of one blocked item: a terminal block for commands, a diff / new-file view for edits. */
 export function codeBlock(item) {
@@ -16,6 +16,11 @@ export function codeBlock(item) {
     const cmd = itemCommand(item);
     return h('pre', { class: 'tc-term__pre approval-term', attrs: { tabindex: '0', role: 'region', 'aria-label': t('approval.codeLabel') } },
       h('span', { class: 'tc-term__cmd', text: '$ ' + (cmd || item.tool) }));
+  }
+  if (item.kind === 'web') {
+    const target = webTarget(item);
+    return h('pre', { class: 'tc-term__pre approval-term', attrs: { tabindex: '0', role: 'region', 'aria-label': t('approval.codeLabel') } },
+      h('span', { class: 'tc-term__cmd', text: (item.tool === 'WebSearch' ? t('approval.searchPrefix') + ' ' : '') + (target || item.tool) }));
   }
   const ch = (item.kind === 'write' || item.kind === 'edit') ? diffFromInput(item.kind, item.input) : null;
   if (ch && ch.diff) return h('div', { class: 'approval-diff' }, createDiffView({ diff: ch.diff, path: ch.path, hideNumbers: ch.op !== 'create' }).el);
@@ -65,8 +70,9 @@ export function buildApprovalCard() {
     if (key !== itemsKey) { itemsKey = key; selected = new Set(items.map((i) => i.id)); }
     const actionable = m.status === 'pending' && ctx.isActionable(m) && items.length > 0;
     const plan = allowPlan(items, selected, ctx.agent);
-    const nextSig = JSON.stringify([m.status, actionable, ctx.dev, getLanguage(), key, [...selected], plan.mode, plan.rules, ctx.agent, ctx.root,
-      items.map((i) => [i.reason, i.input && (i.input.command || i.input.file_path)])]);
+    const projMode = projectModeFor(items, selected);
+    const nextSig = JSON.stringify([m.status, actionable, ctx.dev, getLanguage(), key, [...selected], plan.mode, plan.rules, projMode, ctx.agent, ctx.root,
+      items.map((i) => [i.reason, i.input && (i.input.command || i.input.file_path || i.input.url || i.input.query)])]);
     if (nextSig === sig) return;
     sig = nextSig;
     const multi = items.length > 1;
@@ -95,11 +101,11 @@ export function buildApprovalCard() {
       if (plan.mode === 'once') {
         primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', text: multi ? t('approval.allowSelected') : t('approval.allowOnce'), on: { click: () => ctx.approve.once(m.id, plan.rules) } });
         actions.append(primaryBtn,
-          h('button', { class: 'btn', type: 'button', text: t('approval.allowProject'), title: t('approval.allowProjectTitle'), on: { click: () => ctx.approve.project(m.id) } }));
+          h('button', { class: 'btn', type: 'button', text: t(projMode === 'auto' ? 'approval.allowProjectAuto' : 'approval.allowProject'), title: t(projMode === 'auto' ? 'approval.allowProjectAutoTitle' : 'approval.allowProjectTitle'), on: { click: () => ctx.approve.project(m.id, projMode) } }));
       } else {
         parts.push(h('div', { class: 'approval-card__note small', attrs: { role: 'note' } }, icon('info'),
           ctx.agent === 'claude' ? t('approval.noNarrowClaude') : t('approval.noNarrowAgy', { agent: ctx.agentName })));
-        primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', disabled: plan.mode === 'none', text: t('approval.switchRetry'), on: { click: () => ctx.approve.project(m.id) } });
+        primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', disabled: plan.mode === 'none', text: t(projMode === 'auto' ? 'approval.switchRetryAuto' : 'approval.switchRetry'), on: { click: () => ctx.approve.project(m.id, projMode) } });
         actions.append(primaryBtn);
       }
       actions.append(h('button', { class: 'btn btn--ghost', type: 'button', text: t('approval.dismiss'), on: { click: () => ctx.approve.dismiss(m.id) } }));

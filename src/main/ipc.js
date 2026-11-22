@@ -24,7 +24,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
   };
   const isMid = (v) => typeof v === 'string' && ID_RE.test(v);
   const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
-  const isAgent = (a) => a === 'claude' || a === 'agy';
+  const isAgent = (a) => a === 'claude' || a === 'agy' || a === 'opencode';
   const needAgent = (a) => { if (!isAgent(a)) throw new TypeError('invalid agent'); return a; };
   const optInt = (v, lo, hi, name) => {
     if (v === undefined) return undefined;
@@ -176,15 +176,20 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.promptsExport]: (_e, projectId, id) => { const p = need(projectId); if (!isId(id)) throw new TypeError('template id required'); return prompts.export(p, id); },
     [CH.filesList]: (_e, id, rel = '') => { need(id); if (!isRel(rel)) throw new TypeError('invalid path'); return files.list(id, rel); },
     [CH.filesRead]: (_e, id, rel) => { need(id); if (!isStr(rel) || !isRel(rel)) throw new TypeError('path required'); return files.read(id, rel); },
+    [CH.filesPreview]: (_e, id, rel) => { need(id); if (!isStr(rel) || !isRel(rel)) throw new TypeError('path required'); return svc('preview').preview(id, rel); },
     [CH.filesReveal]: (_e, id, rel) => { need(id); if (!isStr(rel) || !isRel(rel)) throw new TypeError('path required'); return files.reveal(id, rel); },
     [CH.filesOpen]: (_e, id, rel) => { need(id); if (!isStr(rel) || !isRel(rel)) throw new TypeError('path required'); return files.open(id, rel); },
     [CH.filesWatch]: (_e, id) => { need(id); files.watch(id); },
     [CH.dashboardStatus]: (_e, id) => { need(id); return dashboards.status(id); },
-    [CH.dashboardSetup]: (_e, id) => { need(id); return dashboards.setup(id); },
+    [CH.dashboardSetup]: (_e, id, opts = {}) => {
+      need(id);
+      if (!isPlain(opts) || (opts.choice !== undefined && opts.choice !== 'global' && opts.choice !== 'venv')) throw new TypeError('invalid choice');
+      return dashboards.setup(id, { choice: opts.choice });
+    },
     [CH.dashboardStart]: (_e, id, app) => { need(id); if (!isStr(app) || !isRel(app)) throw new TypeError('app path required'); return dashboards.start(id, app); },
     [CH.dashboardStop]: (_e, id) => { need(id); dashboards.stop(id); },
     [CH.prereqInstall]: (_e, id) => { if (!isStr(id) || id.length > 16) throw new TypeError('prerequisite id required'); return prereq.install(id); },
-    [CH.authLogin]: (_e, agent) => { if (agent !== 'claude' && agent !== 'agy') throw new TypeError('invalid agent'); return auth.login(agent); },
+    [CH.authLogin]: (_e, agent) => { if (!isAgent(agent)) throw new TypeError('invalid agent'); return auth.login(agent); },
     [CH.remoteStatus]: (_e, id) => { need(id); return remote.status(id); },
     [CH.remoteStart]: (_e, id) => { need(id); return remote.start(id); },
     [CH.remoteStop]: (_e, id) => { need(id); return remote.stop(id); },
@@ -247,6 +252,11 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.healthCheck]: () => health.poll(),
     [CH.gitStatus]: (_e, id) => git.status(need(id).path),
     [CH.gitUndoTurn]: (_e, id) => git.undoTurn(need(id).path),
+    [CH.versionsList]: (_e, id, o) => { need(id); return svc('versions').list(id, isPlain(o) ? o : {}); },
+    [CH.versionsSave]: (_e, id, o) => { need(id); if (!isPlain(o)) throw new TypeError('invalid request'); return svc('versions').save(id, o); },
+    [CH.versionsCompare]: (_e, id, o) => { need(id); if (!isPlain(o)) throw new TypeError('invalid request'); return svc('versions').compare(id, o); },
+    [CH.versionsRestore]: (_e, id, o) => { need(id); if (!isPlain(o)) throw new TypeError('invalid request'); return svc('versions').restore(id, o); },
+    [CH.versionsBranch]: (_e, id, o) => { need(id); if (!isPlain(o)) throw new TypeError('invalid request'); return svc('versions').branch(id, o); },
     ...phase2(),
     ...phase3(),
     ...phase4(),

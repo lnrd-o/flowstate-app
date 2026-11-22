@@ -2,8 +2,9 @@ import { AgentAdapter } from './base.js';
 import { NORMALIZERS } from '../../shared/events.js';
 import { modelArgs } from './model-spec.js';
 
-/** Never leave agy in always-proceed: default/acceptEdits -> accept-edits, plan -> plan. */
+/** default/acceptEdits -> accept-edits, plan -> plan, auto (explicit "Auto-accept everything") -> auto. */
 export function agyModeFor(mode) {
+  if (mode === 'auto') return 'auto';
   return mode === 'plan' ? 'plan' : 'accept-edits';
 }
 

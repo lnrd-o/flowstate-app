@@ -181,6 +181,7 @@ export function createPhase2({ projects, emitAgent, flags }) {
       files: {
         list: async (pid, rel = '') => clone(listDir(pid, rel)),
         read: async (pid, rel) => clone(readFile(rel)),
+        preview: async (pid, rel) => { const r = readFile(rel); return r.kind === 'binary' ? { type: 'generic', size: r.size, name: String(rel).split('/').pop(), ext: '' } : { type: r.kind, ...clone(r), name: String(rel).split('/').pop() }; },
         reveal: async () => {},
         open: async () => {},
         watch: async () => {},
@@ -190,12 +191,12 @@ export function createPhase2({ projects, emitAgent, flags }) {
           const s = dstate(pid);
           const py = has(/#python/) || flags.pythonInstalled;
           return {
-            python: { found: py, version: py ? '3.12.4' : null }, venv: s.venv, deps: s.deps, running: s.running, url: s.url, app: s.app,
+            python: { found: py, version: py ? '3.12.4' : null }, venv: s.venv, deps: s.deps, env: { mode: 'auto', active: s.deps ? 'global' : null, missing: s.deps ? [] : ['streamlit', 'plotly'], globalMissing: s.deps ? [] : ['streamlit', 'plotly'], venvMissing: [], needsChoice: !s.deps, interpreter: 'py -3' }, running: s.running, url: s.url, app: s.app,
             apps: pid === 'p3' ? [] : ['src/dashboard.py', 'src/app.py'],
           };
         },
-        setup: async (pid) => {
-          const lines = ['Creating virtual environment in .venv ...', 'Collecting streamlit', 'Downloading streamlit-1.39.0-py2.py3-none-any.whl (8.7 MB)', 'Collecting plotly', 'Collecting pandas', 'Installing collected packages: pandas, plotly, streamlit', 'Successfully installed pandas-2.2.3 plotly-5.24.1 streamlit-1.39.0'];
+        setup: async (pid, opts = {}) => {
+          const lines = [opts.choice === 'venv' ? 'Creating the project environment (.venv)...' : 'Installing missing packages globally: streamlit, plotly', 'Collecting streamlit', 'Downloading streamlit-1.39.0-py2.py3-none-any.whl (8.7 MB)', 'Collecting plotly', 'Collecting pandas', 'Installing collected packages: pandas, plotly, streamlit', 'Successfully installed pandas-2.2.3 plotly-5.24.1 streamlit-1.39.0'];
           for (let i = 0; i < lines.length; i++) await new Promise((r) => later(380, r)).then(() => fire('dashboard', { projectId: pid, kind: 'log', text: lines[i] }));
           const s = dstate(pid);
           s.venv = true; s.deps = true;

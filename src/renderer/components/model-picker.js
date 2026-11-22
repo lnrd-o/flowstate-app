@@ -3,7 +3,7 @@
 import { h, icon, nextId } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { activeProject, isDev } from '../lib/store.js';
-import { currentModelLabel, displayEffort, effortValues, modelOptions, modelToStore, modelsNeedSignIn } from '../lib/models.js';
+import { currentModelLabel, displayEffort, effortValues, groupModelOptions, modelOptions, modelToStore, modelsNeedSignIn } from '../lib/models.js';
 
 export function mountModelPicker({ store, actions }) {
   const panelId = nextId('mp-panel');
@@ -81,19 +81,25 @@ export function mountModelPicker({ store, actions }) {
     if (loading && list && list.models && list.models.length) body.push(h('div', { class: 'mp__state muted', attrs: { role: 'status' } }, h('span', { class: 'spinner' }), t('model.loading')));
     const opts = modelOptions(list, p, dev);
     if (!opts.length && !loading && !(list && list.error)) body.push(h('div', { class: 'mp__state muted', text: t('model.none') }));
-    for (const o of opts) {
+    const groups = groupModelOptions(opts);
+    const showHeads = groups.length > 1 || (groups[0] && groups[0].kind === 'opencode');
+    for (const g of groups) {
+      if (showHeads && g.group) body.push(h('div', { class: 'mp__group', attrs: { role: 'presentation' }, text: g.provider ? t('model.groupOpencode', { provider: g.provider }) : t('model.group.' + g.kind) }));
+      for (const o of g.options) {
       const b = h('button', {
-        class: 'menu__item mp__item' + (o.current ? ' is-current' : ''), type: 'button', attrs: { role: 'menuitemradio', 'aria-checked': String(o.current), tabindex: '-1' },
-        on: { click: () => { setOpen(false); actions.updateProject(p.id, { model: modelToStore(o.id, list) }); } },
+        class: 'menu__item mp__item' + (o.current ? ' is-current' : ''), type: 'button', disabled: o.disabled, attrs: { role: 'menuitemradio', 'aria-checked': String(o.current), tabindex: '-1' },
+        on: { click: () => { if (o.disabled) return; setOpen(false); actions.updateProject(p.id, { model: modelToStore(o.id, list) }); } },
       },
       h('span', { class: 'menu__check', attrs: { 'aria-hidden': 'true' }, text: o.current ? '\u2713' : '' }),
       h('span', { class: 'mp__item-main' },
         h('span', { class: 'mp__item-name truncate', text: o.label }),
         o.sub && o.sub !== o.label ? h('span', { class: 'mp__item-id mono truncate', text: o.sub }) : null,
+        o.needsKey ? h('span', { class: 'mp__item-need truncate', text: t('model.addKey') }) : null,
         o.description ? h('span', { class: 'mp__item-desc truncate', text: o.description }) : null),
       o.isDefault ? h('span', { class: 'badge badge--muted mp__badge', text: t('model.recommended') }) : null);
       items.push(b);
       body.push(b);
+      }
     }
     panel.setAttribute('aria-label', t('model.label'));
     panel.replaceChildren(head, ...body);
@@ -111,6 +117,7 @@ export function mountModelPicker({ store, actions }) {
     el.hidden = !p;
     effort.hidden = !p;
     if (!p) return;
+    if (p.agent === 'opencode' || /^deepseek/i.test(p.model || '')) effort.hidden = true; // effort levels are Anthropic/AGY concepts
     const list = s.models[p.agent];
     const name = currentModelLabel(list, p, dev, t('model.defaultName'));
     label.textContent = name;

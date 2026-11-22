@@ -3,7 +3,7 @@
 // No DOM. Mirrors the validation of src/main/permissions.js (the main process stays the authority).
 import { kindOf, commandOf, displayPath, changeOf, baseName } from './activity.js';
 
-export const ALLOW_TOOLS = Object.freeze(['Bash', 'PowerShell', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
+export const ALLOW_TOOLS = Object.freeze(['Bash', 'PowerShell', 'Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'WebFetch', 'WebSearch']);
 export const MAX_RULES = 5;
 export const MAX_PATTERN = 300;
 
@@ -35,6 +35,7 @@ function toolKindByName(name) {
   if (n === 'bash' || n === 'powershell' || n === 'run_command') return 'command';
   if (n === 'write') return 'write';
   if (n === 'edit' || n === 'multiedit' || n === 'notebookedit') return 'edit';
+  if (n === 'webfetch' || n === 'websearch') return 'web';
   return 'other';
 }
 
@@ -84,16 +85,64 @@ export function validPattern(p) {
   return true;
 }
 
+/** Strict hostname (mirror of main validDomain): lowercase DNS name with a dot, or an IPv4 literal. */
+export function validDomain(d) {
+  if (typeof d !== 'string') return false;
+  const s = d.trim().toLowerCase();
+  if (/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/.test(s)) return true;
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(s) && s.split('.').every((n) => Number(n) <= 255);
+}
+
+/** Hostname of a URL ('' when it is not a plain http(s) URL with a valid host). */
+export function hostOf(url) {
+  if (typeof url !== 'string' || !url.trim()) return '';
+  try {
+    const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(url.trim()) ? url.trim() : 'https://' + url.trim());
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    const host = u.hostname.toLowerCase();
+    return validDomain(host) ? host : '';
+  } catch { return ''; }
+}
+
+/** URL / search query of a web item (for display). */
+export function webTarget(item) {
+  const i = item && item.input && typeof item.input === 'object' ? item.input : {};
+  if (item && item.tool === 'WebSearch') return typeof i.query === 'string' ? i.query : '';
+  return typeof i.url === 'string' ? i.url : '';
+}
+
+/** Does this shell command write through a redirect ( > or >> )? Such a command cannot be narrowed by a command rule (verified with claude). */
+export function hasRedirect(cmd) {
+  return />/.test(String(cmd || ''));
+}
+
 /**
  * The narrow allow rule for one blocked item, or null when it cannot be allowed one-at-a-time:
- * Bash / PowerShell -> the exact command; Write / Edit / MultiEdit / NotebookEdit -> the exact file path.
+ * Bash / PowerShell -> the exact command (null when it redirects output into a file: claude ignores command rules then);
+ * Write / Edit / MultiEdit / NotebookEdit -> the exact file path (main emits Edit(path));
+ * WebFetch -> its domain; WebSearch -> tool-wide (it has no pattern).
  */
 export function ruleFor(item) {
   if (!item || !ALLOW_TOOLS.includes(item.tool)) return null;
+  if (item.tool === 'WebSearch') return { tool: 'WebSearch', pattern: '' };
+  if (item.tool === 'WebFetch') {
+    const host = hostOf(webTarget(item));
+    return host ? { tool: 'WebFetch', pattern: 'domain:' + host } : null;
+  }
   const isCmd = item.tool === 'Bash' || item.tool === 'PowerShell';
   const pattern = (isCmd ? commandInput(item.input) : pathInput(item.input)).trim();
   if (!validPattern(pattern)) return null;
+  if (isCmd && hasRedirect(pattern)) return null;
   return { tool: item.tool, pattern };
+}
+
+/**
+ * Mode "Allow for this project" switches to: 'acceptEdits' when everything selected is a file edit / redirect write,
+ * otherwise 'auto' (commands and web access are not covered by Accept edits).
+ */
+export function projectModeFor(items, selectedIds) {
+  const sel = (items || []).filter((it) => !selectedIds || selectedIds.has(it.id));
+  return sel.length && sel.every((it) => it.kind === 'write' || it.kind === 'edit') ? 'acceptEdits' : 'auto';
 }
 
 /**
@@ -122,6 +171,11 @@ export function describeItem(item, root) {
   const path = m ? displayPath(m, root) : pathInput(item.input).replace(/\\/g, '/');
   const file = path ? baseName(path) : '';
   if (item.kind === 'command') return { key: 'approval.wants.run', vars: {} };
+  if (item.kind === 'web') {
+    if (item.tool === 'WebSearch') return { key: 'approval.wants.search', vars: {} };
+    const host = hostOf(webTarget(item));
+    return host ? { key: 'approval.wants.fetch', vars: { site: host } } : { key: 'approval.wants.fetchNoSite', vars: {} };
+  }
   if (item.kind === 'write') {
     const ch = m ? changeOf(m) : null;
     const create = ch ? ch.op === 'create' : true;

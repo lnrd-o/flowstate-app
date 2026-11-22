@@ -270,6 +270,8 @@ function reduceCore(state, ev, now) {
       if (i >= 0) return replaceAt(s, i, { ...s.messages[i], ...card, kind: s.messages[i].kind === 'quota' ? card.kind : s.messages[i].kind });
       return push(s, card);
     }
+    case 'notice': // main-side system note { key: i18n key }, e.g. a fresh session because the run route changed
+      return typeof ev.key === 'string' && /^[a-z][A-Za-z0-9.]{0,63}$/.test(ev.key) ? push(closeOpenAssistant(state), { role: 'system', key: ev.key }) : state;
     case 'todos': {
       const items = (Array.isArray(ev.items) ? ev.items : []).filter((x) => x && typeof x.content === 'string')
         .map((x) => ({ content: x.content, status: ['pending', 'in_progress', 'completed'].includes(x.status) ? x.status : 'pending' }));

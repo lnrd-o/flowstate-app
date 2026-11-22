@@ -96,11 +96,11 @@ test('status chip mapping', () => {
 test('signed-in map merges status, health and events without churn', () => {
   let m = createSignedIn();
   m = applyStatus(m, { claude: { loggedIn: true }, agy: { loggedIn: false } });
-  assert.deepEqual(m, { claude: true, agy: false });
+  assert.deepEqual(m, { claude: true, agy: false, opencode: null });
   assert.equal(applyStatus(m, { claude: { loggedIn: true }, agy: { loggedIn: false } }), m);
   assert.equal(applyHealth(m, { claude: { loggedIn: null }, agy: {} }), m);
-  assert.deepEqual(applyHealth(m, { claude: { loggedIn: false }, agy: { loggedIn: true } }), { claude: false, agy: true });
-  assert.deepEqual(applyLoginEvent(m, { agent: 'agy', kind: 'done', ok: true, loggedIn: true }), { claude: true, agy: true });
+  assert.deepEqual(applyHealth(m, { claude: { loggedIn: false }, agy: { loggedIn: true } }), { claude: false, agy: true, opencode: null });
+  assert.deepEqual(applyLoginEvent(m, { agent: 'agy', kind: 'done', ok: true, loggedIn: true }), { claude: true, agy: true, opencode: null });
   assert.equal(applyLoginEvent(m, { agent: 'agy', kind: 'url', url: 'https://x' }), m);
   assert.equal(applyLoginEvent(m, { agent: 'nope', kind: 'status', loggedIn: true }), m);
 });

@@ -219,7 +219,7 @@ test('status() and logout()', async () => {
   const { m, status, runs } = setup();
   status.claude = '{"loggedIn":true,"authMethod":"claude.ai","email":"a@b.co"}';
   status.agy = 'gemini\tx\n';
-  assert.deepEqual(await m.status(), { claude: { loggedIn: true, authMethod: 'claude.ai', email: 'a@b.co' }, agy: { loggedIn: true } });
+  assert.deepEqual(await m.status(), { claude: { loggedIn: true, authMethod: 'claude.ai', email: 'a@b.co' }, agy: { loggedIn: true }, opencode: { loggedIn: false } });
   status.agy = '';
   assert.equal((await m.status()).agy.loggedIn, true); // keeps previous
   assert.deepEqual(await m.logout('agy'), { ok: false, error: 'use-terminal' });

@@ -586,3 +586,25 @@ button.think-row__head:hover { color: var(--text-2); background: var(--bg-hover)
 .artifacts__header .pill-tab { flex: 1 0 auto; }
 .artifacts__header .pill-tab > .truncate { overflow: visible; text-overflow: clip; }
 .artifacts__header .pill-tabs { scrollbar-width: none; }
+
+/* typed file previews (tables, slides, docs) */
+.fv__table-wrap { overflow: auto; max-height: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); }
+.fv__table { border-collapse: collapse; font-size: var(--fs-sm); min-width: 100%; width: max-content; }
+.fv__table th, .fv__table td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); text-align: left; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fv__table thead th { position: sticky; top: 0; background: var(--bg-hover); color: var(--text-2); font-weight: var(--fw-semibold); }
+.fv__table td.is-num { text-align: right; font-variant-numeric: tabular-nums; }
+.fv__table .fv__rn { position: sticky; left: 0; background: var(--bg-hover); color: var(--text-3); text-align: right; font-weight: var(--fw-regular); }
+.fv__tabs { display: flex; gap: var(--space-1); flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: var(--space-2); }
+.fv__tab { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: var(--space-1) var(--space-3); color: var(--text-2); cursor: pointer; font: inherit; font-size: var(--fs-sm); }
+.fv__tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+.fv__tab:focus-visible, .fv__table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fv__xlsx, .fv__sheet, .fv__pdf { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+.fv__pdf .fv__frame { min-height: 420px; background: var(--bg-card); }
+.fv__slides { display: flex; flex-direction: column; gap: var(--space-3); }
+.fv__slide { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.fv__slide-title { margin: 0; font-size: var(--fs-md); }
+.fv__slide-lines { margin: 0; padding-left: 1.2em; font-size: var(--fs-sm); }
+.fv__slide-imgs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.fv__slide-imgs img { max-width: 100%; max-height: 220px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.fv__notes { font-size: var(--fs-sm); color: var(--text-2); }
+.fv__doc p { white-space: pre-wrap; }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeAllow, allowArgs, MAX_RULES } from '../../src/main/permissions.js';
+import { sanitizeAllow, allowArgs, validDomain, MAX_RULES } from '../../src/main/permissions.js';
 import { ClaudeAdapter } from '../../src/main/agents/claude.js';
 import { AgyAdapter } from '../../src/main/agents/agy.js';
 import { defaultSettings, createSettings } from '../../src/main/settings.js';
@@ -24,11 +24,26 @@ test('sanitizeAllow rejects anything that would widen or break a rule', () => {
     [{ tool: 'Bash', pattern: 'echo (hi)' }], [{ tool: 'Bash', pattern: 'a)b' }], // parentheses
     [{ tool: 'Bash', pattern: 'a\nb' }], [{ tool: 'Bash', pattern: 'a\u0000b' }],
     [{ tool: 'Bash', pattern: 'x'.repeat(301) }],
-    [{ tool: 'WebFetch', pattern: 'https://x' }], [{ tool: '*', pattern: 'x' }], [{ tool: 'Read', pattern: 'x' }], [{ pattern: 'x' }],
+    [{ tool: 'WebFetch', pattern: 'https://x' }], [{ tool: 'WebFetch', pattern: 'domain:*.com' }], [{ tool: 'WebFetch', pattern: 'domain:a.com/path' }],
+    [{ tool: 'WebFetch', pattern: 'domain:evil.com:8080' }], [{ tool: 'WebFetch', pattern: 'localhost' }], [{ tool: 'WebFetch' }], [{ tool: 'WebFetch', pattern: 'domain:a.com)' }],
+    [{ tool: '*', pattern: 'x' }], [{ tool: 'Read', pattern: 'x' }], [{ pattern: 'x' }],
     ['Bash(ls)'], [null], 'Bash(ls)', { tool: 'Bash', pattern: 'ls' },
     Array.from({ length: MAX_RULES + 1 }, (_, i) => ({ tool: 'Bash', pattern: `cmd${i}` })),
   ];
   for (const b of bad) assert.throws(() => sanitizeAllow(b), TypeError, JSON.stringify(b).slice(0, 80));
+});
+
+test('file tools are emitted as Edit(path) (Write(...) rules do not match in claude), Windows paths kept as-is', () => {
+  assert.deepEqual(sanitizeAllow([{ tool: 'Write', pattern: 'C:\\p\\a.txt' }, { tool: 'MultiEdit', pattern: 'C:\\p\\a.txt' }, { tool: 'NotebookEdit', pattern: 'n.ipynb' }]),
+    ['Edit(C:\\p\\a.txt)', 'Edit(n.ipynb)']);
+});
+
+test('web rules: WebFetch by validated domain, WebSearch tool-wide (only tool allowed without a pattern)', () => {
+  assert.deepEqual(sanitizeAllow([{ tool: 'WebFetch', pattern: 'domain:Example.com' }, { tool: 'WebFetch', pattern: 'docs.example.com' }, { tool: 'WebSearch' }, { tool: 'WebSearch', pattern: 'ignored' }]),
+    ['WebFetch(domain:example.com)', 'WebFetch(domain:docs.example.com)', 'WebSearch']);
+  assert.equal(validDomain('example.com'), true);
+  assert.equal(validDomain('127.0.0.1'), true);
+  for (const bad of ['', 'localhost', 'a..com', '-a.com', 'a.com.', 'a b.com', '999.1.1.1', 'a.c', 'exa_mple.com', 'a.com/x']) assert.equal(validDomain(bad), false, bad);
 });
 
 test('allowArgs repeats the variadic flag once per rule', () => {
@@ -45,6 +60,14 @@ test('claude adapter adds per-turn rules after the permission mode; agy ignores 
   assert.deepEqual(args.slice(i + 2), ['--allowedTools', 'PowerShell(python hello.py)']);
   assert.ok(!new ClaudeAdapter().buildArgs({ mode: 'default' }).includes('--allowedTools'), 'no rules unless requested');
   assert.ok(!new AgyAdapter().buildArgs(project, 'hi').join(' ').includes('allowedTools'));
+});
+
+test('claude adapter maps mode auto to bypassPermissions; unknown modes fall back to default', () => {
+  const mode = (m) => { const a = new ClaudeAdapter().buildArgs({ mode: m }); return a[a.indexOf('--permission-mode') + 1]; };
+  assert.equal(mode('auto'), 'bypassPermissions');
+  assert.equal(mode('acceptEdits'), 'acceptEdits');
+  assert.equal(mode('plan'), 'plan');
+  assert.equal(mode('nope'), 'default');
 });
 
 test('developerMode setting: default true, boolean only, persisted', () => {

@@ -67,11 +67,15 @@ if (!app.requestSingleInstanceLock()) {
       dir,
       storeDirOf: (id) => { const p = projects.get(id); return p ? path.join(p.path, '.flowstate') : null; },
     });
+    const findCli = (agent) => (agent === 'agy' ? health.findAgy() : agent === 'opencode' ? health.findOpencode() : health.findClaude());
     const agents = createAgentManager({
+      // DeepSeek route: the key is read from safeStorage here in main and goes ONLY into the child env (see agents/routes.js).
+      routeEnv: async (project, route) => (route === 'deepseek' ? services.deepseek?.routeEnv?.(project.model) ?? { error: 'DeepSeek is not available' } : null),
+      contextNote: (project, text) => dashboards?.pythonNote(project.id, text),
       projects, git, history,
       emit: (id, ev, meta) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); runner?.onAgentEvent(id, ev); fanoutAgentEvent(services, id, ev, meta); },
       resolveLauncher: async (agent) => {
-        const p = agent === 'agy' ? await health.findAgy() : await health.findClaude();
+        const p = await findCli(agent);
         return p ? { command: p } : null;
       },
     });
@@ -80,12 +84,12 @@ if (!app.requestSingleInstanceLock()) {
     const push = (ch) => (payload) => ipc.push(ch, payload);
     const prompts = createPrompts({ userDir: dir });
     const files = createFiles({ getProject, shell, push: push(CH.evFiles) });
-    const dashboards = createDashboards({ getProject, push: push(CH.evDashboard) });
+    const dashboards = createDashboards({ getProject, push: push(CH.evDashboard), updateProject: (id, patch) => projects.update(id, patch) });
     const prereq = createPrereq({ push: push(CH.evInstall), recheck: () => poller.poll(true) });
     const auth = createAuth({ health });
     const remote = createRemote({
       getProject, push: push(CH.evRemote),
-      findExe: (agent) => (agent === 'agy' ? health.findAgy() : health.findClaude()),
+      findExe: (agent) => (findCli(agent)),
     });
     const methodologies = createMethodologies({ userDir: dir, dialog, getWindow: () => win, getProject });
     const recorder = createRecorder({ history, getProject });
@@ -94,7 +98,7 @@ if (!app.requestSingleInstanceLock()) {
       emit: (projectId, state) => ipc?.push(CH.evMethod, { projectId, state }),
     });
     const login = createLoginManager({
-      resolveCli: (agent) => (agent === 'agy' ? health.findAgy() : health.findClaude()),
+      resolveCli: (agent) => (findCli(agent)),
       run: runCommand, killTree, emit: (evt) => ipc?.push(CH.evLogin, evt),
     });
     const windowCtl = {

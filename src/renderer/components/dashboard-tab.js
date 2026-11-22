@@ -10,7 +10,7 @@ import { toast } from './modal.js';
 export function dashboardStage(status) {
   if (!status) return 'loading';
   if (!status.python || !status.python.found) return 'python';
-  if (!status.venv || !status.deps) return 'setup';
+  if (!status.deps) return 'setup';
   return status.running && status.url ? 'running' : 'ready';
 }
 
@@ -28,13 +28,13 @@ export function mountDashboardTab(el, { store, api, actions }) {
 
   function setBusy(pid, on) { if (on) busy.add(pid); else busy.delete(pid); render(); }
 
-  async function setup(pid) {
+  async function setup(pid, choice) {
     dashboardJobs.start(pid);
     setBusy(pid, true);
     try {
-      const r = await api.dashboard.setup(pid);
+      const r = await api.dashboard.setup(pid, choice ? { choice } : {});
       dashboardJobs.finish(pid, r && r.ok === false ? t('dashboard.setupFailed') : null);
-      toast(r && r.ok === false ? t('dashboard.setupFailed') : t('dashboard.setupDone'), r && r.ok === false ? 'error' : 'success');
+      toast(r && r.ok === false ? (r.suggestVenv ? t('dashboard.globalDenied') : t('dashboard.setupFailed')) : t('dashboard.setupDone'), r && r.ok === false ? 'error' : 'success');
     } catch (e) {
       dashboardJobs.finish(pid, (e && e.message) || t('dashboard.setupFailed'));
       toast((e && e.message) || t('dashboard.setupFailed'), 'error');
@@ -97,13 +97,20 @@ export function mountDashboardTab(el, { store, api, actions }) {
       const job = dashboardJobs.get(pid);
       const lb = createLogBox(dashboardJobs, pid);
       logs.push(lb);
+      const env = st.env || {};
+      const missing = (env.mode === 'venv' ? env.venvMissing : env.globalMissing) || env.missing || [];
+      const busyNow = job.running || isBusy;
       return [card('dashboard.setupTitle', 'dashboard.setupText',
         h('div', { class: 'row wrap' },
-          h('span', { class: 'badge ' + (st.venv ? 'badge--green' : 'badge--amber') }, h('span', { class: 'badge__dot' }), t('dashboard.venv')),
+          h('span', { class: 'badge ' + (env.active === 'global' ? 'badge--green' : 'badge--amber') }, h('span', { class: 'badge__dot' }), t('dashboard.envGlobal')),
+          h('span', { class: 'badge ' + (st.venv ? 'badge--green' : 'badge') }, h('span', { class: 'badge__dot' }), t('dashboard.venv')),
           h('span', { class: 'badge ' + (st.deps ? 'badge--green' : 'badge--amber') }, h('span', { class: 'badge__dot' }), t('dashboard.deps'))),
+        missing.length ? h('p', { class: 'small muted', text: t('dashboard.missing', { list: missing.join(', ') }) }) : null,
         h('div', { class: 'row wrap' },
-          h('button', { class: 'btn btn--primary', type: 'button', disabled: job.running || isBusy, on: { click: () => setup(pid) } },
-            job.running ? h('span', { class: 'spinner' }) : icon('layers'), t('dashboard.setup'))),
+          h('button', { class: 'btn btn--primary', type: 'button', disabled: busyNow, on: { click: () => setup(pid, 'global') } },
+            job.running ? h('span', { class: 'spinner' }) : icon('download'), t('dashboard.installGlobal')),
+          h('button', { class: 'btn', type: 'button', disabled: busyNow, on: { click: () => setup(pid, 'venv') } }, icon('layers'), t('dashboard.useVenv'))),
+        h('p', { class: 'small faint', text: t('dashboard.choiceHint') }),
         lb.el), h('div', { class: 'dash__pad' }, askAgent())];
     }
     const apps = st.apps || [];

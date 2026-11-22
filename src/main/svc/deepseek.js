@@ -3,6 +3,7 @@
 // The origin is hard-coded (no user-supplied URL = no SSRF).
 import fs from 'node:fs';
 import path from 'node:path';
+import { deepseekEnv, isDeepseekModel } from '../agents/routes.js';
 
 export const ORIGIN = 'https://api.deepseek.com';
 export const TIMEOUT_MS = 10000;
@@ -69,6 +70,18 @@ export function createDeepseek({ dir, settings, safeStorage, fetchFn = (...a) =>
   }
 
   return {
+    /** True when an encrypted key file exists (never reveals it). */
+    hasKey,
+    /**
+     * MAIN ONLY (never exposed over IPC): env for a Claude Code child that runs against DeepSeek's Anthropic endpoint.
+     * -> {env} | {error:'no-key'|'invalid-model'}. The key is decrypted here and only returned to the agent manager, which merges it into the child env.
+     */
+    routeEnv(model) {
+      if (!isDeepseekModel(model)) return { error: 'invalid-model' };
+      const key = readKey();
+      if (!key) return { error: 'no-key' };
+      return { env: deepseekEnv(key, model) };
+    },
     /** key:string|null. null removes it. Nothing is stored unless encryption is available. */
     setKey(key) {
       cache = null;

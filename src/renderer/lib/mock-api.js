@@ -16,6 +16,7 @@ const MOCK_REPLY = [
   '2;\nconsole.log(answer);\n```\n\nDone.',
 ];
 
+import { mockVersions } from './mock-versions.js';
 import { createPhase2 } from './mock-phase2.js';
 import { createPhase3 } from './mock-phase3.js';
 import { createPhase4 } from './mock-phase4.js';
@@ -54,6 +55,7 @@ export function createMockApi() {
   const health = () => ({
     claude: { found: !/#noclaude/.test(location.hash), path: 'C:\\bin\\claude.exe', version: '2.1.0', loggedIn: p4.signed().claude },
     agy: { found: true, path: 'C:\\bin\\agy.exe', version: '0.9.2', loggedIn: p4.signed().agy },
+    opencode: /#opencode/.test(location.hash) ? { found: true, path: 'C:\\bin\\opencode.exe', version: '1.0.0', loggedIn: true } : { found: false, path: null, version: null, loggedIn: null },
     node: p2.flagsHealth().node,
     git: p2.flagsHealth().git,
     python: p2.flagsHealth().python,
@@ -103,7 +105,7 @@ export function createMockApi() {
     const variant = wantsBlocked(location.hash);
     const bproj = projects.find((p) => p.id === projectId);
     if (variant && bproj && bproj.agent === 'claude') {
-      const covered = bproj.mode === 'acceptEdits' || allowCovers(allow, blockedNeeds(bproj.path, variant));
+      const covered = bproj.mode === 'acceptEdits' || bproj.mode === 'auto' || allowCovers(allow, blockedNeeds(bproj.path, variant));
       runScript(projectId, text, blockedScript(bproj.path, variant, covered ? 'allowed' : 'blocked', ++blockedRuns));
       return;
     }
@@ -191,6 +193,7 @@ export function createMockApi() {
       status: async () => ({ isRepo: true, branch: 'main', dirty: 3 }),
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
+    versions: mockVersions(),
     ...p2.api,
     ...p7.api,
     auth: { login: async () => { const r = await p2.api.auth.login(); p4.setSigned('claude', true); return r; } },

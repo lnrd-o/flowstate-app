@@ -34,7 +34,7 @@ export function modelOptions(list, project, dev) {
   return models.map((m) => {
     const isDefault = m.id === 'default' || (!!list.defaultModel && m.id === list.defaultModel);
     return {
-      id: m.id, label: m.name || m.id, sub: dev ? m.id : '', description: m.description || '',
+      id: m.id, label: m.name || m.id, sub: dev ? m.id : '', description: m.description || '', group: m.group || '', disabled: !!m.disabled, needsKey: !!m.needsKey,
       current: m.id === eff || (usingDefault && isDefault), isDefault,
     };
   });
@@ -52,4 +52,17 @@ export function currentModelLabel(list, project, dev, fallback) {
 /** 'not-signed-in' style errors: the picker offers a Sign in button next to the text. */
 export function modelsNeedSignIn(list) {
   return !!(list && typeof list.error === 'string' && /not[- ]signed[- ]in|sign in|login|log in/i.test(list.error));
+}
+
+/** Group key -> display group: 'opencode:<provider>' keeps the provider. Order: claude, gemini, deepseek, opencode. */
+const GROUP_ORDER = ['claude', 'gemini', 'deepseek', 'opencode'];
+export function groupModelOptions(opts) {
+  const out = [];
+  const idx = new Map();
+  for (const o of opts) {
+    const g = o.group || '';
+    if (!idx.has(g)) { const e = { group: g, kind: g.split(':')[0], provider: g.includes(':') ? g.slice(g.indexOf(':') + 1) : '', options: [] }; idx.set(g, e); out.push(e); }
+    idx.get(g).options.push(o);
+  }
+  return out.sort((a, b) => (GROUP_ORDER.indexOf(a.kind) + 1 || 99) - (GROUP_ORDER.indexOf(b.kind) + 1 || 99) || a.group.localeCompare(b.group));
 }

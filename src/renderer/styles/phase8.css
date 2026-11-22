@@ -60,3 +60,7 @@
 /* Long wizard screens scroll inside the dialog: keep the buttons in view. */
 .dialog__footer { position: sticky; bottom: 0; background: var(--bg-panel); }
 .wt-cases { max-height: 210px; }
+
+/* Auto-accept everything: persistent warning badge in the composer */
+.composer__auto-badge { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: var(--fw-medium); }
+.composer.is-auto { box-shadow: 0 0 0 1px var(--amber); }

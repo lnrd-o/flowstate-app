@@ -5,7 +5,7 @@
 // Types (JSDoc):
 //   Agent    = 'claude' | 'agy'
 //   Project  = { id, name, path, agent, mode, sessionId|null, lastOpened: ISO, autoCommit: boolean }
-//   Mode     = 'default' | 'acceptEdits' | 'plan'   (agy mapping: default->accept-edits, acceptEdits->accept-edits, plan->plan)
+//   Mode     = 'default' | 'acceptEdits' | 'plan' | 'auto'   (claude: auto->bypassPermissions; agy: default/acceptEdits->accept-edits, plan->plan, auto->auto)
 //   Settings = { language:'en'|'es', theme:'dark'|'light'|'gold', codeTheme, claudePath|null, agyPath|null,
 //                lastProjectId|null, autoLaunch:boolean, walkthroughDone:boolean, developerMode:boolean (default true) }
 //   agent.send({projectId, text, allow?}) - allow: optional array (max 5) of {tool, pattern} per-turn permission rules for claude
@@ -33,6 +33,12 @@ export const CH = Object.freeze({
   healthCheck: 'health:check',               // () -> Health
   // git
   gitStatus: 'git:status',                   // (projectId) -> {isRepo, branch, dirty:number}
+  // versions (timeline, named versions, compare, restore, branch handler) - see src/main/versions.js
+  versionsList: 'versions:list',             // (projectId, {limit?}) -> {isRepo, current, autoBranch, dirty, commits:[{sha,short,parents,time,subject,files,added,removed,branches,tags,head,auto,merge,agent?,methodology?,prompt?}], branches:[{name,current,ahead,behind,merged,auto,time,subject}], tags:[{name,sha,time,label,note,auto}]}
+  versionsSave: 'versions:save',             // (projectId, {label, note?, ref?}) -> {ok, tag} | {ok:false, reason, message}   checkpoints dirty work, then tags HEAD as checkpoint/<slug>
+  versionsCompare: 'versions:compare',       // (projectId, {from, to='WORKING', path?}) -> {ok, files:[{path,status,added,removed}], added, removed} | with path {ok, diff}
+  versionsRestore: 'versions:restore',       // (projectId, {ref, path?}) -> {ok, safety:tagName} (always checkpoints first; restore safety to undo)
+  versionsBranch: 'versions:branch',         // (projectId, {op:'create'|'switch'|'rename'|'delete'|'previewMerge'|'merge', name, from?, to?}) -> {ok,...} | {ok:false, reason, message, conflicts?}
   gitUndoTurn: 'git:undo-turn',              // (projectId) -> {ok, message}
   // ---- Phase 2 ----
   // prompt templates (see Template below)
@@ -45,10 +51,11 @@ export const CH = Object.freeze({
   filesRead: 'files:read',                   // (projectId, rel) -> {kind:'text'|'image'|'html'|'markdown'|'binary', content?, dataUrl?, size, truncated, lang?}
   filesReveal: 'files:reveal',               // (projectId, rel) -> void   (show in Explorer)
   filesOpen: 'files:open',                   // (projectId, rel) -> void   (open with default app, e.g. html in browser; refuse .exe/.bat/.cmd/.ps1/.lnk etc.)
+  filesPreview: 'files:preview',             // (projectId, rel) -> typed preview {type:'text'|'markdown'|'html'|'json'|'image'|'pdf'|'csv'|'xlsx'|'pptx'|'docx'|'archive'|'generic', size, name, ext, ...payload}; caps + path guards as files:read
   filesWatch: 'files:watch',                 // (projectId) -> void   (switches the single active watcher to this project)
   // dashboards (Python venv per project, Streamlit on 127.0.0.1)
   dashboardStatus: 'dashboard:status',       // (projectId) -> {python:{found,version}, venv:boolean, deps:boolean, running:boolean, url:string|null, app:string|null, apps:string[]}
-  dashboardSetup: 'dashboard:setup',         // (projectId) -> {ok}   creates .venv and pip installs streamlit plotly pandas; progress via evDashboard
+  dashboardSetup: 'dashboard:setup',         // (projectId, {choice?:'global'|'venv'}) -> {ok, env?, needsChoice?, missing?, suggestVenv?}   Python packages: GLOBAL when they satisfy; installs nothing in pythonEnv 'auto' without a choice; choice is remembered as project.pythonEnv; progress via evDashboard
   dashboardStart: 'dashboard:start',         // (projectId, appRel) -> {url}   `.venv\Scripts\python -m streamlit run <app> --server.address 127.0.0.1 --server.headless true --browser.gatherUsageStats false`
   dashboardStop: 'dashboard:stop',           // (projectId) -> void
   // prerequisites / auth
@@ -220,8 +227,9 @@ export const API_SHAPE = Object.freeze({
   agent: ['send', 'stop', 'status'],
   health: ['check'],
   git: ['status', 'undoTurn'],
+  versions: ['list', 'save', 'compare', 'restore', 'branch'],
   prompts: ['list', 'save', 'delete', 'export'],
-  files: ['list', 'read', 'reveal', 'open', 'watch', 'pick', 'import'],
+  files: ['list', 'read', 'preview', 'reveal', 'open', 'watch', 'pick', 'import'],
   dashboard: ['status', 'setup', 'start', 'stop'],
   prereq: ['install'],
   auth: ['login'],

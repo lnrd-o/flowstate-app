@@ -9,7 +9,8 @@ import { runCommand } from './run.js';
 import { killTree, childSpawnOptions } from './agents/base.js';
 import { openTerminal } from './terminal.js';
 
-const MODES = { default: 'default', acceptEdits: 'acceptEdits', plan: 'plan' };
+// remote sessions are unattended-by-others: 'auto' is deliberately NOT forwarded (falls back to acceptEdits).
+const MODES = { default: 'default', acceptEdits: 'acceptEdits', plan: 'plan', auto: 'acceptEdits' };
 const MAX_INFO_LINES = 40;
 
 const cleanName = (n) => {
@@ -128,6 +129,7 @@ export function createRemote({
     },
     async start(projectId) {
       const p = need(projectId);
+      if (p.agent === 'opencode') throw new Error('Remote control is not available for opencode');
       return p.agent === 'agy' ? startAgy(p) : startClaude(p);
     },
     async stop(projectId) {

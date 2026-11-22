@@ -142,7 +142,7 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     code.addEventListener('change', () => { paint(code.value); actions.updateSettings({ codeTheme: code.value }); });
 
     const pathInput = (id, key) => {
-      const inp = h('input', { class: 'input mono', id, type: 'text', value: s[key] || '', placeholder: 'C:\\...\\' + (key === 'claudePath' ? 'claude.exe' : 'agy.exe'), spellcheck: false });
+      const inp = h('input', { class: 'input mono', id, type: 'text', value: s[key] || '', placeholder: 'C:\\...\\' + (key === 'claudePath' ? 'claude.exe' : key === 'opencodePath' ? 'opencode.exe' : 'agy.exe'), spellcheck: false });
       inp.addEventListener('change', () => actions.updateSettings({ [key]: inp.value.trim() || null }));
       return inp;
     };
@@ -183,6 +183,7 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       deepseekSection(),
       field(t('settings.claudePath'), pathInput('set-claude-path', 'claudePath'), t('settings.pathHint')),
       field(t('settings.agyPath'), pathInput('set-agy-path', 'agyPath'), t('settings.pathHint')),
+      field(t('settings.opencodePath'), pathInput('set-opencode-path', 'opencodePath'), t('settings.pathHint')),
       h('label', { class: 'toggle', for: 'set-autolaunch' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('settings.autoLaunch') })),
       h('div', null, redo));
 

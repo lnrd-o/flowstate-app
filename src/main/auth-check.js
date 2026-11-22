@@ -28,6 +28,17 @@ export function isAgyLoggedInOutput(text) {
   return null;
 }
 
+/**
+ * opencode: `opencode auth list` prints "N credentials" (plus provider lines) and, from env, "N environment variables".
+ * @returns {boolean|null} true when at least one credential/env key is configured; null when inconclusive
+ */
+export function isOpencodeLoggedInOutput(text) {
+  const t = stripAnsi(String(text ?? ''));
+  const nums = [...t.matchAll(/(\d+)\s+(?:credentials?|environment variables?)/gi)].map((m) => Number(m[1]));
+  if (nums.length) return nums.some((n) => n > 0);
+  return null;
+}
+
 /** First https URL in (ANSI-stripped) text, trailing punctuation trimmed; null if none. */
 export function extractFirstUrl(text) {
   const m = /https:\/\/[^\s"'<>\x1b\x00-\x1f]+/.exec(stripAnsi(String(text ?? '')));

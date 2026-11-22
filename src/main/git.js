@@ -9,6 +9,15 @@ export function isSecretPath(p) {
   return SECRET_RE.some((r) => r.test(base));
 }
 
+/** Trailer paragraph recording who made an auto-commit (read back by the Versions timeline). */
+export function commitTrailers(meta) {
+  const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const lines = [];
+  if (meta?.agent && clean(meta.agent)) lines.push(`Flowstate-Agent: ${clean(meta.agent)}`);
+  if (meta?.methodology && clean(meta.methodology)) lines.push(`Flowstate-Methodology: ${clean(meta.methodology)}`);
+  return lines.join('\n');
+}
+
 export function commitMessage(prompt) {
   return `${COMMIT_PREFIX} ${String(prompt ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)}`.trim();
 }
@@ -60,7 +69,7 @@ export function createGit({ run = runCommand, gitCmd = 'git' } = {}) {
       const r = await g(cwd, ['init']);
       return { ok: r.code === 0, created: r.code === 0, message: r.stderr };
     },
-    async autoCommit(cwd, prompt) {
+    async autoCommit(cwd, prompt, meta = null) {
       if (!(await isRepo(cwd))) return { committed: false, reason: 'not-repo' };
       const id = await identityArgs(cwd);
       if (!(await hasCommits(cwd))) {
@@ -78,7 +87,8 @@ export function createGit({ run = runCommand, gitCmd = 'git' } = {}) {
       const add = await g(cwd, ['add', '-A', '--', ...files.map((f) => f.path)]);
       if (add.code !== 0) return { committed: false, reason: 'add-failed', message: add.stderr };
       if ((await g(cwd, ['diff', '--cached', '--quiet'])).code === 0) return { committed: false, reason: 'clean' };
-      const c = await g(cwd, [...id, 'commit', '-m', commitMessage(prompt)]);
+      const tr = commitTrailers(meta);
+      const c = await g(cwd, [...id, 'commit', '-m', commitMessage(prompt), ...(tr ? ['-m', tr] : [])]);
       return c.code === 0 ? { committed: true, branch: AUTO_BRANCH } : { committed: false, reason: 'commit-failed', message: c.stderr };
     },
     async undoTurn(cwd) {

@@ -121,13 +121,18 @@ export function openSetupWizard({ store, api, actions }) {
 
   function helpersStep() {
     const signed = store.get().signedIn;
+    const oc = store.get().health && store.get().health.opencode;
     const rows = helperRows(signed).map((r) => {
+      if (r.id === 'opencode' && !(oc && oc.found)) { // optional third helper: not installed -> install hint, no sign-in button
+        return h('div', { class: 'list-row' }, h('div', { class: 'list-row__main list-row__main--wrap' }, h('div', { class: 'list-row__title', text: t('agent.opencode') }),
+          h('div', { class: 'list-row__sub list-row__sub--wrap', text: t('walkthrough.hint.opencode') })));
+      }
       const c = statusChip(r.signed);
       return h('div', { class: 'list-row' },
         h('div', { class: 'list-row__main list-row__main--wrap' }, h('div', { class: 'list-row__title', text: t('agent.' + r.id) }),
           h('div', { class: 'list-row__sub list-row__sub--wrap', text: t('setup.helpers.' + r.id) })),
         chip(c.tone, t(c.key)),
-        r.signed === true ? null : h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(r.id) } }));
+        r.signed === true || r.id === 'opencode' ? null : h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(r.id) } }));
     });
     return [h('p', { text: t('setup.helpersText') }), h('div', { class: 'card card--flush' }, ...rows),
       h('div', { class: helpersState(signed) === 'ready' ? 'faint small' : 'wt-note', attrs: { role: 'status' }, text: t(helpersState(signed) === 'ready' ? 'setup.helpersReady' : 'setup.helpersLater') }),

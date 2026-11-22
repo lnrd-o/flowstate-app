@@ -7,7 +7,7 @@ Renderer (sandboxed, vanilla ES modules)           Main process (Node)
                                                             +-- agents/manager.js  one child per project
                                                             |     claude.js / agy.js  -> normalise to shared/events.js
                                                             +-- projects.js, settings.js, history.js (JSONL)
-                                                            +-- git.js (auto-commit on claude/auto, undo turn)
+                                                            +-- git.js (auto-commit on claude/auto, undo turn); versions.js via svc/versions.js (timeline, named versions = checkpoint/* tags, compare, restore, branch handler)
                                                             +-- health.js (CLIs, auth, VPN adapters, reachability)
                                                             +-- files.js (path-guarded list/read/watch/open)
                                                             +-- prompts.js, dashboards.js, prereq.js, auth.js, remote.js

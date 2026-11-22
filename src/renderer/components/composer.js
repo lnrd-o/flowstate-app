@@ -9,8 +9,12 @@ import { mountModelPicker } from './model-picker.js';
 import { suggestionChips } from '../lib/images.js';
 import { toast } from './modal.js';
 
-const MODES = ['default', 'acceptEdits', 'plan'];
-const AGENTS = ['claude', 'agy'];
+const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
+const AGENTS = ['claude', 'agy', 'opencode'];
+/** Agents offered in the switch: opencode only when detected (or already this project's agent). */
+export function visibleAgents(project, health) {
+  return AGENTS.filter((a) => a !== 'opencode' || (health && health.opencode && health.opencode.found) || (project && project.agent === 'opencode'));
+}
 
 /** Why sending is blocked, as an i18n key + vars (or null). Pure; exported for tests of the logic. */
 export function sendBlockReason(project, health, signedIn) {
@@ -20,6 +24,7 @@ export function sendBlockReason(project, health, signedIn) {
   const a = health[project.agent];
   if (a && !a.found) return { key: 'composer.disabledMissing', vars: { agent: t('agent.' + project.agent) } };
   const known = signedIn && typeof signedIn[project.agent] === 'boolean' ? signedIn[project.agent] : (a ? a.loggedIn : null);
+  if (known === false && project.agent === 'opencode') return { key: 'composer.disabledLoginOpencode' };
   if (known === false) return { key: project.agent === 'agy' ? 'composer.disabledLoginAgy' : 'composer.disabledLogin', signIn: true };
   return null;
 }
@@ -45,8 +50,12 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     ...MODES.map((m) => h('option', { value: m, text: t('mode.' + m) })));
   modeSelect.addEventListener('change', () => {
     const p = activeProject(store.get());
-    if (p) actions.updateProject(p.id, { mode: modeSelect.value });
+    if (!p) return;
+    const want = modeSelect.value;
+    // setMode may ask for confirmation ('auto'); whatever the outcome, repaint from the stored project.
+    Promise.resolve(actions.setMode ? actions.setMode(p.id, want) : actions.updateProject(p.id, { mode: want })).finally(() => render());
   });
+  const autoBadge = h('span', { class: 'badge badge--amber composer__auto-badge', hidden: true, attrs: { role: 'status' } });
   const send = h('button', { class: 'composer__send', type: 'button' });
   const att = createAttachments({
     api, getProjectId: () => store.get().activeProjectId, notify: (m, k, ms) => toast(m, k, ms), onChange: () => render(),
@@ -59,7 +68,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   const composer = h('div', { class: 'composer' },
     att.strip, agyHint,
     input,
-    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, att.input), h('div', { class: 'composer__actions' }, attachBtn, send)));
+    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, autoBadge, att.input), h('div', { class: 'composer__actions' }, attachBtn, send)));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
   const hintText = h('span', { class: 'composer__hint-text' });
   const hintBtn = h('button', { class: 'btn btn--sm composer__signin', type: 'button', hidden: true });
@@ -205,6 +214,11 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     composer.dataset.agent = p ? p.agent : '';
     composer.classList.toggle('is-running', running);
     modeSelect.value = p ? p.mode : 'default';
+    const isAuto = !!p && p.mode === 'auto';
+    autoBadge.hidden = !isAuto;
+    autoBadge.replaceChildren(icon('alert'), ' ' + t('mode.autoBadge'));
+    autoBadge.title = t('mode.autoBadgeTitle');
+    composer.classList.toggle('is-auto', isAuto);
     modeSelect.disabled = !p || running;
     modeSelect.setAttribute('aria-label', t('mode.label'));
     send.replaceChildren(icon(running ? 'stop' : 'send'));

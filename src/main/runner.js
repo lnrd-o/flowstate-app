@@ -152,7 +152,7 @@ export function createRunner({ dir, getProject, getMethodology, agents, git, emi
         const text = sub(node.text);
         if (!text.trim()) { mark('error', 'Empty prompt'); throw new Error('Prompt is empty'); }
         const req = { projectId: project.id, text };
-        if (node.agent === 'claude' || node.agent === 'agy') req.agent = node.agent;
+        if (node.agent === 'claude' || node.agent === 'agy' || node.agent === 'opencode') req.agent = node.agent;
         if (node.mode === 'default' || node.mode === 'acceptEdits' || node.mode === 'plan') req.mode = node.mode;
         const turn = new Promise((resolve) => { run.turn = resolve; });
         try { await agents.send(req); } catch (e) { run.turn = null; mark('error', e.message); throw e; }
@@ -185,7 +185,7 @@ export function createRunner({ dir, getProject, getMethodology, agents, git, emi
       }
       case 'git-commit': {
         let r;
-        try { r = await git.autoCommit(project.path, sub(node.message)); } catch (e) { mark('error', e.message); throw e; }
+        try { r = await git.autoCommit(project.path, sub(node.message), { methodology: run.state.methodologyId }); } catch (e) { mark('error', e.message); throw e; }
         if (r.committed) mark('done', 'committed');
         else if (r.reason === 'clean') mark('done', 'nothing to commit');
         else if (r.reason === 'not-repo') mark('warn', 'not a git repository');

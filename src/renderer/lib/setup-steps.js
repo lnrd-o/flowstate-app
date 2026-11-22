@@ -38,7 +38,7 @@ export function toolRows(health) {
 
 /** Agent rows { id, signed } for the AI-helpers step; at least one signed in = 'ready', none = 'later' (never blocks). */
 export function helperRows(signedIn) {
-  return ['claude', 'agy'].map((id) => ({ id, signed: signedIn ? signedIn[id] : null }));
+  return ['claude', 'agy', 'opencode'].map((id) => ({ id, signed: signedIn ? signedIn[id] : null }));
 }
 export function helpersState(signedIn) {
   return helperRows(signedIn).some((r) => r.signed === true) ? 'ready' : 'later';

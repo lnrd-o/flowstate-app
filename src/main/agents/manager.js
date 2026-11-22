@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 import { ClaudeAdapter } from './claude.js';
 import { AgyAdapter } from './agy.js';
+import { OpencodeAdapter } from './opencode.js';
+import { routeOf } from './routes.js';
 import { createChangeTracker } from '../changes.js';
 import { sanitizeAllow } from '../permissions.js';
 import { loadAttachmentImages } from '../svc/attachments.js';
@@ -10,8 +12,10 @@ import { loadAttachmentImages } from '../svc/attachments.js';
  *  projects {get, update}, resolveLauncher(agent) -> Promise<{command, baseArgs?}|null>, emit(projectId, event),
  *  git {autoCommit}, spawn, kill, history {recordUser}.
  */
-export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker() }) {
-  const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter() };
+export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker(), routeEnv, contextNote }) {
+  // contextNote(project, text) -> Promise<string|null> : short note appended to the prompt sent to the agent (never stored in history), e.g. which Python interpreter to use.
+  // routeEnv(project, route) -> {env}|{error}|null : per-turn child env for a route (DeepSeek key from safeStorage). Main only; the key never leaves it.
+  const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter(), opencode: new OpencodeAdapter() };
   const running = new Map(); // projectId -> handle | null (starting)
   const committing = new Map(); // projectId -> Promise (auto-commit after a finished turn)
   const finished = new Set(); // projectIds whose current turn already emitted result/error (process may still be exiting)
@@ -49,8 +53,22 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       if (running.has(projectId)) throw new Error('Agent already running for this project');
       const adapter = ad[project.agent];
       if (!adapter) throw new Error(`Unknown agent: ${project.agent}`);
+      // Resume ids are not portable between routes: a session started on another route is dropped (fresh session + visible note).
+      const route = routeOf(project);
+      let routeNote = false;
+      if (project.sessionId && (base.sessionRoute ?? 'anthropic') !== route && !(project.agent !== 'claude' && base.sessionRoute == null)) { project.sessionId = null; routeNote = true; }
+      let extraEnv;
+      if (routeEnv) {
+        const r = await routeEnv(project, route);
+        if (r?.error) throw new Error(r.error);
+        extraEnv = r?.env;
+      }
       let imgs = [];
       if (images !== undefined) imgs = loadAttachmentImages(project, images, { withData: project.agent === 'claude' }); // throws before anything starts
+      let runText = text;
+      if (contextNote) { try { const note = await contextNote({ ...project, id: projectId }, text); if (note) runText = `${text}
+
+${note}`; } catch { /* best effort */ } }
       running.set(projectId, null);
       meta.set(projectId, { agent: project.agent, startedAt: Date.now(), pid: null });
       let handle;
@@ -58,16 +76,17 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         const launcher = await resolveLauncher(project.agent);
         if (!launcher) throw new Error(`${project.agent} executable not found`);
         handle = adapter.run({
-          project, text, launcher, spawn, kill, images: imgs,
+          project, text: runText, launcher, spawn, kill, images: imgs, env: extraEnv,
           emit: (event) => {
             if (event?.type === 'result' || event?.type === 'error') finished.add(projectId);
             let extra = [];
             try { extra = changes.observe({ ...project, id: projectId }, event) ?? []; } catch { /* best effort */ }
-            emit(projectId, event, { agent: project.agent });
-            for (const fc of extra) emit(projectId, fc, { agent: project.agent }); // file-change goes out right after the tool-result that produced it
+            emit(projectId, event, { agent: project.agent, route });
+            for (const fc of extra) emit(projectId, fc, { agent: project.agent, route }); // file-change goes out right after the tool-result that produced it
           },
           onSession: (sessionId) => {
-            if (!switched && projects.get(projectId)?.sessionId !== sessionId) projects.update(projectId, { sessionId });
+            const cur = projects.get(projectId);
+            if (!switched && (cur?.sessionId !== sessionId || cur?.sessionRoute !== route)) projects.update(projectId, { sessionId, sessionRoute: route });
           },
         });
       } catch (e) {
@@ -77,6 +96,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         throw e;
       }
       running.set(projectId, handle);
+      if (routeNote) { try { emit(projectId, { type: 'notice', key: 'chat.routeChanged' }, { agent: project.agent }); } catch { /* best effort */ } }
       const m = meta.get(projectId);
       if (m) m.pid = handle.child?.pid ?? null;
       try { history?.recordUser(projectId, text, imgs.map((i) => i.rel)); } catch { /* best effort */ }
@@ -88,7 +108,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         if (r.ok && project.autoCommit && git) {
           // Tracked in `committing` (same tick as the delete above, so status() never flickers to idle).
           commitStart.set(projectId, { agent: project.agent, startedAt: Date.now() });
-          const p = Promise.resolve().then(() => git.autoCommit(project.path, text)).catch(() => { /* best effort */ })
+          const p = Promise.resolve().then(() => git.autoCommit(project.path, text, { agent: project.agent })).catch(() => { /* best effort */ })
             .finally(() => { committing.delete(projectId); commitStart.delete(projectId); });
           committing.set(projectId, p);
         }

@@ -100,10 +100,16 @@ export function createPhase7({ projects, getSettings, addProject, emitAgent, get
   const efforts = ['low', 'medium', 'high', 'xhigh', 'max'];
   const models = {
     list: async (agent) => {
-      if (agent === 'claude') { await sleep(120); return { agent, source: 'static', models: clone(CLAUDE_MODELS), efforts, defaultModel: 'default' }; }
+      if (agent === 'claude') {
+        await sleep(120);
+        const keyed = !!ds.key;
+        const dsm = ['deepseek-chat', 'deepseek-reasoner'].map((id) => ({ id, name: id === 'deepseek-chat' ? 'DeepSeek Chat' : 'DeepSeek Reasoner', group: 'deepseek', ...(keyed ? {} : { disabled: true, needsKey: true }) }));
+        return { agent, source: 'static', models: [...clone(CLAUDE_MODELS).map((m) => ({ ...m, group: 'claude' })), ...dsm], efforts, defaultModel: 'default' };
+      }
+      if (agent === 'opencode') { await sleep(200); return { agent, source: 'live', efforts: [], models: [{ id: 'anthropic/claude-sonnet-4', name: 'claude-sonnet-4', group: 'opencode:anthropic' }, { id: 'deepseek/deepseek-chat', name: 'deepseek-chat', group: 'opencode:deepseek' }] }; }
       await sleep(700);
       if (!isSigned('agy')) return { agent, source: 'live', models: [], efforts, error: 'not-signed-in' };
-      return { agent, source: 'live', models: clone(AGY_MODELS.map((m, i) => ({ ...m, current: i === 0 }))), efforts, defaultModel: 'gemini-3-pro' };
+      return { agent, source: 'live', models: clone(AGY_MODELS.map((m, i) => ({ ...m, group: 'gemini', current: i === 0 }))), efforts, defaultModel: 'gemini-3-pro' };
     },
   };
 

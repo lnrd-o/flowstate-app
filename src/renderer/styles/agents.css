@@ -164,3 +164,21 @@
 .tc-term__pre, .tc-preview, .tc-raw, .approval-raw, .tc-info__line, .tool-card__body { color: var(--c-fg, var(--text)); }
 .tc-term__cmd { color: var(--c-fg, var(--text)); font-weight: var(--fw-semibold); }
 .tc-term__tools, .tc-term__tools .btn, .code-block__header .btn { color: var(--c-comment, var(--text-2)); }
+
+/* opencode: teal terminal mark (third agent; Claude stays orange, AGY keeps the Gemini colours) */
+:root { --opencode: #2FB8A6; --opencode-soft: rgba(47, 184, 166, 0.16); --opencode-text: #5FD3C3; }
+:root[data-theme="light"] { --opencode: #1C9C8B; --opencode-soft: rgba(28, 156, 139, 0.14); --opencode-text: #0F6F62; }
+.agent-icon--opencode .ai-oc-frame { fill: none; stroke: var(--opencode); stroke-width: 2; }
+.agent-icon--opencode .ai-oc-glyph { fill: none; stroke: var(--opencode); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.agent-icon--opencode.is-running .ai-oc-cursor { animation: fs-breathe 1s ease-in-out infinite; transform-origin: 15px 15.5px; }
+.live-status--opencode .live-status__text { color: var(--opencode-text); }
+.seg-agent__item--opencode.is-active { border-color: var(--opencode); box-shadow: 0 0 0 3px var(--opencode-soft); }
+.composer[data-agent="opencode"].is-running { border-color: var(--opencode); }
+.nav-item__dot--opencode, .dot--agent.dot--opencode { background: var(--opencode); }
+.titlebar__agent--opencode { border-color: var(--opencode); background: var(--opencode-soft); }
+.tool-card[data-agent="opencode"]::before { background: var(--opencode); }
+.rp[data-agent="opencode"] { border-top: 2px solid var(--opencode); }
+/* model picker provider groups */
+.mp__group { padding: 6px 12px 2px; font-size: var(--fs-xs, 11px); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3, var(--text-2)); }
+.mp__item[disabled] { opacity: 0.55; cursor: not-allowed; }
+.mp__item-need { color: var(--amber-text, var(--text-2)); font-size: var(--fs-xs, 11px); }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classifyBlocked, reasonOf, blockedItems, ruleFor, allowPlan, validPattern, describeItem, whyKey, itemCommand, RETRY_NOTE, stripRetryNote,
+  classifyBlocked, reasonOf, blockedItems, ruleFor, projectModeFor, allowPlan, validPattern, describeItem, whyKey, itemCommand, RETRY_NOTE, stripRetryNote,
 } from '../../src/renderer/lib/approvals.js';
 import { sanitizeAllow } from '../../src/main/permissions.js';
 import { createChatState, addUserMessage, reduceEvent, resolvePermission } from '../../src/renderer/lib/events.js';
@@ -84,7 +84,11 @@ test('ruleFor: exact command for shells, exact path for file tools, null otherwi
   assert.deepEqual(ruleFor({ tool: 'Bash', input: { command: ' python hello.py ' } }), { tool: 'Bash', pattern: 'python hello.py' });
   assert.deepEqual(ruleFor({ tool: 'Write', input: { file_path: 'C:\\p\\hello.py' } }), { tool: 'Write', pattern: 'C:\\p\\hello.py' });
   assert.deepEqual(ruleFor({ tool: 'Edit', input: { file_path: 'a/b.js' } }), { tool: 'Edit', pattern: 'a/b.js' });
-  assert.equal(ruleFor({ tool: 'WebFetch', input: { url: 'https://x' } }), null);
+  assert.equal(ruleFor({ tool: 'WebFetch', input: { url: 'https://x' } }), null); // no valid host (no dot)
+  assert.deepEqual(ruleFor({ tool: 'WebFetch', input: { url: 'https://Docs.Example.com/a?b=1' } }), { tool: 'WebFetch', pattern: 'domain:docs.example.com' });
+  assert.equal(ruleFor({ tool: 'WebFetch', input: { url: 'file:///C:/x' } }), null);
+  assert.deepEqual(ruleFor({ tool: 'WebSearch', input: { query: 'cats' } }), { tool: 'WebSearch', pattern: '' });
+  assert.equal(ruleFor({ tool: 'Bash', input: { command: 'echo hi > b.txt' } }), null); // redirect writes ignore command rules
   assert.equal(ruleFor({ tool: 'Bash', input: { command: 'echo (whoami)' } }), null);
   assert.equal(ruleFor({ tool: 'Bash', input: { command: 'rm -rf *' } }), null);
   assert.equal(ruleFor({ tool: 'Bash', input: { command: 'a\nb' } }), null);
@@ -94,7 +98,9 @@ test('ruleFor: exact command for shells, exact path for file tools, null otherwi
 
 test('every rule ruleFor builds is accepted by the main-process sanitizer', () => {
   const rules = [ruleFor({ tool: 'PowerShell', input: { command: 'python hello.py' } }), ruleFor({ tool: 'Write', input: { file_path: 'C:\\p\\a.txt' } })];
-  assert.deepEqual(sanitizeAllow(rules), ['PowerShell(python hello.py)', 'Write(C:\\p\\a.txt)']);
+  // Write(...) rules never match in claude; file tools are emitted as Edit(...) (verified on claude 2.1.330)
+  rules.push(ruleFor({ tool: 'WebFetch', input: { url: 'https://example.com/x' } }), ruleFor({ tool: 'WebSearch', input: { query: 'q' } }));
+  assert.deepEqual(sanitizeAllow(rules), ['PowerShell(python hello.py)', 'Edit(C:\\p\\a.txt)', 'WebFetch(domain:example.com)', 'WebSearch']);
 });
 
 test('allowPlan: once for claude when all selected are narrowable; switch otherwise; none when empty', () => {
@@ -132,4 +138,15 @@ test('retry note is stripped before a second retry', () => {
   const once = 'make hello\n\n' + RETRY_NOTE;
   assert.equal(stripRetryNote(once), 'make hello');
   assert.equal(stripRetryNote('plain'), 'plain');
+});
+
+test('web items: plain-language description, kinds, project mode', () => {
+  const fetchItem = { id: 'w1', tool: 'WebFetch', kind: 'web', input: { url: 'https://docs.example.com/x' }, msg: null };
+  assert.deepEqual(describeItem(fetchItem, ''), { key: 'approval.wants.fetch', vars: { site: 'docs.example.com' } });
+  assert.deepEqual(describeItem({ id: 'w2', tool: 'WebSearch', kind: 'web', input: { query: 'q' }, msg: null }, ''), { key: 'approval.wants.search', vars: {} });
+  assert.equal(describeItem({ id: 'w3', tool: 'WebFetch', kind: 'web', input: { url: 'nonsense' }, msg: null }, '').key, 'approval.wants.fetchNoSite');
+  assert.equal(projectModeFor([{ id: 'a', kind: 'write' }, { id: 'b', kind: 'edit' }], null), 'acceptEdits');
+  assert.equal(projectModeFor([{ id: 'a', kind: 'write' }, { id: 'b', kind: 'command' }], null), 'auto');
+  assert.equal(projectModeFor([fetchItem], null), 'auto');
+  assert.equal(allowPlan([fetchItem], null, 'claude').mode, 'once');
 });

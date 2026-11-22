@@ -309,9 +309,33 @@ const actions = {
       const updated = await api.projects.update(id, patch);
       store.set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, ...updated } : p)) }));
       if (patch.agent) actions.loadModels(patch.agent);
+      return true;
     } catch {
       toast(t('errors.saveFailed'), 'error');
+      return false;
     }
+  },
+  /**
+   * Change a project's permission mode. 'auto' (Auto-accept everything) asks once per project (remembered in the project's
+   * .flowstate state) with a risk warning first. Applies to the NEXT turn (main reads the stored project on every send).
+   * @returns {Promise<boolean>} true when the mode is now set
+   */
+  async setMode(id, mode) {
+    const p = store.get().projects.find((x) => x.id === id);
+    if (!p) return false;
+    if (mode === p.mode) return true;
+    if (mode === 'auto') {
+      let known = false;
+      try { const ui = api.ui && api.ui.projectGet ? await api.ui.projectGet(id) : null; known = !!(ui && ui.autoAcceptOk === true); } catch { known = false; }
+      if (!known) {
+        const ok = await confirmDialog({
+          title: t('mode.autoConfirmTitle'), message: t('mode.autoConfirm', { agent: t('agent.' + p.agent) }), confirmLabel: t('mode.autoConfirmOk'), danger: true,
+        });
+        if (!ok) return false;
+        try { if (api.ui && api.ui.projectSet) await api.ui.projectSet(id, { autoAcceptOk: true }); } catch { /* the choice still applies; it will just ask again */ }
+      }
+    }
+    return actions.updateProject(id, { mode });
   },
   async updateSettings(patch) {
     const prevLang = store.get().settings.language;
@@ -361,18 +385,29 @@ const actions = {
     store.updateChat(p.id, (c) => resolvePermission(c, approvalId, 'allowed'));
     await actions.send(stripRetryNote(chat.lastPrompt) + '\n\n' + RETRY_NOTE, { allow: rules });
   },
-  /** "Allow for this project" (and the only option for AGY / tools that cannot be narrowed): switch to Accept edits, retry. */
-  async allowForProject(approvalId) {
+  /**
+   * "Allow for this project" (and the only option for AGY / actions that cannot be narrowed): switch the project to `mode`
+   * ('acceptEdits' for file changes, 'auto' for commands / web access), then retry. Aborts, leaving the card open, when the
+   * mode could not be saved (never retries under the old mode).
+   */
+  async allowForProject(approvalId, mode) {
     const s = store.get();
     const p = activeProject(s);
     const chat = p && s.chats[p.id];
     if (!p || !chat || !chat.lastPrompt || chat.running) return;
-    const ok = await confirmDialog({
-      title: t('approval.projectConfirmTitle'), message: t('approval.projectConfirm', { agent: t('agent.' + p.agent) }), confirmLabel: t('approval.projectConfirmOk'),
-    });
-    if (!ok) return;
+    const target = mode === 'auto' ? 'auto' : 'acceptEdits';
+    if (p.mode !== target) {
+      if (target === 'auto') {
+        if (!(await actions.setMode(p.id, 'auto'))) return; // the risk dialog is shown by setMode
+      } else {
+        const ok = await confirmDialog({
+          title: t('approval.projectConfirmTitle'), message: t('approval.projectConfirm', { agent: t('agent.' + p.agent) }), confirmLabel: t('approval.projectConfirmOk'),
+        });
+        if (!ok) return;
+        if (!(await actions.updateProject(p.id, { mode: 'acceptEdits' }))) return;
+      }
+    }
     store.updateChat(p.id, (c) => resolvePermission(c, approvalId, 'allowed'));
-    await actions.updateProject(p.id, { mode: 'acceptEdits' });
     await actions.send(stripRetryNote(chat.lastPrompt) + '\n\n' + RETRY_NOTE);
   },
   dismissApproval(approvalId) {
@@ -453,12 +488,13 @@ const actions = {
   },
   async saveDeepseekKey(key) {
     const r = await api.deepseek.setKey(key);
-    if (r && r.ok) await actions.refreshDeepseek(true);
+    if (r && r.ok) { await actions.refreshDeepseek(true); actions.loadModels('claude', { force: true }); } // DeepSeek models become selectable
     return r;
   },
   async removeDeepseekKey() {
     const r = await api.deepseek.setKey(null);
     await actions.refreshDeepseek(true);
+    actions.loadModels('claude', { force: true });
     return r;
   },
   async refreshTasks() {

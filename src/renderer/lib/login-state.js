@@ -1,7 +1,7 @@
 // Pure state for the in-app sign-in flow. LoginEvents (see src/shared/ipc.js Phase 4) reduce into a per-agent view state.
 // phase: 'idle' (nothing running) | 'starting' (login.start sent) | 'waiting' (running, URL/prompt/terminal shown) | 'success' | 'error'
 
-export const AGENTS = ['claude', 'agy'];
+export const AGENTS = ['claude', 'agy', 'opencode'];
 export const MAX_BUFFER = 200000;
 
 export function createLoginView() {
@@ -75,7 +75,7 @@ export function statusChip(loggedIn) {
 }
 
 /** Per-agent signed-in map { claude, agy } (true|false|null) as kept in the store. */
-export function createSignedIn() { return { claude: null, agy: null }; }
+export function createSignedIn() { return { claude: null, agy: null, opencode: null }; }
 
 /** Merge a LoginStatus ({claude:{loggedIn}, agy:{loggedIn}}) into the map. */
 export function applyStatus(map, status) {
@@ -102,7 +102,7 @@ export function applyLoginEvent(map, ev) {
   return map;
 }
 
-function same(a, b) { return a.claude === b.claude && a.agy === b.agy; }
+function same(a, b) { return a.claude === b.claude && a.agy === b.agy && a.opencode === b.opencode; }
 
 /** Error text -> i18n key under login.err.* (unknown -> generic). */
 export function errorKey(error) {

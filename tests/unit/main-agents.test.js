@@ -34,6 +34,7 @@ test('agy args: -p= attached, conversation resume, never always-proceed', () => 
     assert.ok(['plan', 'accept-edits'].includes(args[args.indexOf('--mode') + 1]));
   }
   assert.equal(agyModeFor('plan'), 'plan');
+  assert.equal(agyModeFor('auto'), 'auto');
   assert.equal(agyModeFor('default'), 'accept-edits');
   assert.equal(agyModeFor('acceptEdits'), 'accept-edits');
   const r = a.buildArgs({ mode: 'plan', sessionId: 'c-9' }, '-x');
