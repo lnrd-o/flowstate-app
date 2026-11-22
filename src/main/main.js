@@ -39,7 +39,10 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     const dir = app.getPath('userData');
-    const settings = createSettings({ dir, locale: app.getLocale() });
+    // Auto-detect the language: the user's top PREFERRED system language (Windows display/language list) wins over
+    // Chromium's UI locale, which can lag behind (e.g. 'en-US' on a Spanish PC without a matching locale pack).
+    const sysLocale = (typeof app.getPreferredSystemLanguages === 'function' ? app.getPreferredSystemLanguages()[0] : null) || app.getLocale();
+    const settings = createSettings({ dir, locale: sysLocale });
     const projects = createProjects({ dir });
 
     // Splash first (before the heavier wiring below), then the main window opens hidden and is shown when the renderer calls app:ready.

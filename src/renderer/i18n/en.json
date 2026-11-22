@@ -1310,5 +1310,121 @@
     "title": "Keyboard shortcuts",
     "intro": "Every shortcut of the menu bar. On macOS use Cmd instead of Ctrl.",
     "none": "No shortcuts available."
+  },
+  "setup": {
+    "title": "Set up FlowState",
+    "leaveTitle": "Leave the setup?",
+    "leaveText": "You can run the setup again any time from Settings. Your choices so far are saved.",
+    "leaveYes": "Leave setup",
+    "skipSetup": "Skip setup",
+    "skipStep": "Skip this step",
+    "finishOnly": "Finish",
+    "createFirst": "Create my first project",
+    "optional": "Optional",
+    "steps": {
+      "language": "Language",
+      "welcome": "Welcome",
+      "mode": "How will you use FlowState?",
+      "look": "Look",
+      "helpers": "Your AI helpers",
+      "tools": "Tools",
+      "extras": "Optional extras",
+      "storage": "Where your work is saved",
+      "done": "All set"
+    },
+    "welcomeText": "FlowState is a friendly place to ask an AI helper to work on your files: spreadsheets, web pages, data and research. It keeps everything in one folder, remembers what happened and lets you undo changes. A few quick questions and you are ready.",
+    "modeText": "Pick the view that fits you. You can switch any time from the title bar or Settings.",
+    "lookText": "Choose how FlowState looks. It changes right away.",
+    "helpersText": "FlowState works with AI helpers that run on your PC. You need at least one signed in, but you can also sign in later.",
+    "helpers": {
+      "claude": "Made by Anthropic. The most complete helper.",
+      "agy": "Made by Google (Antigravity)."
+    },
+    "helpersReady": "At least one helper is signed in. You are good to go.",
+    "helpersLater": "No helper is signed in yet. You can continue and sign in later from Settings.",
+    "toolsText": "These small programs help FlowState do its job. Install the ones you are missing, or do it later.",
+    "tools": {
+      "git": "Keeps a safe history of changes so you can always go back.",
+      "node": "Needed by some tools.",
+      "python": "Needed for Excel, data and dashboard work."
+    },
+    "extrasText": "Nothing here is required.",
+    "extras": {
+      "usageTitle": "Usage tracking is automatic",
+      "usageText": "FlowState shows how much of your plan you have used, right in the title bar. There is nothing to set up.",
+      "skip": "You can skip this: it is optional."
+    },
+    "storageText": "Each project lives in its own folder, and new projects are created in a default folder for you.",
+    "storage": {
+      "where": "New projects go in:",
+      "inside": "Inside every project there is a hidden .flowstate folder. Your settings, history and progress are kept there, so they travel with the folder if you move or share it."
+    },
+    "doneText": "Everything is ready. Let us create your first project: just tell us what you need help with."
+  },
+  "vars": {
+    "fileDrop": "Drop a file here or choose it",
+    "fileChoose": "Choose file...",
+    "fileRemove": "Remove {name}",
+    "fileDropHint": "Dropped \"{name}\": please choose the file in the window that opens so FlowState can find it.",
+    "errFile": "Choose a file to continue.",
+    "errText": "Please tell us a little about it."
+  },
+  "wizard": {
+    "title": "New project",
+    "caseBadge": "Case",
+    "steps": {
+      "help": "What you need",
+      "questions": "Questions",
+      "name": "Name",
+      "agent": "AI helper",
+      "ready": "Ready"
+    },
+    "helpTitle": "What do you need help with?",
+    "helpText": "Pick one to get started. The next steps are short.",
+    "quick": {
+      "excel": "An Excel file",
+      "web": "An HTML / web page",
+      "data": "Analyze or build a dashboard from a TXT/CSV file",
+      "research": "Research something online"
+    },
+    "more": "More ideas",
+    "search": "Search ideas...",
+    "filters": "Filter by type",
+    "cat": {
+      "all": "All",
+      "excel": "Excel",
+      "web": "Web page",
+      "data": "Data",
+      "dashboard": "Dashboard",
+      "research": "Research",
+      "document": "Documents",
+      "automation": "Automation",
+      "other": "Other"
+    },
+    "empty": "Empty project",
+    "emptyText": "I will decide later.",
+    "emptyName": "New project",
+    "noMatch": "No ideas match. Try other words.",
+    "pickFirst": "Pick one of the options to continue.",
+    "questionsText": "A few questions about \"{name}\".",
+    "nameText": "Give your project a name. You can change it later.",
+    "nameRequired": "Give the project a name to continue.",
+    "folder": "Folder: {path}",
+    "advanced": "Advanced: choose another folder",
+    "useDefault": "Use the default folder",
+    "agentText": "Pick the AI helper that will work on this project.",
+    "agentTextDev": "Pick the agent for this project. It must be signed in to send messages.",
+    "readyText": "This is what will happen when you press Start.",
+    "sum": {
+      "what": "Project type",
+      "folder": "Folder",
+      "agent": "AI helper",
+      "copied": "Files copied into the project:",
+      "copiedNote": "(into its data folder). Your original files are never changed."
+    },
+    "creating": "Creating your project...",
+    "failed": "Something went wrong: {message}",
+    "retry": "Try again",
+    "start": "Start"
   }
 }

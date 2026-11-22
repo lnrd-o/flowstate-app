@@ -1,0 +1,95 @@
+{
+  "id": "data-analysis",
+  "version": 1,
+  "source": "bundled",
+  "name": {
+    "en": "Analyze a CSV or text file",
+    "es": "Analizar un CSV o archivo de texto"
+  },
+  "description": {
+    "en": "Profiles your data, answers your question and writes a report with charts.",
+    "es": "Revisa tus datos, responde tu pregunta y escribe un informe con gráficos."
+  },
+  "tags": [
+    "case",
+    "data",
+    "analysis"
+  ],
+  "meta": {
+    "kind": "case",
+    "category": "data",
+    "icon": "chart"
+  },
+  "vars": [
+    {
+      "key": "inputFile",
+      "label": {
+        "en": "Your data file (CSV, TSV, TXT, JSON or Excel)",
+        "es": "Tu archivo de datos (CSV, TSV, TXT, JSON o Excel)"
+      },
+      "type": "file",
+      "required": true
+    },
+    {
+      "key": "question",
+      "label": {
+        "en": "What do you want to find out?",
+        "es": "¿Qué quieres averiguar?"
+      },
+      "type": "textarea",
+      "required": true
+    }
+  ],
+  "nodes": [
+    {
+      "id": "work",
+      "type": "prompt",
+      "title": {
+        "en": "Analyse the data",
+        "es": "Analizar los datos"
+      },
+      "text": "Analyse the data file {{inputFile}} (inside data/) to answer this question: {{question}}\n\nDo this:\n1. Profile the data first: rows, columns, types, missing values, duplicates, ranges, odd values and outliers. Do not modify the original.\n2. Answer the question with evidence: the numbers, comparisons and trends that matter. Be honest about limits (small samples, missing data, correlation is not causation).\n3. Make 2 to 5 clear charts with matplotlib, saved as PNG in artifacts/ (titles, labelled axes, readable fonts).\n4. Write artifacts/report.md: the short answer first, then data overview, method in plain words, findings with the charts embedded, caveats and suggested next steps. Also write artifacts/report.html as a single self-contained version (charts embedded as base64 images) that opens offline.\n\nGROUND RULES (follow strictly):\n- Any user-provided input file lives in data/ inside this project. NEVER modify, move or delete the originals: work on copies inside the project.\n- Put every deliverable in artifacts/ (create the folder if needed). Do not write deliverables anywhere else.\n- Prefer Python. Create a virtual environment (python -m venv .venv) and pip install ONLY what you need from: openpyxl pandas xlsxwriter matplotlib python-docx. If Python is not installed or cannot be run, say so plainly in one short message and STOP (do not try to install Python yourself).\n- Do not ask questions mid-way unless you are truly blocked. Instead, make sensible choices and write your assumptions down in the deliverable and in your final message.\n- Write the deliverables and the final message in the same language as the user's request (Spanish or English).\n- Be safe: do not run anything destructive, do not touch files outside this project, do not send data over the network (except where this task explicitly needs web search).\n- FINISH with a short plain-language summary for a non-technical person: what you produced, where it is (exact paths under artifacts/), the assumptions you made, and anything they should double-check."
+    },
+    {
+      "id": "check",
+      "type": "artifact",
+      "title": {
+        "en": "report.md exists",
+        "es": "Existe report.md"
+      },
+      "path": "artifacts/report.md"
+    },
+    {
+      "id": "review",
+      "type": "checkpoint",
+      "title": {
+        "en": "Review the result",
+        "es": "Revisa el resultado"
+      },
+      "message": "Read artifacts/report.md (or open report.html) and check the findings. Approve if they make sense."
+    },
+    {
+      "id": "save",
+      "type": "git-commit",
+      "title": {
+        "en": "Save a version",
+        "es": "Guardar una versión"
+      },
+      "message": "Add data analysis report"
+    }
+  ],
+  "edges": [
+    {
+      "from": "work",
+      "to": "check"
+    },
+    {
+      "from": "check",
+      "to": "review"
+    },
+    {
+      "from": "review",
+      "to": "save"
+    }
+  ]
+}

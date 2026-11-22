@@ -34,7 +34,7 @@ try {
   const pages = t1.filter((x) => x.type === 'page');
   check('after app:ready exactly one page remains and it is index.html (splash closed)', pages.length === 1 && pages[0].url.endsWith('index.html'), pages.map((p) => p.url).join(','));
   const info = await app.call('window.flowstate.app.info()');
-  check('app.info shape', ['name', 'version', 'electron', 'chrome', 'node', 'platform', 'arch', 'userData', 'packaged'].every((k) => k in info) && info.packaged === false && info.name === 'FlowState', J(info));
+  check('app.info shape', ['name', 'version', 'electron', 'chrome', 'node', 'platform', 'arch', 'userData', 'packaged'].every((k) => k in info) && info.packaged === Boolean(process.env.E2E_EXE) && info.name === 'FlowState', J(info));
   check('app.info.userData is the isolated profile', info.userData.toLowerCase() === profileA.toLowerCase(), info.userData);
 
   // ---- 2. models ---------------------------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ try {
   const names = mm.items.map((i) => i.id);
   const recent = mm.items[0].submenu.find((i) => i.dynamic === 'recent');
   check('menu.model has File/Edit/View/Help with the new project as a recent', names.join() === 'file,edit,view,help' && recent.submenu.some((r) => r.id === `file.recent:${p.id}` && r.label === 'Store Test'), J(recent));
-  check('menu.model state', typeof mm.state.developerMode === 'boolean' && mm.state.platform === process.platform && mm.state.packaged === false, J(mm.state));
+  check('menu.model state', typeof mm.state.developerMode === 'boolean' && mm.state.platform === process.platform && mm.state.packaged === Boolean(process.env.E2E_EXE), J(mm.state));
   check('menu.invoke ignores renderer-handled ids and bad ids', (await app.call(`window.flowstate.menu.invoke('file.newProject')`)).ok === false && await app.ev(`try { await window.flowstate.menu.invoke('../x'); return false } catch { return true }`) === true);
 
   // window state: maximize through the real window action, then a graceful quit saves it

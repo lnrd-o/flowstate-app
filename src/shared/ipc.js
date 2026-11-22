@@ -104,7 +104,8 @@ export const CH = Object.freeze({
   // Office cases: bring the user's own files into a project, and a sensible default place for new projects
   filesPick: 'files:pick',                   // ({kind?:'office'|'data'|'any', multi?:boolean}) -> string[]   native open dialog (absolute paths, [] when cancelled); 'office' = xlsx xls csv txt json md docx pdf html
   filesImport: 'files:import',               // (projectId, sourcePath) -> {rel, name, size}   COPIES the file into <project>/data/ (never moves/changes the original; name de-duplicated; <= 200 MB; regular files only; extension allow-list)
-  projectsDefaultDir: 'projects:default-dir',// () -> string   <Documents>/FlowState (created if missing): where new projects go by default
+  projectsNewDir: 'projects:new-dir',        // (title:string) -> {path, folder}   CREATES a fresh folder for a new project inside the default projects folder: folder name from folderNameFromTitle(title, language) (src/shared/folder-name.js), de-duplicated with _2, _3 ...; the user only types the project NAME
+  projectsDefaultDir: 'projects:default-dir',// () -> string   <Documents>/Projects (en) or <Documentos>/Proyectos (es) per current UI language (created if missing): where new projects go by default
   // Boot / lifecycle / about
   appInfo: 'app:info',                       // () -> {name, version, electron, chrome, node, platform, arch, userData, packaged}
   appReady: 'app:ready',                     // () -> void   renderer calls after first render: main hides the splash and shows the window
@@ -215,7 +216,7 @@ export const CH = Object.freeze({
 //   health.check, git.status/undoTurn, onAgentEvent(cb)->unsubscribe, onHealth(cb)->unsubscribe
 export const API_SHAPE = Object.freeze({
   settings: ['get', 'set'],
-  projects: ['list', 'add', 'update', 'remove', 'pickFolder', 'defaultDir'],
+  projects: ['list', 'add', 'update', 'remove', 'pickFolder', 'defaultDir', 'newDir'],
   agent: ['send', 'stop', 'status'],
   health: ['check'],
   git: ['status', 'undoTurn'],

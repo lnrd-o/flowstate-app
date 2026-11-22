@@ -4,6 +4,7 @@ import { h, icon } from '../lib/dom.js';
 import { t, getLanguage } from '../lib/i18n.js';
 import { filterMethods } from '../lib/method-utils.js';
 import { createMethodEditor } from './method-editor.js';
+import { isCase, categoryOf } from '../lib/cases.js';
 
 const SRC_TONE = { bundled: 'badge--muted', user: 'badge--accent', recorded: 'badge--amber' };
 
@@ -22,7 +23,9 @@ export function mountMethods(el, deps) {
     return h('article', { class: 'method-card', attrs: { 'aria-label': name } },
       h('div', { class: 'row between gap-2 method-card__head' },
         h('h3', { class: 'method-card__name truncate', title: name, text: name }),
-        h('span', { class: 'badge ' + (SRC_TONE[m.source] || 'badge--muted'), text: t('method.source.' + m.source) })),
+        h('span', { class: 'row gap-1' },
+          isCase(m) ? h('span', { class: 'badge badge--accent', text: t('wizard.caseBadge') + ' \u00b7 ' + t('wizard.cat.' + categoryOf(m)) }) : null,
+          h('span', { class: 'badge ' + (SRC_TONE[m.source] || 'badge--muted'), text: t('method.source.' + m.source) }))),
       h('div', { class: 'method-card__desc', text: pickText(m.description, L) }),
       (m.tags || []).length ? h('div', { class: 'row wrap gap-1' }, ...m.tags.slice(0, 5).map((g) => h('span', { class: 'badge badge--muted', text: g }))) : null,
       h('div', { class: 'faint small method-card__meta', text: [t('method.nodes', { n: m.nodeCount }), t('method.varsCount', { n: m.varCount }), date ? t('method.updated', { date }) : ''].filter(Boolean).join(' \u00b7 ') }),

@@ -1,0 +1,95 @@
+{
+  "id": "dashboard",
+  "version": 1,
+  "source": "bundled",
+  "name": {
+    "en": "Make a dashboard from my data",
+    "es": "Crear un panel (dashboard) con mis datos"
+  },
+  "description": {
+    "en": "Builds one offline HTML dashboard with KPI cards, charts and filters from your data file.",
+    "es": "Arma un dashboard HTML que funciona sin internet, con tarjetas de indicadores, gráficos y filtros a partir de tus datos."
+  },
+  "tags": [
+    "case",
+    "dashboard",
+    "data"
+  ],
+  "meta": {
+    "kind": "case",
+    "category": "dashboard",
+    "icon": "chart"
+  },
+  "vars": [
+    {
+      "key": "inputFile",
+      "label": {
+        "en": "Your data file (CSV or Excel)",
+        "es": "Tu archivo de datos (CSV o Excel)"
+      },
+      "type": "file",
+      "required": true
+    },
+    {
+      "key": "what",
+      "label": {
+        "en": "What should the dashboard show?",
+        "es": "¿Qué debe mostrar el dashboard?"
+      },
+      "type": "textarea",
+      "required": true
+    }
+  ],
+  "nodes": [
+    {
+      "id": "work",
+      "type": "prompt",
+      "title": {
+        "en": "Build the dashboard",
+        "es": "Construir el dashboard"
+      },
+      "text": "Build a dashboard from the data file {{inputFile}} (inside data/). What it should show: {{what}}\n\nRequirements:\n- ONE self-contained HTML file: artifacts/dashboard.html. Embed the data (aggregated if large) as JSON inside the file, and draw the charts with inline JavaScript using SVG or canvas. No external network: no CDN, no web fonts. It must work offline by double-clicking.\n- A row of KPI cards for the key numbers, 3 to 5 charts that fit the data (bars, lines, pie/donut only if few categories), a sortable table of the details, and filters (for example by date range and category) that update every chart and KPI.\n- Clean, accessible design: readable colours with good contrast, labelled axes, tooltips on hover, responsive layout, sensible number and date formats.\n- Read the data with Python (pandas), clean it on a copy (never change the original), and generate the HTML from a small script saved in artifacts/build_dashboard.py so it can be regenerated.\n- Optional extra only: at the end, mention in one sentence that a Streamlit version is possible if the user later wants a live app. Do not build it unless asked.\n\nGROUND RULES (follow strictly):\n- Any user-provided input file lives in data/ inside this project. NEVER modify, move or delete the originals: work on copies inside the project.\n- Put every deliverable in artifacts/ (create the folder if needed). Do not write deliverables anywhere else.\n- Prefer Python. Create a virtual environment (python -m venv .venv) and pip install ONLY what you need from: openpyxl pandas xlsxwriter matplotlib python-docx. If Python is not installed or cannot be run, say so plainly in one short message and STOP (do not try to install Python yourself).\n- Do not ask questions mid-way unless you are truly blocked. Instead, make sensible choices and write your assumptions down in the deliverable and in your final message.\n- Write the deliverables and the final message in the same language as the user's request (Spanish or English).\n- Be safe: do not run anything destructive, do not touch files outside this project, do not send data over the network (except where this task explicitly needs web search).\n- FINISH with a short plain-language summary for a non-technical person: what you produced, where it is (exact paths under artifacts/), the assumptions you made, and anything they should double-check."
+    },
+    {
+      "id": "check",
+      "type": "artifact",
+      "title": {
+        "en": "dashboard.html exists",
+        "es": "Existe dashboard.html"
+      },
+      "path": "artifacts/dashboard.html"
+    },
+    {
+      "id": "review",
+      "type": "checkpoint",
+      "title": {
+        "en": "Review the result",
+        "es": "Revisa el resultado"
+      },
+      "message": "Open artifacts/dashboard.html in your browser, try the filters and check the numbers. Approve if it is right."
+    },
+    {
+      "id": "save",
+      "type": "git-commit",
+      "title": {
+        "en": "Save a version",
+        "es": "Guardar una versión"
+      },
+      "message": "Add dashboard"
+    }
+  ],
+  "edges": [
+    {
+      "from": "work",
+      "to": "check"
+    },
+    {
+      "from": "check",
+      "to": "review"
+    },
+    {
+      "from": "review",
+      "to": "save"
+    }
+  ]
+}

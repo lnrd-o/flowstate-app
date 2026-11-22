@@ -1310,5 +1310,121 @@
     "title": "Atajos de teclado",
     "intro": "Todos los atajos de la barra de men\u00fa. En macOS usa Cmd en lugar de Ctrl.",
     "none": "No hay atajos disponibles."
+  },
+  "setup": {
+    "title": "Configura FlowState",
+    "leaveTitle": "\u00bfSalir de la configuraci\u00f3n?",
+    "leaveText": "Puedes volver a ejecutarla cuando quieras desde Ajustes. Lo que elegiste hasta ahora queda guardado.",
+    "leaveYes": "Salir",
+    "skipSetup": "Omitir configuraci\u00f3n",
+    "skipStep": "Omitir este paso",
+    "finishOnly": "Terminar",
+    "createFirst": "Crear mi primer proyecto",
+    "optional": "Opcional",
+    "steps": {
+      "language": "Idioma",
+      "welcome": "Bienvenida",
+      "mode": "\u00bfC\u00f3mo vas a usar FlowState?",
+      "look": "Apariencia",
+      "helpers": "Tus asistentes de IA",
+      "tools": "Herramientas",
+      "extras": "Extras opcionales",
+      "storage": "D\u00f3nde se guarda tu trabajo",
+      "done": "Todo listo"
+    },
+    "welcomeText": "FlowState es un lugar amigable para pedirle a un asistente de IA que trabaje en tus archivos: hojas de c\u00e1lculo, p\u00e1ginas web, datos e investigaci\u00f3n. Guarda todo en una carpeta, recuerda lo que pas\u00f3 y te deja deshacer cambios. Unas preguntas r\u00e1pidas y listo.",
+    "modeText": "Elige la vista que m\u00e1s te convenga. Puedes cambiarla cuando quieras desde la barra de t\u00edtulo o Ajustes.",
+    "lookText": "Elige c\u00f3mo se ve FlowState. Cambia al instante.",
+    "helpersText": "FlowState funciona con asistentes de IA que corren en tu PC. Necesitas al menos uno con la sesi\u00f3n iniciada, pero tambi\u00e9n puedes iniciarla despu\u00e9s.",
+    "helpers": {
+      "claude": "De Anthropic. El asistente m\u00e1s completo.",
+      "agy": "De Google (Antigravity)."
+    },
+    "helpersReady": "Ya hay al menos un asistente con sesi\u00f3n iniciada. Todo en orden.",
+    "helpersLater": "Todav\u00eda no hay ning\u00fan asistente con sesi\u00f3n iniciada. Puedes seguir e iniciarla despu\u00e9s desde Ajustes.",
+    "toolsText": "Estos programitas ayudan a FlowState a hacer su trabajo. Instala los que te falten, o hazlo despu\u00e9s.",
+    "tools": {
+      "git": "Guarda un historial seguro de los cambios para que siempre puedas volver atr\u00e1s.",
+      "node": "Lo necesitan algunas herramientas.",
+      "python": "Hace falta para trabajar con Excel, datos y dashboards."
+    },
+    "extrasText": "Nada de esto es obligatorio.",
+    "extras": {
+      "usageTitle": "El seguimiento de uso es autom\u00e1tico",
+      "usageText": "FlowState muestra cu\u00e1nto de tu plan has usado, en la barra de t\u00edtulo. No hay nada que configurar.",
+      "skip": "Puedes omitirlo: es opcional."
+    },
+    "storageText": "Cada proyecto vive en su propia carpeta, y los proyectos nuevos se crean en una carpeta predeterminada por ti.",
+    "storage": {
+      "where": "Los proyectos nuevos van en:",
+      "inside": "Dentro de cada proyecto hay una carpeta oculta .flowstate. Ah\u00ed se guardan tus ajustes, historial y avance, as\u00ed que viajan con la carpeta si la mueves o la compartes."
+    },
+    "doneText": "Todo est\u00e1 listo. Vamos a crear tu primer proyecto: solo cu\u00e9ntanos en qu\u00e9 necesitas ayuda."
+  },
+  "vars": {
+    "fileDrop": "Suelta un archivo aqu\u00ed o elige uno",
+    "fileChoose": "Elegir archivo...",
+    "fileRemove": "Quitar {name}",
+    "fileDropHint": "Soltaste \"{name}\": elige el archivo en la ventana que se abre para que FlowState pueda encontrarlo.",
+    "errFile": "Elige un archivo para continuar.",
+    "errText": "Cu\u00e9ntanos un poco para continuar."
+  },
+  "wizard": {
+    "title": "Proyecto nuevo",
+    "caseBadge": "Caso",
+    "steps": {
+      "help": "Lo que necesitas",
+      "questions": "Preguntas",
+      "name": "Nombre",
+      "agent": "Asistente de IA",
+      "ready": "Listo"
+    },
+    "helpTitle": "\u00bfEn qu\u00e9 necesitas ayuda?",
+    "helpText": "Elige una opci\u00f3n para empezar. Los siguientes pasos son cortos.",
+    "quick": {
+      "excel": "Un archivo de Excel",
+      "web": "Una p\u00e1gina HTML / web",
+      "data": "Analizar o crear un dashboard desde un archivo TXT/CSV",
+      "research": "Investigar algo en internet"
+    },
+    "more": "M\u00e1s ideas",
+    "search": "Buscar ideas...",
+    "filters": "Filtrar por tipo",
+    "cat": {
+      "all": "Todo",
+      "excel": "Excel",
+      "web": "P\u00e1gina web",
+      "data": "Datos",
+      "dashboard": "Dashboard",
+      "research": "Investigaci\u00f3n",
+      "document": "Documentos",
+      "automation": "Automatizaci\u00f3n",
+      "other": "Otros"
+    },
+    "empty": "Proyecto vac\u00edo",
+    "emptyText": "Lo decido despu\u00e9s.",
+    "emptyName": "Proyecto nuevo",
+    "noMatch": "No hay ideas que coincidan. Prueba con otras palabras.",
+    "pickFirst": "Elige una de las opciones para continuar.",
+    "questionsText": "Unas preguntas sobre \"{name}\".",
+    "nameText": "Ponle un nombre a tu proyecto. Puedes cambiarlo despu\u00e9s.",
+    "nameRequired": "Ponle un nombre al proyecto para continuar.",
+    "folder": "Carpeta: {path}",
+    "advanced": "Avanzado: elegir otra carpeta",
+    "useDefault": "Usar la carpeta predeterminada",
+    "agentText": "Elige el asistente de IA que trabajar\u00e1 en este proyecto.",
+    "agentTextDev": "Elige el agente de este proyecto. Debe tener la sesi\u00f3n iniciada para enviar mensajes.",
+    "readyText": "Esto es lo que pasar\u00e1 cuando presiones Iniciar.",
+    "sum": {
+      "what": "Tipo de proyecto",
+      "folder": "Carpeta",
+      "agent": "Asistente de IA",
+      "copied": "Archivos copiados al proyecto:",
+      "copiedNote": "(a su carpeta de datos). Tus archivos originales nunca se modifican."
+    },
+    "creating": "Creando tu proyecto...",
+    "failed": "Algo sali\u00f3 mal: {message}",
+    "retry": "Intentar de nuevo",
+    "start": "Iniciar"
   }
 }

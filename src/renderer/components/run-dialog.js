@@ -5,6 +5,7 @@ import { t, getLanguage } from '../lib/i18n.js';
 import { isActiveRun } from '../lib/method-utils.js';
 import { openDialog } from './modal.js';
 import { buildVarsForm } from './vars-form.js';
+import { importFileVars } from '../lib/cases.js';
 
 export async function openRunDialog({ store, api, actions, methodologyId, projectId }) {
   let m;
@@ -40,12 +41,15 @@ export async function openRunDialog({ store, api, actions, methodologyId, projec
   syncBusy();
   sel.focus();
 
+  const imported = {};
+  sel.addEventListener('change', () => { for (const k of Object.keys(imported)) delete imported[k]; });
   start.addEventListener('click', async () => {
     err.hidden = true;
     if (!form.validate()) return;
     start.disabled = true;
     try {
-      await actions.startRun(sel.value, m.id, form.values);
+      const vals = await importFileVars(api, sel.value, m.vars || [], form.values, imported);
+      await actions.startRun(sel.value, m.id, vals);
       dlg.close('started');
     } catch (e) {
       err.textContent = (e && e.message) || t('errors.generic');

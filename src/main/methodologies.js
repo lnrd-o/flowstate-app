@@ -20,6 +20,7 @@ export function summarize(m) {
   return {
     id: m.id, source: m.source, name: m.name, description: m.description ?? { en: '' }, tags: Array.isArray(m.tags) ? m.tags : [],
     nodeCount: m.nodes.length, varCount: (m.vars ?? []).length, updatedAt: m.updatedAt ?? null,
+    ...(m.meta && typeof m.meta === 'object' ? { meta: m.meta } : {}),
   };
 }
 

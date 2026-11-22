@@ -1,5 +1,6 @@
 // Phase 3 part of the browser mock: methodologies (list/get/save/delete/record/import/export) and a runner simulation.
 // Hash flags: #runfail (the second prompt node fails), #fastrun (short delays).
+import { CASES } from './mock-phase8.js';
 import { validateMethodology, nextNodeId, startNodes, evalCondition, substitute, ID_RE } from '../../shared/methodology.js';
 
 const has = (re) => typeof location !== 'undefined' && re.test(location.hash);
@@ -73,9 +74,11 @@ const BUNDLED = [
   },
 ];
 
+BUNDLED.push(...CASES);
+
 const summary = (m) => ({
   id: m.id, source: m.source, name: m.name, description: m.description || { en: '' }, tags: m.tags || [],
-  nodeCount: m.nodes.length, varCount: (m.vars || []).length, updatedAt: m.updatedAt,
+  meta: m.meta, nodeCount: m.nodes.length, varCount: (m.vars || []).length, updatedAt: m.updatedAt,
 });
 
 const slug = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'recorded';

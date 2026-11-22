@@ -15,6 +15,7 @@ import { mountBanners } from './components/banners.js';
 import { mountArtifacts, COLLAPSED_KEY } from './components/artifacts.js';
 import { openSettingsDialog } from './components/settings-dialog.js';
 import { openWalkthrough } from './components/walkthrough.js';
+import { openSetupWizard } from './components/setup-wizard.js';
 import { openLoginDialog } from './components/login-dialog.js';
 import { mountTitlebar } from './components/titlebar.js';
 import { applyStatus, applyHealth, applyLoginEvent } from './lib/login-state.js';
@@ -404,8 +405,11 @@ const actions = {
     store.set({ artifactsCollapsed: collapsed });
     writeStore(COLLAPSED_KEY, collapsed ? '1' : '0');
   },
-  openSettings() { openSettingsDialog({ store, actions, onWalkthrough: () => actions.openWalkthrough() }); },
+  openSettings() { openSettingsDialog({ store, actions, onWalkthrough: () => actions.openSetup() }); },
+  /** New-project wizard (What do you need help with?). */
   openWalkthrough() { openWalkthrough({ store, api, actions }); },
+  /** First-run setup wizard (language, look, helpers, tools...). */
+  openSetup() { openSetupWizard({ store, api, actions }); },
   async createProject(data) {
     const payload = { name: data.name, path: data.path, agent: data.agent, mode: data.mode, autoCommit: data.autoCommit };
     let proj = await api.projects.add(payload);
@@ -685,7 +689,7 @@ async function boot() {
     });
   }
 
-  if (!settings.walkthroughDone) actions.openWalkthrough();
+  if (!settings.walkthroughDone) actions.openSetup();
   if (isMockApi()) window.__flowstate = { store, actions, persist, menuActions };
   // First render is done: main hides the splash and shows the window (no-op in the mock / a plain browser).
   try { if (api.app && api.app.ready) await api.app.ready(); } catch { /* the window shows itself anyway */ }

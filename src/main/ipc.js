@@ -93,6 +93,10 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
       return svc('imports').importFile(id, sourcePath);
     },
     [CH.projectsDefaultDir]: () => svc('imports').defaultDir(),
+    [CH.projectsNewDir]: (_e, title) => {
+      if (typeof title !== 'string' || !title.trim() || title.length > 200) throw new TypeError('project name required (max 200 characters)');
+      return svc('imports').newProjectDir(title);
+    },
     [CH.appInfo]: () => svc('boot').info(),
     [CH.appReady]: () => svc('boot').ready(),
     [CH.appFlushed]: () => svc('boot').flushed(),

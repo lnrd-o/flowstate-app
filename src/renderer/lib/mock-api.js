@@ -22,6 +22,7 @@ import { createPhase4 } from './mock-phase4.js';
 import { wantsRich, richScript } from './mock-phase5.js';
 import { wantsBlocked, devPreset, allowCovers, blockedNeeds, blockedScript } from './mock-phase6.js';
 import { createPhase7, wantsLimit } from './mock-phase7.js';
+import { createPhase8 } from './mock-phase8.js';
 
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -149,6 +150,7 @@ export function createMockApi() {
     running.set(projectId, { timers, text });
   }
 
+  const p8 = createPhase8();
   const api = {
     isMock: true,
     settings: {
@@ -171,6 +173,7 @@ export function createMockApi() {
         return clone(projects.find((p) => p.id === id));
       },
       remove: async (id) => { projects = projects.filter((p) => p.id !== id); },
+      ...p8.projects,
       pickFolder: async () => 'C:\\Users\\leo\\Code\\NewProject',
     },
     agent: {
@@ -207,5 +210,6 @@ export function createMockApi() {
     onAgentEvent: (cb) => { agentSubs.add(cb); return () => agentSubs.delete(cb); },
     onHealth: (cb) => { healthSubs.add(cb); return () => healthSubs.delete(cb); },
   };
+  api.files = { ...api.files, ...p8.files };
   return api;
 }

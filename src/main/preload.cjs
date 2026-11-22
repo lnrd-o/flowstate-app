@@ -26,7 +26,7 @@ const CH = {
   storeStatus: 'store:status', storeSave: 'store:save', storeOpenFolder: 'store:open-folder', storeClear: 'store:clear',
   uiGet: 'ui:get', uiSet: 'ui:set', uiProjectGet: 'ui:project-get', uiProjectSet: 'ui:project-set',
   attachmentsSave: 'attachments:save', attachmentsRead: 'attachments:read',
-  filesPick: 'files:pick', filesImport: 'files:import', projectsDefaultDir: 'projects:default-dir',
+  filesPick: 'files:pick', filesImport: 'files:import', projectsDefaultDir: 'projects:default-dir', projectsNewDir: 'projects:new-dir',
   appInfo: 'app:info', appReady: 'app:ready', appFlushed: 'app:flushed',
   evUsage: 'ev:usage', evTasks: 'ev:tasks', evMenu: 'ev:menu', evBeforeQuit: 'ev:before-quit',
   evLogin: 'ev:login', evWindow: 'ev:window',
@@ -45,7 +45,7 @@ contextBridge.exposeInMainWorld('flowstate', {
   settings: { get: call(CH.settingsGet), set: call(CH.settingsSet) },
   projects: {
     list: call(CH.projectsList), add: call(CH.projectsAdd), update: call(CH.projectsUpdate),
-    remove: call(CH.projectsRemove), pickFolder: call(CH.projectsPickFolder), defaultDir: call(CH.projectsDefaultDir),
+    remove: call(CH.projectsRemove), pickFolder: call(CH.projectsPickFolder), defaultDir: call(CH.projectsDefaultDir), newDir: call(CH.projectsNewDir),
   },
   agent: { send: call(CH.agentSend), stop: call(CH.agentStop), status: call(CH.agentStatus) },
   health: { check: call(CH.healthCheck) },

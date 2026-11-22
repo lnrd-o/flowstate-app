@@ -10,7 +10,7 @@ import { resolveInside } from './files.js';
 
 export const CMD_TIMEOUT_MS = 120000;
 export const CMD_MAX_OUTPUT = 1024 * 1024;
-export const VAR_LIMITS = Object.freeze({ text: 2000, textarea: LIMITS.text, path: 1024, select: 500 });
+export const VAR_LIMITS = Object.freeze({ text: 2000, textarea: LIMITS.text, path: 1024, file: 1024, select: 500 });
 const PROJECT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const SHELL_META_RE = /[;&|<>`\r\n]/;
 const DENY_EXE = new Set(['powershell', 'pwsh', 'cmd', 'wscript', 'cscript', 'mshta', 'reg', 'regsvr32', 'rundll32', 'certutil', 'bitsadmin', 'curl', 'wget']);
@@ -31,7 +31,7 @@ export function checkExe(exe) {
 }
 
 /** Validate run vars against the methodology declaration. Returns the cleaned vars (with builtins injected). */
-export function validateVars(m, input, project) {
+export function validateVars(m, input, project, fsx = fs) {
   if (input === undefined || input === null) input = {};
   if (typeof input !== 'object' || Array.isArray(input)) throw new TypeError('vars must be an object');
   if (Object.keys(input).length > LIMITS.vars) throw new TypeError('too many vars');
@@ -46,6 +46,15 @@ export function validateVars(m, input, project) {
     if (val.length > (VAR_LIMITS[v.type] ?? VAR_LIMITS.text)) throw new TypeError(`Variable ${v.key} is too long`);
     if (val.includes('\0')) throw new TypeError(`Variable ${v.key} contains invalid characters`);
     if (v.type === 'select' && val !== '' && !v.options.includes(val)) throw new Error(`Variable ${v.key} must be one of: ${v.options.join(', ')}`);
+    if (v.type === 'file' && val !== '') {
+      let st = null;
+      try {
+        const { abs, rel } = resolveInside(project.path, val, fsx);
+        if (!rel.startsWith('data/')) throw new Error('not under data/');
+        st = fsx.statSync(abs);
+      } catch { throw new Error(`Variable ${v.key}: the file is missing or not allowed (expected a file under data/)`); }
+      if (!st.isFile()) throw new Error(`Variable ${v.key}: not a regular file`);
+    }
     out[v.key] = val;
   }
   out.projectName = project.name;
@@ -254,7 +263,7 @@ export function createRunner({ dir, getProject, getMethodology, agents, git, emi
       const m = getMethodology(methodologyId, projectId);
       const errs = validateMethodology(m);
       if (errs.length) throw new Error(`Invalid methodology: ${errs.join('; ')}`);
-      const clean = validateVars(m, vars, project);
+      const clean = validateVars(m, vars, project, fsx);
       const state = {
         runId: uuid(), projectId, methodologyId, status: 'running', vars: clean, current: null, startedAt: now(),
         nodes: Object.fromEntries(m.nodes.map((n) => [n.id, { state: 'pending' }])),

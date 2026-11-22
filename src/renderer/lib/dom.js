@@ -93,6 +93,11 @@ const ICONS = {
   circle: [['circle', { cx: 12, cy: 12, r: 8 }]],
   half: [['circle', { cx: 12, cy: 12, r: 8 }], ['path', { d: 'M12 4a8 8 0 0 1 0 16z', fill: 'currentColor' }]],
   checkCircle: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'm8 12 3 3 5-6' }]],
+  table: [['rect', { x: 3, y: 4, width: 18, height: 16, rx: 2 }], ['path', { d: 'M3 10h18M3 15h18M9 4v16M15 4v16' }]],
+  fileText: [['path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }], ['path', { d: 'M14 2v6h6M8 13h8M8 17h5' }]],
+  globe: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18' }]],
+  chart: [['path', { d: 'M4 20V4M4 20h16' }], ['path', { d: 'M8 16v-4M12 16V8M16 16v-6' }]],
+  zap: [['path', { d: 'M13 2 4 14h7l-1 8 9-12h-7z' }]],
 };
 
 export function icon(name, cls = '') {

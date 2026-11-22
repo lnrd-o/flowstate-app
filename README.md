@@ -38,6 +38,10 @@ terminal launching, process-group kill) is unit-tested with injected platform da
 - **Developer / Simple mode:** Developer shows code, diffs, commands and exact details; Simple shows plain-language steps ("Created hello.py", "Tested your project, it worked"). One click in the top bar.
 - **Approvals:** blocked actions show exactly what they are; "Allow this once" lets Claude run just that one command for one turn (never saved), no need to switch the whole project to auto-edit.
 - **Look:** white on black (dark), black on white (light), or Dark Gold.
+- **First launch:** a setup wizard asks your language first (auto-detected from Windows), then Simple/Developer mode, theme, sign-in to Claude and AGY, tools (Git, Node, Python) and optional extras.
+- **New project in two questions:** pick what you need help with (an Excel file, an HTML page, analysis or a dashboard from a CSV/TXT, online research, documents, automation ...) and type a name. FlowState creates the folder for you in `Documents\Proyectos` (Spanish) or `Documents\Projects` (English) with a safe name like `Analisis_De_Ventas_2026`, copies your files into the project's `data` folder (originals are never changed) and starts the work.
+- **Usage, models, images:** Claude 5-hour and weekly usage, model and effort selectors, image attach with suggestions, optional DeepSeek balance, a Tasks panel and a File/Edit/View/Help menu.
+- **Your work travels with the folder:** settings, history and progress are saved in `<project>/.flowstate`.
 - **Projects:** registry, resume the last session automatically, saved chat history, project menu.
 - **Git:** optional auto-commit to a `claude/auto` branch after each turn (secret-safe), one-click undo of the last turn.
 - **Health:** detects Claude/AGY/Node/Git/Python, sign-in state, VPN adapters and whether Anthropic is reachable; banner asks you to leave the VPN.
