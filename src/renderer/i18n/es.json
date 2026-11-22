@@ -72,7 +72,7 @@
     "slashForm": "Llenar formulario",
     "slashInsert": "Insertar",
     "slashNone": "No hay plantillas que coincidan",
-    "disabledLoginAgy": "AGY no tiene la sesi\u00f3n iniciada.",
+    "disabledLoginAgy": "Antigravity no tiene la sesi\u00f3n iniciada.",
     "disabledLoginOpencode": "OpenCode no tiene ning\u00fan proveedor configurado. Ejecuta opencode auth login en una terminal y vuelve a comprobar."
   },
   "project": {
@@ -96,7 +96,7 @@
   },
   "agent": {
     "claude": "Claude",
-    "agy": "AGY",
+    "agy": "Antigravity",
     "opencode": "OpenCode",
     "switch": "Agente",
     "running": "Trabajando...",
@@ -124,7 +124,7 @@
     "vpn": "Se detect\u00f3 una VPN. Descon\u00e9ctala y usa una red normal para llegar a Claude.",
     "claudeMissing": "No se encontr\u00f3 la CLI de Claude. Indica su ruta en Ajustes.",
     "notLoggedIn": "Claude no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n para continuar.",
-    "agyAlwaysProceed": "AGY aplica los cambios en archivos sin preguntarte en este modo. Cambia a Solo planificar para revisarlos antes.",
+    "agyAlwaysProceed": "Antigravity aplica los cambios en archivos sin preguntarte en este modo. Cambia a Solo planificar para revisarlos antes.",
     "recheck": "Volver a comprobar",
     "openSettings": "Abrir ajustes",
     "dismiss": "Descartar",
@@ -132,7 +132,7 @@
     "browseSettings": "Buscar ruta en Configuraci\u00f3n",
     "signIn": "Iniciar sesi\u00f3n",
     "gitMissing": "No se encontr\u00f3 Git, as\u00ed que el auto-commit y deshacer no est\u00e1n disponibles.",
-    "agyNotLoggedIn": "AGY no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n para empezar a chatear.",
+    "agyNotLoggedIn": "Antigravity no tiene la sesi\u00f3n iniciada. Inicia sesi\u00f3n para empezar a chatear.",
     "opencodeNotLoggedIn": "OpenCode no tiene ning\u00fan proveedor configurado. Ejecuta opencode auth login en una terminal y vuelve a comprobar."
   },
   "health": {
@@ -140,7 +140,7 @@
     "found": "Encontrado",
     "missing": "Falta",
     "claude": "CLI de Claude",
-    "agy": "CLI de AGY",
+    "agy": "CLI de Antigravity",
     "node": "Node.js",
     "git": "Git",
     "python": "Python",
@@ -166,7 +166,7 @@
     "themeGold": "Oscuro Dorado",
     "codeTheme": "Tema de c\u00f3digo",
     "claudePath": "Ruta de la CLI de Claude",
-    "agyPath": "Ruta de la CLI de AGY",
+    "agyPath": "Ruta de la CLI de Antigravity",
     "opencodePath": "Ruta de la CLI de OpenCode",
     "autoLaunch": "Iniciar FlowState al iniciar sesi\u00f3n",
     "restartWalkthrough": "Repetir la gu\u00eda de configuraci\u00f3n",
@@ -577,7 +577,7 @@
     "openUrl": "Abrir sesi\u00f3n",
     "confirmTitle": "\u00bfActivar el control remoto?",
     "confirm": "Esto expone la sesi\u00f3n de este proyecto a tu propia cuenta de Claude, para que puedas continuarla desde claude.ai/code o la app de Claude en el celular. Cualquiera con acceso a tu cuenta puede verla y manejarla.",
-    "confirmAgy": "Nota de AGY: esto registra un daemon en segundo plano ligado a tu inicio de sesi\u00f3n de Windows (en todo el equipo, no solo este proyecto). Sigue activo hasta que apagues el control remoto.",
+    "confirmAgy": "Nota de Antigravity: esto registra un daemon en segundo plano ligado a tu inicio de sesi\u00f3n de Windows (en todo el equipo, no solo este proyecto). Sigue activo hasta que apagues el control remoto.",
     "enable": "Activar",
     "notSupported": "El control remoto no es compatible con este agente o versi\u00f3n.",
     "startFailed": "El control remoto no se inici\u00f3.",
@@ -909,7 +909,7 @@
   "login": {
     "title": "Iniciar sesi\u00f3n",
     "tabClaude": "Claude",
-    "tabAgy": "AGY",
+    "tabAgy": "Antigravity",
     "signedIn": "Sesi\u00f3n iniciada",
     "signedOut": "Sin sesi\u00f3n",
     "unknown": "Desconocido",
@@ -946,17 +946,17 @@
     "signedOutToast": "Sesi\u00f3n cerrada en {agent}",
     "signOutFailed": "No se pudo cerrar la sesi\u00f3n.",
     "external": "Usar una ventana aparte",
-    "agyIntro": "Esto abre la terminal de AGY. Elige \"Log in with Google\" o \"Gemini Enterprise\" con las flechas y pulsa Enter. Se abre el navegador para terminar.",
-    "agySignedIn": "AGY tiene la sesi\u00f3n iniciada.",
-    "agyLogoutNote": "Para cerrar sesi\u00f3n en AGY, escribe /logout dentro de la terminal de AGY.",
+    "agyIntro": "Esto abre la terminal de Antigravity. Elige \"Log in with Google\" o \"Gemini Enterprise\" con las flechas y pulsa Enter. Se abre el navegador para terminar.",
+    "agySignedIn": "Antigravity tiene la sesi\u00f3n iniciada.",
+    "agyLogoutNote": "Para cerrar sesi\u00f3n en Antigravity, escribe /logout dentro de la terminal de Antigravity.",
     "openTerminal": "Abrir terminal de inicio de sesi\u00f3n",
-    "openTerminalLogout": "Abrir terminal de AGY",
-    "terminalLabel": "Terminal de inicio de sesi\u00f3n de AGY",
+    "openTerminalLogout": "Abrir terminal de Antigravity",
+    "terminalLabel": "Terminal de inicio de sesi\u00f3n de Antigravity",
     "terminalHint": "Usa las flechas y Enter dentro de la terminal. Esc cancela el inicio de sesi\u00f3n.",
     "err": {
       "generic": "Algo sali\u00f3 mal. Intenta de nuevo.",
       "terminalUnavailable": "La terminal integrada no est\u00e1 disponible en este sistema. Ejecuta agy en tu propia terminal para iniciar sesi\u00f3n y luego vuelve a comprobar.",
-      "useTerminal": "AGY cierra sesi\u00f3n desde su propia terminal: escribe /logout all\u00ed.",
+      "useTerminal": "Antigravity cierra sesi\u00f3n desde su propia terminal: escribe /logout all\u00ed.",
       "notSignedIn": "El inicio de sesi\u00f3n no se complet\u00f3. Intenta de nuevo."
     }
   },
@@ -1181,7 +1181,7 @@
     "loadFailed": "No se pudo cargar esta imagen.",
     "previewTitle": "Vista previa de la imagen",
     "close": "Cerrar vista previa",
-    "agyHint": "AGY recibe cada imagen como una ruta de archivo dentro de la carpeta de tu proyecto.",
+    "agyHint": "Antigravity recibe cada imagen como una ruta de archivo dentro de la carpeta de tu proyecto.",
     "attached": "{count} de {max} im\u00e1genes adjuntas",
     "err": {
       "type": "Solo se pueden adjuntar im\u00e1genes PNG, JPEG, GIF y WebP ({name}).",
@@ -1285,7 +1285,7 @@
       "close": "Cerrar"
     },
     "claude": "Claude",
-    "agy": "AGY",
+    "agy": "Antigravity",
     "deepseek": "DeepSeek",
     "status": {
       "ok": "Dentro de los l\u00edmites",
@@ -1293,6 +1293,7 @@
       "red": "L\u00edmite alcanzado"
     },
     "gauge": "{window}: {percent} usado",
+    "activity": "Últimas 24 h: {r24} solicitudes en {s24} sesiones. Últimos 7 días: {r7} solicitudes en {s7} sesiones (solo este equipo).",
     "noData": "Todav\u00eda no hay datos. Las ventanas aparecen despu\u00e9s del primer turno de Claude.",
     "today": "Hoy",
     "cost": "Costo",
@@ -1305,8 +1306,8 @@
     "noLimit": "No se alcanz\u00f3 ning\u00fan l\u00edmite recientemente",
     "updated": "\u00daltima actualizaci\u00f3n {time}",
     "neverUpdated": "A\u00fan sin actualizar",
-    "note": "Las ventanas de Claude se actualizan despu\u00e9s de cada turno de Claude. AGY y DeepSeek informan sus propios n\u00fameros.",
-    "agyNote": "AGY informa los tokens de cada turno y no tiene ventanas fijas.",
+    "note": "Las ventanas de Claude se actualizan despu\u00e9s de cada turno de Claude. Antigravity y DeepSeek informan sus propios n\u00fameros.",
+    "agyNote": "Antigravity informa los tokens de cada turno y no tiene ventanas fijas.",
     "balance": "Saldo",
     "available": "Disponible",
     "unavailable": "No disponible",

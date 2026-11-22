@@ -22,10 +22,10 @@ export function openUsageDialog({ store, actions }) {
 
   const stat = (label, value) => h('div', { class: 'usage__stat' }, h('div', { class: 'usage__stat-v', text: value }), h('div', { class: 'usage__stat-l xs', text: label }));
 
-  function gauge(kind, w) {
+  function gauge(kind, w, label) {
     const pct = percent(w.utilization);
     const tone = windowTone(w);
-    const name = windowLabel(kind);
+    const name = label || windowLabel(kind);
     const resetNode = h('span', { class: 'usage__reset small muted' });
     const bar = h('div', {
       class: 'gauge gauge--' + tone, attrs: { role: 'progressbar', 'aria-label': name, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct) },
@@ -65,8 +65,10 @@ export function openUsageDialog({ store, actions }) {
     const today = c && c.today;
     return h('section', { class: 'card usage__card', attrs: { 'aria-label': t('usage.claude') } },
       h('div', { class: 'usage__card-head' }, agentIcon('claude', { size: 18 }), h('h3', { class: 'usage__card-title', text: t('usage.claude') })),
-      any ? h('div', { class: 'usage__gauges' }, ...WINDOW_KINDS.filter((k) => wins[k]).map((k) => gauge(k, wins[k])))
+      any ? h('div', { class: 'usage__gauges' }, ...WINDOW_KINDS.filter((k) => wins[k]).map((k) => gauge(k, wins[k])),
+        ...Object.entries(c.models || {}).map(([n, w]) => gauge('seven_day', w, windowLabel('seven_day') + ' - ' + n)))
         : h('div', { class: 'usage__empty muted small', text: t('usage.noData') }),
+      c && c.activity && c.activity.last24h ? h('div', { class: 'usage__sub small muted', text: t('usage.activity', { r24: c.activity.last24h.requests, s24: c.activity.last24h.sessions, r7: c.activity.last7d ? c.activity.last7d.requests : 0, s7: c.activity.last7d ? c.activity.last7d.sessions : 0 }) }) : null,
       today ? h('div', { class: 'usage__today' }, h('div', { class: 'usage__sub small muted', text: t('usage.today') }),
         h('div', { class: 'usage__stats' }, stat(t('usage.cost'), costText(today.costUsd)),
           stat(t('usage.tokens'), compactNumber((today.inputTokens || 0) + (today.outputTokens || 0))), stat(t('usage.turns'), String(today.turns || 0)))) : null,

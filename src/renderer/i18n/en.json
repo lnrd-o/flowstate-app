@@ -72,7 +72,7 @@
     "slashForm": "Fill form",
     "slashInsert": "Insert",
     "slashNone": "No matching templates",
-    "disabledLoginAgy": "AGY is not signed in.",
+    "disabledLoginAgy": "Antigravity is not signed in.",
     "disabledLoginOpencode": "OpenCode has no provider configured. Run opencode auth login in a terminal, then recheck."
   },
   "project": {
@@ -96,7 +96,7 @@
   },
   "agent": {
     "claude": "Claude",
-    "agy": "AGY",
+    "agy": "Antigravity",
     "opencode": "OpenCode",
     "switch": "Agent",
     "running": "Working...",
@@ -124,7 +124,7 @@
     "vpn": "VPN detected. Disconnect and use a regular network to reach Claude.",
     "claudeMissing": "Claude CLI was not found. Set its path in Settings.",
     "notLoggedIn": "Claude is not signed in. Sign in to continue.",
-    "agyAlwaysProceed": "AGY applies file changes without asking in this mode. Switch to Plan only to review changes first.",
+    "agyAlwaysProceed": "Antigravity applies file changes without asking in this mode. Switch to Plan only to review changes first.",
     "recheck": "Recheck",
     "openSettings": "Open settings",
     "dismiss": "Dismiss",
@@ -132,7 +132,7 @@
     "browseSettings": "Browse path in Settings",
     "signIn": "Sign in",
     "gitMissing": "Git was not found, so auto-commit and undo are unavailable.",
-    "agyNotLoggedIn": "AGY is not signed in. Sign in to start chatting.",
+    "agyNotLoggedIn": "Antigravity is not signed in. Sign in to start chatting.",
     "opencodeNotLoggedIn": "OpenCode has no provider configured. Run opencode auth login in a terminal, then recheck."
   },
   "health": {
@@ -140,7 +140,7 @@
     "found": "Found",
     "missing": "Missing",
     "claude": "Claude CLI",
-    "agy": "AGY CLI",
+    "agy": "Antigravity CLI",
     "node": "Node.js",
     "git": "Git",
     "python": "Python",
@@ -166,7 +166,7 @@
     "themeGold": "Dark Gold",
     "codeTheme": "Code theme",
     "claudePath": "Claude CLI path",
-    "agyPath": "AGY CLI path",
+    "agyPath": "Antigravity CLI path",
     "opencodePath": "OpenCode CLI path",
     "autoLaunch": "Launch FlowState at login",
     "restartWalkthrough": "Run the setup walkthrough again",
@@ -577,7 +577,7 @@
     "openUrl": "Open session",
     "confirmTitle": "Enable remote control?",
     "confirm": "This exposes the session of this project to your own Claude account, so you can continue it from claude.ai/code or the Claude phone app. Anyone signed in to your account can see and drive it.",
-    "confirmAgy": "AGY note: this registers a background daemon tied to your Windows login (machine-wide, not just this project). It stays active until you turn remote control off.",
+    "confirmAgy": "Antigravity note: this registers a background daemon tied to your Windows login (machine-wide, not just this project). It stays active until you turn remote control off.",
     "enable": "Enable",
     "notSupported": "Remote control is not supported for this agent or version.",
     "startFailed": "Remote control did not start.",
@@ -909,7 +909,7 @@
   "login": {
     "title": "Sign in",
     "tabClaude": "Claude",
-    "tabAgy": "AGY",
+    "tabAgy": "Antigravity",
     "signedIn": "Signed in",
     "signedOut": "Signed out",
     "unknown": "Unknown",
@@ -946,17 +946,17 @@
     "signedOutToast": "Signed out of {agent}",
     "signOutFailed": "Could not sign out.",
     "external": "Use a separate window instead",
-    "agyIntro": "This opens the AGY terminal. Choose \"Log in with Google\" or \"Gemini Enterprise\" with the arrow keys and press Enter. A browser opens to finish.",
-    "agySignedIn": "AGY is signed in.",
-    "agyLogoutNote": "To sign out of AGY, type /logout inside the AGY terminal.",
+    "agyIntro": "This opens the Antigravity terminal. Choose \"Log in with Google\" or \"Gemini Enterprise\" with the arrow keys and press Enter. A browser opens to finish.",
+    "agySignedIn": "Antigravity is signed in.",
+    "agyLogoutNote": "To sign out of Antigravity, type /logout inside the Antigravity terminal.",
     "openTerminal": "Open sign-in terminal",
-    "openTerminalLogout": "Open AGY terminal",
-    "terminalLabel": "AGY sign-in terminal",
+    "openTerminalLogout": "Open Antigravity terminal",
+    "terminalLabel": "Antigravity sign-in terminal",
     "terminalHint": "Use the arrow keys and Enter inside the terminal. Esc cancels the sign-in.",
     "err": {
       "generic": "Something went wrong. Try again.",
       "terminalUnavailable": "The built-in terminal is not available on this system. Run agy in your own terminal to sign in, then recheck.",
-      "useTerminal": "AGY signs out from its own terminal: type /logout there.",
+      "useTerminal": "Antigravity signs out from its own terminal: type /logout there.",
       "notSignedIn": "The sign-in did not complete. Try again."
     }
   },
@@ -1181,7 +1181,7 @@
     "loadFailed": "Could not load this image.",
     "previewTitle": "Image preview",
     "close": "Close preview",
-    "agyHint": "AGY receives each image as a file path in your project folder.",
+    "agyHint": "Antigravity receives each image as a file path in your project folder.",
     "attached": "{count} of {max} images attached",
     "err": {
       "type": "Only PNG, JPEG, GIF and WebP images can be attached ({name}).",
@@ -1285,7 +1285,7 @@
       "close": "Close"
     },
     "claude": "Claude",
-    "agy": "AGY",
+    "agy": "Antigravity",
     "deepseek": "DeepSeek",
     "status": {
       "ok": "Within limits",
@@ -1293,6 +1293,7 @@
       "red": "Limit reached"
     },
     "gauge": "{window}: {percent} used",
+    "activity": "Last 24h: {r24} requests in {s24} sessions. Last 7 days: {r7} requests in {s7} sessions (this machine only).",
     "noData": "No data yet. The windows appear after the first Claude turn.",
     "today": "Today",
     "cost": "Cost",
@@ -1305,8 +1306,8 @@
     "noLimit": "No limit reached recently",
     "updated": "Last updated {time}",
     "neverUpdated": "Not updated yet",
-    "note": "Claude windows update after each Claude turn. AGY and DeepSeek report their own numbers.",
-    "agyNote": "AGY reports tokens per turn and has no fixed windows.",
+    "note": "Claude windows update after each Claude turn. Antigravity and DeepSeek report their own numbers.",
+    "agyNote": "Antigravity reports tokens per turn and has no fixed windows.",
     "balance": "Balance",
     "available": "Available",
     "unavailable": "Unavailable",

@@ -86,8 +86,26 @@ const statusFor = (u) => (u >= 1 ? 'rejected' : u >= 0.8 ? 'allowed_warning' : '
  */
 export function parseUsageText(text, now = Date.now()) {
   const out = {};
+  let section = null;
   for (const line of String(text ?? '').split(/\r?\n/)) {
-    const m = /^\s*Current (session|week \(all models\)):\s*(\d{1,3}(?:\.\d+)?)%\s*used(?:\s*[^\w\s]\s*resets\s+(.+?))?\s*$/i.exec(line);
+    const mw = /^\s*Current week \((?!all models)([^)]+?)(?:\s+only)?\):\s*(\d{1,3}(?:\.\d+)?)%\s*used(?:\s*[^\w\s]\s*resets\s+(.+?))?\s*$/i.exec(line);
+    if (mw) {
+      const resetsAt = mw[3] ? parseResetsAt(mw[3], now) : null;
+      if (resetsAt != null) {
+        const utilization = Math.min(1, Number(mw[2]) / 100);
+        (out.models ??= {})[mw[1].trim()] = { utilization, resetsAt, status: statusFor(utilization) };
+      }
+      continue;
+    }
+    const ma = /^\s*Last (24h|7d)\s*[^\w\s]\s*(\d+)\s+requests?\s*[^\w\s]\s*(\d+)\s+sessions?/i.exec(line);
+    if (ma) { section = ma[1].toLowerCase() === '24h' ? 'last24h' : 'last7d'; (out.activity ??= {})[section] = { requests: Number(ma[2]), sessions: Number(ma[3]) }; continue; }
+    const mt = /^\s*Top (subagents|MCP servers):\s*(.+)$/i.exec(line);
+    if (mt && section && out.activity?.[section]) {
+      out.activity[section][/subagents/i.test(mt[1]) ? 'topSubagents' : 'topMcp'] =
+        mt[2].split(/,\s*/).map((x) => { const q = /^(.+?)\s+(\d{1,3})%$/.exec(x.trim()); return q ? { name: q[1], pct: Number(q[2]) } : null; }).filter(Boolean);
+      continue;
+    }
+    const m =/^\s*Current (session|week \(all models\)):\s*(\d{1,3}(?:\.\d+)?)%\s*used(?:\s*[^\w\s]\s*resets\s+(.+?))?\s*$/i.exec(line);
     if (!m) continue;
     const utilization = Math.min(1, Number(m[2]) / 100);
     const resetsAt = m[3] ? parseResetsAt(m[3], now) : null;
@@ -167,12 +185,18 @@ export function createUsage({
     return { five_hour: f(w.five_hour), seven_day: f(w.seven_day) };
   };
 
+  const freshModels = () => {
+    const out = {};
+    for (const [k, x] of Object.entries(state.claude.models ?? {})) if (x && Number.isFinite(x.resetsAt) && x.resetsAt > now()) out[k] = { ...x };
+    return out;
+  };
+
   function snapshot() {
     const b = bucket();
     const t = now();
     const out = {
       at: t,
-      claude: { windows: freshWindows(), today: { ...b.claude }, lastLimit: state.claude.lastLimit, updatedAt: state.claude.updatedAt },
+      claude: { windows: freshWindows(), models: freshModels(), activity: state.claude.activity ?? null, today: { ...b.claude }, lastLimit: state.claude.lastLimit, updatedAt: state.claude.updatedAt },
       agy: { today: { ...b.agy }, lastLimit: state.agy.lastLimit, updatedAt: state.agy.updatedAt },
       opencode: { today: { ...b.opencode } },
       deepseek: { today: { ...b.deepseek }, configured: !!deepseek.configured, ...(deepseek.balance ? { balance: deepseek.balance } : {}), ...(deepseek.updatedAt ? { updatedAt: deepseek.updatedAt } : {}) },
@@ -264,7 +288,9 @@ export function createUsage({
         const r = await runUsage(exe, ['-p', '/usage', '--output-format', 'text'], { cwd, timeout: 30000 });
         const w = parseUsageText(r.stdout, now());
         if (!w.five_hour && !w.seven_day) return { ok: false, error: 'unparseable' };
-        for (const k of Object.keys(w)) state.claude.windows[k] = w[k];
+        for (const k of ['five_hour', 'seven_day']) if (w[k]) state.claude.windows[k] = w[k];
+        if (w.models) state.claude.models = w.models;
+        if (w.activity) state.claude.activity = w.activity;
         state.claude.updatedAt = now();
         notify();
         return { ok: true, windows: w };

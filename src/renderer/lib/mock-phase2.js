@@ -103,7 +103,7 @@ export function createPhase2({ projects, emitAgent, flags }) {
     { ts: Date.now() - 3599000, t: 'event', event: { type: 'session', sessionId: 'abc' } },
     { ts: Date.now() - 3598000, t: 'event', event: { type: 'tool-use', id: 'h1', name: 'Read', input: { file_path: 'README.md' } } },
     { ts: Date.now() - 3597000, t: 'event', event: { type: 'tool-result', id: 'h1', output: '# ClaudeClient ...' } },
-    { ts: Date.now() - 3596000, t: 'event', event: { type: 'text', text: 'This is **FlowState**, a desktop GUI for coding agents.\n\n- Chat with Claude or AGY\n- Review files and dashboards' } },
+    { ts: Date.now() - 3596000, t: 'event', event: { type: 'text', text: 'This is **FlowState**, a desktop GUI for coding agents.\n\n- Chat with Claude or Antigravity\n- Review files and dashboards' } },
     { ts: Date.now() - 3595000, t: 'event', event: { type: 'result', ok: true } },
     { ts: Date.now() - 1800000, t: 'user', text: 'Write the weekly report' },
     { ts: Date.now() - 1799000, t: 'event', event: { type: 'tool-use', id: 'h2', name: 'Write', input: { file_path: 'C:\\Users\\leo\\Code\\ClaudeClient\\artifacts\\report.md', content: '# Weekly report' } } },
@@ -231,7 +231,7 @@ export function createPhase2({ projects, emitAgent, flags }) {
           await new Promise((r) => later(700, r));
           const p = proj(pid);
           const info = p && p.agent === 'agy'
-            ? 'AGY daemon registered (login scoped).\nSession: ' + p.name + '\nManage it with: agy remote-control status'
+            ? 'Antigravity daemon registered (login scoped).\nSession: ' + p.name + '\nManage it with: agy remote-control status'
             : 'Remote session ready.\nName: ' + (p ? p.name : pid) + '\nOpen: https://claude.ai/code/session_01MockSession123';
           remote.set(pid, { running: true, info });
           return { running: true, info };

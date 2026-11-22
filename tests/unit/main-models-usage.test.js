@@ -186,3 +186,20 @@ test('usage: 30 days kept, deepseek balance via services.deepseek, refresh merge
   const bad = createUsage({ dir: tmp(), health: { findClaude: async () => 'c' }, runUsage: async () => ({ code: 0, stdout: 'no limits here' }) });
   assert.equal((await bad.refresh(true)).error, 'unparseable');
 });
+
+test('parseUsageText: per-model weekly windows and activity summary', async () => {
+  const { parseUsageText } = await import('../../src/main/svc/usage.js');
+  const txt = [
+    'Current session: 15% used · resets Nov 22, 1:10pm (America/Mexico_City)',
+    'Current week (all models): 34% used · resets Nov 25, 6am (America/Mexico_City)',
+    'Current week (Sonnet only): 12% used · resets Nov 25, 6am (America/Mexico_City)',
+    'Last 24h · 1778 requests · 58 sessions',
+    '  Top subagents: general-purpose 68%',
+    'Last 7d · 2660 requests · 63 sessions',
+  ].join('\n');
+  const r = parseUsageText(txt, Date.parse('2026-11-22T12:00:00-06:00'));
+  assert.equal(r.five_hour.utilization, 0.15);
+  assert.equal(r.models.Sonnet.utilization, 0.12);
+  assert.deepEqual(r.activity.last24h, { requests: 1778, sessions: 58, topSubagents: [{ name: 'general-purpose', pct: 68 }] });
+  assert.equal(r.activity.last7d.sessions, 63);
+});
