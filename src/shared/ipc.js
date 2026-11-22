@@ -73,6 +73,38 @@ export const CH = Object.freeze({
   methodRespond: 'method:respond',           // (runId, nodeId, response) -> void   response: {approve:boolean} for checkpoint/command confirmation, {answer:string} for ask-user
   methodStop: 'method:stop',                 // (runId) -> void
   methodRunState: 'method:run-state',        // (projectId) -> RunState|null   (active or last run)
+  // ---- Phase 7: usage, models, DeepSeek, menu, tasks, project store, UI state, images, boot ----
+  // Models / effort. claude: static aliases (default, opus, sonnet, haiku, fable) + any model seen in session init; agy: LIVE from `agy models`.
+  modelsList: 'models:list',                 // (agent) -> ModelList
+  // Usage tracking (claude: rate_limit_event windows + per-turn cost/tokens; agy: per-turn tokens; deepseek: balance). Pushed on change.
+  usageGet: 'usage:get',                     // () -> UsageSnapshot
+  // DeepSeek (optional, off unless settings.deepseekEnabled). The API key is stored ENCRYPTED (Electron safeStorage) in userData and is
+  // never returned to the renderer. Calls go from main: GET https://api.deepseek.com/user/balance and /models (Bearer).
+  deepseekSetKey: 'deepseek:set-key',        // (key:string|null) -> {ok, error?}   null removes the key; error 'encryption-unavailable' when safeStorage cannot encrypt (then NOTHING is stored)
+  deepseekStatus: 'deepseek:status',         // (force?:boolean) -> DeepseekStatus
+  // Application menu (model in src/shared/menu.js)
+  menuModel: 'menu:model',                   // () -> {items: MENU (with dynamic 'recent' filled), state:{developerMode, theme, platform, packaged}}
+  menuInvoke: 'menu:invoke',                 // (id) -> void   executes a handler:'main' action (renderer-handled ids are ignored with {ok:false})
+  // Tasks / agent manager
+  tasksList: 'tasks:list',                   // () -> TasksSnapshot
+  tasksStop: 'tasks:stop',                   // ({kind, id}) -> {ok, error?}   stop an agent turn / dashboard / remote session / methodology run / watcher
+  // Project folder store (<project>/.flowstate/, see ProjectStore below)
+  storeStatus: 'store:status',               // (projectId) -> StoreStatus
+  storeSave: 'store:save',                   // (projectId) -> {ok, files:string[]}   flush everything now
+  storeOpenFolder: 'store:open-folder',      // () -> {project, created:boolean, loaded:{projectJson:boolean,state:boolean,history:boolean}}|null   pick a folder; if it has .flowstate it is imported (settings, sessions, history), else registered fresh
+  storeClear: 'store:clear',                 // (projectId, what:'history'|'all') -> void   'all' removes <project>/.flowstate (the registry entry stays)
+  // UI state persistence (global in userData; per project inside <project>/.flowstate/state.json -> ui)
+  uiGet: 'ui:get',                           // () -> object
+  uiSet: 'ui:set',                           // (patch:object) -> void   shallow merge, <= 16 KB
+  uiProjectGet: 'ui:project-get',            // (projectId) -> object
+  uiProjectSet: 'ui:project-set',            // (projectId, patch:object) -> void   shallow merge, <= 16 KB (composer drafts, open file, tab ...)
+  // Images / attachments (stored in <project>/.flowstate/attachments/)
+  attachmentsSave: 'attachments:save',       // (projectId, {name, mime, dataBase64}) -> Attachment
+  attachmentsRead: 'attachments:read',       // (projectId, rel) -> {dataUrl}   thumbnail/preview, only inside attachments/
+  // Boot / lifecycle / about
+  appInfo: 'app:info',                       // () -> {name, version, electron, chrome, node, platform, arch, userData, packaged}
+  appReady: 'app:ready',                     // () -> void   renderer calls after first render: main hides the splash and shows the window
+  appFlushed: 'app:flushed',                 // () -> void   renderer calls after it saved UI state in response to ev:before-quit
   // ---- Phase 4: in-app sign-in, custom title bar ----
   // Sign-in. claude: `claude auth login [--claudeai|--console|--sso] [--email e]` over PIPES (prints the URL + 'Paste code here' prompt);
   // agy: no login subcommand - signing in = launching `agy` with NO args (interactive TUI: 'Log in with Google' / 'Gemini Enterprise'),
@@ -88,6 +120,10 @@ export const CH = Object.freeze({
   windowSetTheme: 'window:set-theme',        // ({color:string '#rrggbb', symbolColor:string '#rrggbb', height:number}) -> void   recolours the native window-controls overlay (win/linux) live when the theme changes
   windowAction: 'window:action',             // ('minimize'|'toggle-maximize'|'close') -> void
   // push channels (main -> renderer)
+  evUsage: 'ev:usage',                       // UsageSnapshot (throttled to 1 per second)
+  evTasks: 'ev:tasks',                       // TasksSnapshot (throttled to 2 per second)
+  evMenu: 'ev:menu',                         // {id}   a handler:'renderer' menu action triggered from the NATIVE menu / accelerator
+  evBeforeQuit: 'ev:before-quit',            // {}   renderer must persist UI state, then call app:flushed (main waits max 2 s)
   evLogin: 'ev:login',                       // {agent, kind:'url'|'prompt'|'data'|'status'|'done'|'error', url?, text?, data?, loggedIn?, ok?}   see LoginEvent
   evWindow: 'ev:window',                     // {maximized:boolean, fullscreen:boolean}
   evMethod: 'ev:method',                     // {projectId, state: RunState}   on every node transition
@@ -99,6 +135,42 @@ export const CH = Object.freeze({
   evRemote: 'ev:remote',                     // {projectId, running, info?}
 });
 
+// Phase 7 types (JSDoc):
+//   Project (extended) = { ..., model: string|null, effort: null|'low'|'medium'|'high'|'xhigh'|'max' }   patchable via projects.update; adapters pass --model / --effort when set
+//   ModelList  = { agent, source:'live'|'static', models:[{id, name, description?, current?:boolean}], efforts:['low','medium','high','xhigh','max'], defaultModel?:string, error?:string }
+//                claude static aliases: default (recommended), opus, sonnet, haiku, fable (+ the exact model id seen in the last session init, marked current);
+//                agy live: `agy models` lines "<id>\t<name>" (needs sign-in; error text otherwise)
+//   UsageSnapshot = { at:number,
+//     claude: { windows:{ five_hour:Window|null, seven_day:Window|null }, today:{costUsd, inputTokens, outputTokens, turns}, lastLimit:LimitInfo|null, updatedAt:number|null },
+//     agy:    { today:{inputTokens, outputTokens, thinkingTokens, turns}, lastLimit:LimitInfo|null, updatedAt:number|null },
+//     deepseek: { configured:boolean, balance?:Balance, updatedAt?:number } }
+//     Window = { utilization:number 0..1, resetsAt:number ms, status:'allowed'|'allowed_warning'|'rejected' }
+//     LimitInfo = { at, kind:'five_hour'|'seven_day'|'quota'|'unknown', status:'warning'|'rejected', resetsAt?:number, utilization?:number, message?:string, projectId?:string }
+//     'today' resets at local midnight; persisted to userData/usage.json (daily buckets, 30 days kept). `lastLimit` keeps the CLI/model's own message VERBATIM.
+//   DeepseekStatus = { configured:boolean, enabled:boolean, balance?:Balance, models?:[{id, ownedBy?}], error?:string, updatedAt?:number }
+//     Balance = { available:boolean, currency:string, total:string, granted:string, toppedUp:string }   (strings as returned by GET /user/balance; first balance_infos entry)
+//   TasksSnapshot = { at:number,
+//     agents:   [{ projectId, projectName, agent:'claude'|'agy', state:'running'|'committing', startedAt, elapsedMs, pid?:number }],
+//     services: [{ kind:'dashboard'|'remote'|'methodology'|'login'|'install'|'watcher'|'daemon', id:string, projectId?:string, label:string, state:'running'|'waiting'|'starting', url?:string, startedAt?:number, stoppable:boolean }],
+//     todos:    { [projectId]: [{content, status:'pending'|'in_progress'|'completed'}] },        // latest agent task list per project (claude TodoWrite events)
+//     subagents:[{ projectId, id, name, description?, state:'running'|'done'|'error', startedAt }] }  // claude Task / agy invoke_subagent, closed by the matching tool-result
+//     tasks:stop kinds: 'agent' (id=projectId), 'dashboard' (projectId), 'remote' (projectId), 'methodology' (runId), 'login' (agent), 'watcher' (projectId)
+//   StoreStatus = { dir:string (absolute, informational), exists:boolean, hasProject:boolean, hasState:boolean, historyBytes:number, attachmentsBytes:number, gitignored:boolean, lastSavedAt:number|null }
+//   Attachment  = { id, rel:'.flowstate/attachments/<file>', name, mime, size, width?:number, height?:number }   mime image/png|jpeg|gif|webp, <= 8 MB
+//   agent.send({projectId, text, allow?, images?}) - images: optional array (max 5) of {rel} previously returned by attachments:save.
+//        claude: sent as base64 image content blocks BEFORE the text block in the stream-json user message; agy: the prompt gets one line per image
+//        '[Image attached: <absolute path>]' appended (agy reads files itself). History 'user' records gain `images:[rel...]`.
+//
+//   ProjectStore - on-disk format of <project>/.flowstate/ (auto-loaded when the folder is added/opened; written through on every change, debounced 500 ms, flushed on quit):
+//     project.json   {version:1, name, agent, mode, model, effort, autoCommit, developerMode:boolean|null (null = follow the global setting), createdAt, updatedAt}   shareable: commit it
+//     state.json     {version:1, sessions:{claude:string|null, agy:string|null}, lastOpened, lastTurn:{ts, ok, agent}|null, counters:{turns, filesChanged}, ui:{...per-project UI state: draft, artifactsTab, openFile, scroll}, lastRun:RunState|null}
+//     history.jsonl  one JSON HistoryRecord per line (same as userData history, relocated here; capped like before)
+//     attachments/   pasted/dropped images
+//     methodologies/ project-local methodology .json files (listed together with user/bundled ones, source 'project')
+//     .gitignore     created on first save with: state.json, history.jsonl, attachments/  (so project.json + methodologies/ can be committed, nothing private leaks)
+//   Auto-load rule: projects.add / store:open-folder on a folder that has .flowstate/project.json merges project.json (name/agent/mode/model/effort/autoCommit) and state.json
+//   sessions + history; the registry in userData stays only as the index of known project folders (id, path). Corrupt files are renamed *.corrupt-<ts> and ignored, never crash.
+//
 // Phase 4 types (JSDoc):
 //   LoginStatus = { claude:{ loggedIn:boolean, authMethod?:string, email?:string }, agy:{ loggedIn:boolean } }   Health.agy also gains `loggedIn:boolean|null` (null = unknown / agy missing)
 //   LoginEvent  = { agent, kind:'url', url }                    first https URL seen in the output (claude: from stdout; agy: from the ANSI-stripped PTY text). `url` is only ever
@@ -153,5 +225,15 @@ export const API_SHAPE = Object.freeze({
   method: ['list', 'get', 'save', 'delete', 'record', 'import', 'export', 'run', 'respond', 'stop', 'runState'],
   login: ['start', 'input', 'resize', 'cancel', 'status', 'logout'],
   window: ['info', 'setTheme', 'action'],
-  subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod', 'onLogin', 'onWindow'],
+  models: ['list'],
+  usage: ['get'],
+  deepseek: ['setKey', 'status'],
+  menu: ['model', 'invoke'],
+  tasks: ['list', 'stop'],
+  store: ['status', 'save', 'openFolder', 'clear'],
+  ui: ['get', 'set', 'projectGet', 'projectSet'],
+  attachments: ['save', 'read'],
+  app: ['info', 'ready', 'flushed'],
+  subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod', 'onLogin', 'onWindow',
+    'onUsage', 'onTasks', 'onMenu', 'onBeforeQuit'],
 });

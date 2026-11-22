@@ -99,6 +99,58 @@ test('claude: tool-use has kind; thinking blocks become thinking events', () => 
   assert.equal(evs[0].text, 'plan: edit then test'); assert.equal(evs[1].kind, 'edit');
 });
 
+// ---- Phase 7: limits, todos, subagents ----
+import { looksLikeLimitText, parseResetFromText } from '../../src/shared/events.js';
+
+test('looksLikeLimitText recognises real-world limit phrasings and ignores normal text', () => {
+  for (const t of ["You've hit your limit - resets 3pm", 'Claude AI usage limit reached|1795306200', 'Usage limit reached', 'out of quota until 2026-11-22T10:00:00Z',
+    'RESOURCE_EXHAUSTED: quota', 'rate limit exceeded, try again in 5 minutes', 'QUOTA_EXHAUSTED']) assert.equal(looksLikeLimitText(t), true, t);
+  for (const t of ['Created hello.py', 'The loop prints squares', '', undefined]) assert.equal(looksLikeLimitText(t), false, String(t));
+});
+
+test('parseResetFromText handles ISO, legacy epoch and relative hints', () => {
+  assert.equal(parseResetFromText('out of quota until 2026-11-22T10:00:00Z'), Date.parse('2026-11-22T10:00:00Z'));
+  assert.equal(parseResetFromText('Claude AI usage limit reached|1795306200'), 1795306200 * 1000);
+  assert.equal(parseResetFromText('try again in 2h 30m', 1000), 1000 + 150 * 60000);
+  assert.equal(parseResetFromText('resets in 45 minutes', 0), 45 * 60000);
+  assert.equal(parseResetFromText('nothing here'), undefined);
+});
+
+test('claude: rate_limit_event keeps windows and adds a limit event only when not simply allowed (real capture shape)', () => {
+  const allowed = normalizeClaude({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed', resetsAt: 1795306200, rateLimitType: 'five_hour', unifiedWindows: { five_hour: { utilization: 0.15, resetsAt: 1795306200, status: 'allowed' } } } });
+  assert.deepEqual(allowed.map((e) => e.type), ['rate-limit']);
+  const hit = normalizeClaude({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', resetsAt: 1795306200, rateLimitType: 'seven_day', utilization: 1 } });
+  assert.deepEqual(hit.map((e) => e.type), ['rate-limit', 'limit']);
+  assert.deepEqual(hit[1], { type: 'limit', agent: 'claude', kind: 'seven_day', status: 'rejected', resetsAt: 1795306200000, utilization: 1 });
+  const warn = normalizeClaude({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed_warning', rateLimitType: 'five_hour', utilization: 0.9 } });
+  assert.equal(warn[1].status, 'warning'); assert.equal(warn[1].kind, 'five_hour');
+});
+
+test('claude: assistant API-error with limit text keeps the CLI message verbatim', () => {
+  const evs = normalizeClaude({ type: 'assistant', error: 'rate_limit', is_api_error_message: true, message: { content: [{ type: 'text', text: "You've hit your limit - resets 3pm (America/Chicago)" }] } });
+  assert.equal(evs.length, 1); assert.equal(evs[0].type, 'limit'); assert.equal(evs[0].message, "You've hit your limit - resets 3pm (America/Chicago)"); assert.equal(evs[0].status, 'rejected');
+  // other API errors are not limits and normal assistant text is untouched
+  assert.deepEqual(normalizeClaude({ type: 'assistant', error: 'server_error', is_api_error_message: true, message: { content: [{ type: 'text', text: 'Overloaded' }] } }).map((e) => e.type), ['text']);
+});
+
+test('claude: TodoWrite becomes a todos event; Task becomes a subagent event', () => {
+  const evs = normalizeClaude({ type: 'assistant', message: { content: [
+    { type: 'tool_use', id: 't1', name: 'TodoWrite', input: { todos: [{ content: 'Write code', status: 'in_progress', activeForm: 'Writing' }, { content: 'Test', status: 'weird' }] } },
+    { type: 'tool_use', id: 't2', name: 'Task', input: { subagent_type: 'Explore', description: 'Find usages' } }] } });
+  assert.deepEqual(evs.map((e) => e.type), ['tool-use', 'todos', 'tool-use', 'subagent']);
+  assert.deepEqual(evs[1].items, [{ content: 'Write code', status: 'in_progress' }, { content: 'Test', status: 'pending' }]);
+  assert.deepEqual(evs[3], { type: 'subagent', id: 't2', name: 'Explore', description: 'Find usages', state: 'running' });
+});
+
+test('agy: failed result with quota text yields a limit event; invoke_subagent yields a subagent event', () => {
+  const evs = normalizeAgy({ event: 'result', result: { status: 'FAILED', response: 'Usage limit reached. You are out of quota until 2026-11-22T10:00:00Z' } });
+  assert.deepEqual(evs.map((e) => e.type), ['limit', 'result']);
+  assert.equal(evs[0].agent, 'agy'); assert.equal(evs[0].resetsAt, Date.parse('2026-11-22T10:00:00Z')); assert.match(evs[0].message, /Usage limit reached/);
+  assert.deepEqual(normalizeAgy({ event: 'result', result: { status: 'SUCCESS', response: 'done' } }).map((e) => e.type), ['result']);
+  const sub = normalizeAgy({ event: 'step_update', step_update: { conversation_id: 'c', step_index: 3, state: 'ACTIVE', step_type: 'tool', tool_name: 'invoke_subagent', tool_info: { parameters: { Name: 'reviewer', Task: 'Review the diff' } } } });
+  assert.deepEqual(sub.map((e) => e.type), ['tool-use', 'subagent']); assert.equal(sub[1].name, 'reviewer');
+});
+
 test('ndjson parser handles split chunks and bad lines', () => {
   const objs = []; const bad = [];
   const feed = createNdjsonParser((o) => objs.push(o), (l) => bad.push(l));

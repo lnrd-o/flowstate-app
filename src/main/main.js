@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, session } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, dialog, shell, session, safeStorage, screen, net } from 'electron';
+import { createServices, fanoutAgentEvent, disposeServices } from './services.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSettings } from './settings.js';
@@ -46,10 +47,11 @@ if (!app.requestSingleInstanceLock()) {
 
     let ipc;
     let runner;
+    const services = {}; // Phase 7 pluggable services (src/main/svc/*.js), filled by createServices below
     const history = createHistory({ dir });
     const agents = createAgentManager({
       projects, git, history,
-      emit: (id, ev) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); runner?.onAgentEvent(id, ev); },
+      emit: (id, ev) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); runner?.onAgentEvent(id, ev); fanoutAgentEvent(services, id, ev); },
       resolveLauncher: async (agent) => {
         const p = agent === 'agy' ? await health.findAgy() : await health.findClaude();
         return p ? { command: p } : null;
@@ -83,8 +85,14 @@ if (!app.requestSingleInstanceLock()) {
     ipc = registerIpc({
       ipcMain, dialog, settings, projects, agents, git, health: poller,
       prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner,
-      login, windowCtl, getWindow: () => win, onSettings: applyLogin,
+      login, windowCtl, getWindow: () => win, onSettings: applyLogin, services,
     });
+    createServices({
+      app, dir, settings, projects, agents, history, git, health, poller, files, dashboards, remote, runner, login,
+      methodologies, prereq, prompts, getProject, getWindow: () => win, services,
+      push: (ch, payload) => ipc.push(ch, payload),
+      electron: { app, BrowserWindow, Menu, dialog, shell, safeStorage, screen, net, session },
+    }).catch((e) => console.error('[services] startup failed:', e?.message ?? e));
 
     session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
       if (!shouldApplyCsp(details.url)) { cb({}); return; }
@@ -112,6 +120,7 @@ if (!app.requestSingleInstanceLock()) {
 
     app.on('before-quit', () => {
       poller.stop(); login.cancelAll(); runner.stopAll(); agents.stopAll(); dashboards.stopAll(); remote.stopAll(); files.closeWatcher();
+      disposeServices(services);
     });
   });
 

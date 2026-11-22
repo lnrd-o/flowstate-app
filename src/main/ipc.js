@@ -11,7 +11,7 @@ const isId = (v) => typeof v === 'string' && v.length > 0 && v.length <= 64;
  * getWindow() -> object with webContents.send / isDestroyed (or null).
  */
 export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, agents, health, git, onSettings,
-  prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner, login, windowCtl }) {
+  prompts, files, dashboards, prereq, auth, remote, history, methodologies, recorder, runner, login, windowCtl, services = {} }) {
   const need = (id) => {
     if (!isStr(id)) throw new TypeError('projectId required');
     const p = projects.get(id);
@@ -31,6 +31,61 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     if (!Number.isInteger(v) || v < lo || v > hi) throw new TypeError(`invalid ${name}`);
     return v;
   };
+  // Phase 7 services are pluggable (src/main/services.js loads src/main/svc/<name>.js). A missing service rejects with a clear error
+  // instead of crashing, so the app keeps working while a service is being built.
+  const svc = (name) => {
+    const s = services[name];
+    if (!s) throw new Error(`service not available: ${name}`);
+    return s;
+  };
+  const isJsonPatch = (v, max = 16384) => {
+    if (!isPlain(v)) return false;
+    try { return JSON.stringify(v).length <= max; } catch { return false; }
+  };
+  const ATTACH_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+  const phase7 = () => ({
+    [CH.modelsList]: (_e, agent) => svc('models').list(needAgent(agent)),
+    [CH.usageGet]: () => svc('usage').get(),
+    [CH.deepseekSetKey]: (_e, key) => {
+      if (key !== null && (typeof key !== 'string' || key.length < 8 || key.length > 300 || /\s/.test(key))) throw new TypeError('invalid key');
+      return svc('deepseek').setKey(key);
+    },
+    [CH.deepseekStatus]: (_e, force) => svc('deepseek').status(force === true),
+    [CH.menuModel]: () => svc('menu').model(),
+    [CH.menuInvoke]: (_e, id) => {
+      if (typeof id !== 'string' || !/^[a-z][A-Za-z0-9.]{0,63}(?::[A-Za-z0-9-]{1,64})?$/.test(id)) throw new TypeError('invalid menu id');
+      return svc('menu').invoke(id);
+    },
+    [CH.tasksList]: () => svc('tasks').list(),
+    [CH.tasksStop]: (_e, req) => {
+      if (!isPlain(req) || !['agent', 'dashboard', 'remote', 'methodology', 'login', 'watcher'].includes(req.kind) || !isId(req.id)) throw new TypeError('invalid task');
+      return svc('tasks').stop({ kind: req.kind, id: req.id });
+    },
+    [CH.storeStatus]: (_e, id) => { need(id); return svc('store').status(id); },
+    [CH.storeSave]: (_e, id) => { need(id); return svc('store').save(id); },
+    [CH.storeOpenFolder]: () => svc('store').openFolder(),
+    [CH.storeClear]: (_e, id, what) => {
+      need(id);
+      if (what !== 'history' && what !== 'all') throw new TypeError('invalid scope');
+      return svc('store').clear(id, what);
+    },
+    [CH.uiGet]: () => svc('ui').get(),
+    [CH.uiSet]: (_e, patch) => { if (!isJsonPatch(patch)) throw new TypeError('invalid patch'); return svc('ui').set(patch); },
+    [CH.uiProjectGet]: (_e, id) => { need(id); return svc('ui').projectGet(id); },
+    [CH.uiProjectSet]: (_e, id, patch) => { need(id); if (!isJsonPatch(patch)) throw new TypeError('invalid patch'); return svc('ui').projectSet(id, patch); },
+    [CH.attachmentsSave]: (_e, id, meta) => {
+      need(id);
+      if (!isPlain(meta)) throw new TypeError('attachment required');
+      if (typeof meta.name !== 'string' || meta.name.length > 120) throw new TypeError('invalid name');
+      if (!ATTACH_MIMES.includes(meta.mime)) throw new TypeError('unsupported image type');
+      if (typeof meta.dataBase64 !== 'string' || meta.dataBase64.length > 12 * 1024 * 1024) throw new TypeError('image too large (max 8 MB)');
+      return svc('attachments').save(id, { name: meta.name, mime: meta.mime, dataBase64: meta.dataBase64 });
+    },
+    [CH.attachmentsRead]: (_e, id, rel) => { need(id); if (!isRel(rel) || !rel.startsWith('.flowstate/attachments/')) throw new TypeError('invalid attachment path'); return svc('attachments').read(id, rel); },
+    [CH.appInfo]: () => svc('boot').info(),
+    [CH.appReady]: () => svc('boot').ready(),
+    [CH.appFlushed]: () => svc('boot').flushed(),
+  });
   const phase4 = () => ({
     [CH.loginStart]: (_e, agent, opts = {}) => {
       needAgent(agent);
@@ -161,7 +216,15 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
       need(req.projectId);
       if (!isStr(req.text)) throw new TypeError('text required');
       // `allow` = optional per-turn narrow rules [{tool, pattern}]; strictly validated by the agent manager (permissions.js)
-      return agents.send({ projectId: req.projectId, text: req.text, ...(req.allow !== undefined ? { allow: req.allow } : {}) });
+      // `images` = optional [{rel}] from attachments:save (max 5), resolved to files inside <project>/.flowstate/attachments by the manager
+      if (req.images !== undefined) {
+        if (!Array.isArray(req.images) || req.images.length > 5 || req.images.some((i) => !isPlain(i) || !isRel(i.rel) || !i.rel.startsWith('.flowstate/attachments/'))) throw new TypeError('invalid images');
+      }
+      return agents.send({
+        projectId: req.projectId, text: req.text,
+        ...(req.allow !== undefined ? { allow: req.allow } : {}),
+        ...(req.images !== undefined ? { images: req.images.map((i) => ({ rel: i.rel })) } : {}),
+      });
     },
     [CH.agentStop]: (_e, id) => { need(id); agents.stop(id); },
     [CH.agentStatus]: (_e, id) => { need(id); return agents.status(id); },
@@ -171,6 +234,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     ...phase2(),
     ...phase3(),
     ...phase4(),
+    ...phase7(),
   };
   for (const [ch, fn] of Object.entries(handlers)) ipcMain.handle(ch, fn);
 

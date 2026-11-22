@@ -13,6 +13,8 @@ export function defaultSettings(locale = 'en') {
     walkthroughDone: false,
     // Developer mode: show code, diffs, commands and exact details in approvals. Off = simple, plain-language view.
     developerMode: true,
+    // DeepSeek usage/models panel (the API key itself is NOT a setting: it lives encrypted via svc/deepseek.js)
+    deepseekEnabled: false,
   };
 }
 
@@ -38,6 +40,7 @@ const TYPES = {
   autoLaunch: (v) => typeof v === 'boolean',
   walkthroughDone: (v) => typeof v === 'boolean',
   developerMode: (v) => typeof v === 'boolean',
+  deepseekEnabled: (v) => typeof v === 'boolean',
 };
 
 export function createSettings({ dir, locale = 'en', fsx = fs }) {
