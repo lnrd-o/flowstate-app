@@ -15,6 +15,7 @@ const EXES = {
 const PROMPTS = {
   basic: 'Reply with exactly: hello from the spike. Do not use any tools.',
   tool: 'Create a file named hello.txt containing the word hi, then read it back.',
+  rich: 'Create hello.py that prints the numbers 1 to 3 and run it. Then edit hello.py so it prints their squares instead, run it again, and briefly explain what you changed and why.',
 };
 
 // agy's -p consumes the next token as the prompt, so the prompt must be attached: -p=<prompt>.

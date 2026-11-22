@@ -12,10 +12,51 @@
 // Backend extras: session.warning === 'always-proceed' (agy); result.stopped === true (user pressed stop);
 // permission-denied { id, tool, reason, message }; rate-limit { status, windows }.
 
+// Phase 5 additions (rich activity view):
+//   tool-use    gains `kind`: 'command'|'edit'|'write'|'read'|'search'|'list'|'other'   (classifyTool below)
+//   tool-result gains `kind`, `durationMs`; for command tools also `exitCode` (number|null) and `commandOutput` (header-stripped text)
+//   { type: 'thinking',    id?, durationMs?, tokens?, outputTokens?, text? }   agy: only timing/token counts (it never streams reasoning text);
+//                                                                           claude: `text` when a thinking block is present
+//   { type: 'file-change', id, path, op:'create'|'modify'|'delete', added, removed, diff, truncated }
+//        emitted by main (src/main/changes.js) after an edit/write tool finishes: `path` is project-relative with forward slashes,
+//        `diff` is a unified diff with 3 lines of context (empty for binary/oversized files), `id` equals the tool-use id.
+
 export const EVENT_TYPES = Object.freeze([
-  'session', 'text-delta', 'text', 'tool-use', 'tool-result', 'permission-request', 'permission-denied',
+  'session', 'text-delta', 'text', 'thinking', 'tool-use', 'tool-result', 'file-change', 'permission-request', 'permission-denied',
   'rate-limit', 'result', 'error',
 ]);
+
+const TOOL_KINDS = {
+  command: /^(bash|powershell|run_command|command_status|send_command_input|execute_command)$/i,
+  edit: /^(edit|multiedit|notebookedit|edit_file|replace_file_content|multi_replace_file_content|sed_file|apply_patch)$/i,
+  write: /^(write|write_file|write_to_file|create_file)$/i,
+  read: /^(read|view_file|read_file|read_url_content|read_resource|webfetch)$/i,
+  search: /^(grep|glob|grep_search|find_by_name|websearch|search_web|search_marketplace)$/i,
+  list: /^(ls|list_dir|list_directory)$/i,
+};
+
+/** Classify a tool name (claude or agy) so the UI can pick a renderer. */
+export function classifyTool(_agent, name) {
+  const n = String(name ?? '');
+  for (const [kind, re] of Object.entries(TOOL_KINDS)) if (re.test(n)) return kind;
+  return 'other';
+}
+
+/** Candidate file paths in a tool's input (claude: file_path; agy: Path / TargetFile / AbsolutePath ...). */
+export function toolPaths(input) {
+  if (!input || typeof input !== 'object') return [];
+  const keys = ['file_path', 'filePath', 'path', 'Path', 'TargetFile', 'targetFile', 'AbsolutePath', 'notebook_path', 'FilePath'];
+  return keys.map((k) => input[k]).filter((v) => typeof v === 'string' && v.length > 0 && v.length < 1024);
+}
+
+/** agy run_command output: "Created At..\nCompleted At..\nCommand exited with code N.\n\nCommand output:\n<text>". */
+export function parseAgyCommandOutput(output) {
+  const t = String(output ?? '');
+  const m = /Command exited with code (-?\d+)/.exec(t);
+  const idx = t.indexOf('Command output:');
+  const body = idx >= 0 ? t.slice(idx + 'Command output:'.length).replace(/^\r?\n/, '') : t;
+  return { exitCode: m ? Number(m[1]) : null, commandOutput: body.replace(/\r\n/g, '\n').replace(/\n+$/, '') };
+}
 
 /** Map one parsed claude stream-json object to zero or more normalised events. */
 export function normalizeClaude(j) {
@@ -36,7 +77,8 @@ export function normalizeClaude(j) {
     }
     for (const c of j.message?.content ?? []) {
       if (c.type === 'text' && c.text) out.push({ type: 'text', text: c.text });
-      else if (c.type === 'tool_use') out.push({ type: 'tool-use', id: c.id, name: c.name, input: c.input });
+      else if (c.type === 'thinking' && c.thinking) out.push({ type: 'thinking', text: c.thinking });
+      else if (c.type === 'tool_use') out.push({ type: 'tool-use', id: c.id, name: c.name, kind: classifyTool('claude', c.name), input: c.input });
     }
   } else if (j.type === 'user') {
     for (const c of Array.isArray(j.message?.content) ? j.message.content : []) {
@@ -70,13 +112,23 @@ export function normalizeAgy(j) {
   } else if (j.event === 'step_update') {
     const s = j.step_update;
     const id = `${s.conversation_id}:${s.step_index}`;
-    if (s.step_type === 'agent_response' && s.text_delta) {
-      if (s.state === 'ACTIVE') out.push({ type: 'text-delta', text: s.text_delta });
-      // DONE carries only a trailing newline; the stream already delivered the text.
+    if (s.step_type === 'agent_response') {
+      if (s.state === 'ACTIVE' && s.text_delta) out.push({ type: 'text-delta', text: s.text_delta });
+      // DONE carries only a trailing newline; the stream already delivered the text. But AGY never streams its
+      // reasoning text, only how long each model step took and how many thinking tokens it used: surface that.
+      if (s.state === 'DONE' && s.usage && (s.usage.thinking_tokens > 0 || s.duration_seconds >= 1)) {
+        out.push({ type: 'thinking', id, durationMs: Math.round((s.duration_seconds ?? 0) * 1000), tokens: s.usage.thinking_tokens ?? 0, outputTokens: s.usage.output_tokens ?? 0 });
+      }
     } else if (s.step_type === 'tool') {
-      if (s.state === 'ACTIVE') out.push({ type: 'tool-use', id, name: s.tool_name, input: s.tool_info?.parameters });
-      else if (s.state === 'DONE') out.push({ type: 'tool-result', id, name: s.tool_name, output: s.tool_info?.output });
+      const kind = classifyTool('agy', s.tool_name);
+      if (s.state === 'ACTIVE') out.push({ type: 'tool-use', id, name: s.tool_name, kind, input: s.tool_info?.parameters });
+      else if (s.state === 'DONE') {
+        const ev = { type: 'tool-result', id, name: s.tool_name, kind, output: s.tool_info?.output, durationMs: Math.round((s.duration_seconds ?? 0) * 1000) };
+        if (kind === 'command') Object.assign(ev, parseAgyCommandOutput(s.tool_info?.output));
+        out.push(ev);
+      }
     }
+    // step_type 'user_input' and 'system_message' carry no content in the stream: ignored.
   } else if (j.event === 'result') {
     const r = j.result ?? {};
     out.push({ type: 'result', ok: r.status === 'SUCCESS', text: r.response, durationMs: (r.duration_seconds ?? 0) * 1000, usage: r.usage });
