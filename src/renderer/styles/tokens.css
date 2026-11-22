@@ -3,33 +3,53 @@
   color-scheme: dark;
 
   /* surfaces */
-  --bg: #141417;
-  --bg-panel: #1b1b1f;
-  --bg-card: #202025;
-  --bg-elev: #26262c;
-  --bg-input: #18181c;
-  --bg-hover: rgba(255, 255, 255, 0.05);
-  --bg-active: rgba(255, 255, 255, 0.08);
-  --bg-overlay: rgba(6, 6, 8, 0.62);
+  --bg: #0a0a0a;
+  --bg-panel: #101010;
+  --bg-card: #161616;
+  --bg-elev: #1c1c1c;
+  --bg-input: #0d0d0d;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-active: rgba(255, 255, 255, 0.10);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
 
   /* borders */
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
   /* text */
-  --text: #ececf1;
-  --text-2: #9a9aa6;
-  --text-3: #868693; /* tertiary: large/auxiliary text, still >= 4.5:1 on panels */
+  --text: #ffffff;
+  --text-2: #a3a3a3;
+  --text-3: #8a8a8a; /* tertiary: large/auxiliary text, still >= 4.5:1 on panels */
 
-  /* accent */
-  --accent: #7c5cff;
-  --accent-hover: #8f74ff;
-  --accent-btn: #6c47ff;       /* filled button bg (white text >= 4.5:1) */
-  --accent-btn-hover: #7a58ff;
-  --accent-soft: rgba(124, 92, 255, 0.16);
-  --accent-text: #a995ff;      /* accent used as text on dark surfaces */
-  --on-accent: #ffffff;
+  /* accent: monochrome. White on black in the dark theme (black on white in light). */
+  --accent: #ffffff;
+  --accent-hover: #e5e5e5;
+  --accent-btn: #ffffff;       /* filled button bg (--on-accent text >= 4.5:1) */
+  --accent-btn-hover: #e5e5e5;
+  --accent-soft: rgba(255, 255, 255, 0.10);
+  --accent-text: #ffffff;      /* accent used as text */
+  --on-accent: #000000;
 
+  /* agent identity: colour is identity only (text stays neutral). No purple anywhere. */
+  --claude: #D97757;
+  --claude-soft: rgba(217, 119, 87, 0.16);
+  --claude-text: #E8906F;      /* claude orange as text on dark surfaces (>= 4.5:1) */
+  --gemini-red: #EA4335;
+  --gemini-yellow: #FBBC04;
+  --gemini-green: #34A853;
+  --gemini-blue: #4285F4;
+  --gemini-soft: rgba(66, 133, 244, 0.14);
+  /* text-safe variants of the four Gemini colours (used for gradient text) */
+  --gemini-red-t: #FF7B6E;
+  --gemini-yellow-t: #FBBC04;
+  --gemini-green-t: #4CD07A;
+  --gemini-blue-t: #7AAEFF;
+  /* flow gradients are palindromic so a wrap-around never blends blue into red (that would pass through purple);
+     the rotating conic border is built in app.css (it needs a per-element @property angle) */
+  --gemini-gradient: linear-gradient(90deg, var(--gemini-red), var(--gemini-yellow), var(--gemini-green), var(--gemini-blue));
+  --gemini-gradient-v: linear-gradient(180deg, var(--gemini-red), var(--gemini-yellow), var(--gemini-green), var(--gemini-blue));
+  --gemini-flow: linear-gradient(90deg, var(--gemini-red), var(--gemini-yellow), var(--gemini-green), var(--gemini-blue), var(--gemini-green), var(--gemini-yellow), var(--gemini-red));
+  --gemini-flow-text: linear-gradient(90deg, var(--gemini-red-t), var(--gemini-yellow-t), var(--gemini-green-t), var(--gemini-blue-t), var(--gemini-green-t), var(--gemini-yellow-t), var(--gemini-red-t));
   /* status */
   --green: #3ecf6e;
   --green-soft: rgba(62, 207, 110, 0.14);
@@ -44,14 +64,14 @@
   --blue-soft: rgba(77, 163, 255, 0.14);
   --blue-text: #78b9ff;
 
-  --focus: #a995ff;
-  --selection: rgba(124, 92, 255, 0.35);
-  --scrollbar: rgba(255, 255, 255, 0.14);
-  --scrollbar-hover: rgba(255, 255, 255, 0.26);
+  --focus: #ffffff;
+  --selection: rgba(255, 255, 255, 0.25);
+  --scrollbar: rgba(255, 255, 255, 0.16);
+  --scrollbar-hover: rgba(255, 255, 255, 0.28);
 
   /* code */
-  --code-bg: #121215;
-  --code-header-bg: #19191d;
+  --code-bg: #0d0d0d;
+  --code-header-bg: #131313;
   --code-inline-bg: rgba(255, 255, 255, 0.08);
   --diff-add-bg: rgba(62, 207, 110, 0.14);
   --diff-del-bg: rgba(239, 83, 80, 0.14);
@@ -130,29 +150,39 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #f4f4f7;
-  --bg-panel: #ffffff;
-  --bg-card: #ffffff;
+  --bg: #ffffff;
+  --bg-panel: #fafafa;
+  --bg-card: #f4f4f5;
   --bg-elev: #ffffff;
   --bg-input: #ffffff;
-  --bg-hover: rgba(20, 20, 30, 0.05);
-  --bg-active: rgba(20, 20, 30, 0.09);
-  --bg-overlay: rgba(20, 20, 30, 0.42);
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-active: rgba(0, 0, 0, 0.09);
+  --bg-overlay: rgba(0, 0, 0, 0.42);
 
-  --border: rgba(20, 20, 30, 0.09);
-  --border-strong: rgba(20, 20, 30, 0.18);
+  --border: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.20);
 
-  --text: #1a1a20;
-  --text-2: #565662;
-  --text-3: #6b6b78;
+  --text: #000000;
+  --text-2: #52525b;
+  --text-3: #6b6b75;
 
-  --accent: #6c47ff;
-  --accent-hover: #5b37ee;
-  --accent-btn: #6c47ff;
-  --accent-btn-hover: #5b37ee;
-  --accent-soft: rgba(108, 71, 255, 0.11);
-  --accent-text: #5b37ee;
+  /* accent: black on white */
+  --accent: #000000;
+  --accent-hover: #27272a;
+  --accent-btn: #000000;
+  --accent-btn-hover: #27272a;
+  --accent-soft: rgba(0, 0, 0, 0.06);
+  --accent-text: #000000;
   --on-accent: #ffffff;
+
+  --claude: #D97757;
+  --claude-soft: rgba(217, 119, 87, 0.14);
+  --claude-text: #B4532F;      /* >= 4.5:1 on white / light cards */
+  --gemini-soft: rgba(66, 133, 244, 0.11);
+  --gemini-red-t: #C5221F;
+  --gemini-yellow-t: #A55E00;
+  --gemini-green-t: #137333;
+  --gemini-blue-t: #1A56DB;
 
   --green: #1faa55;
   --green-soft: rgba(31, 170, 85, 0.13);
@@ -167,18 +197,18 @@
   --blue-soft: rgba(31, 127, 224, 0.11);
   --blue-text: #14609f;
 
-  --focus: #6c47ff;
-  --selection: rgba(108, 71, 255, 0.22);
-  --scrollbar: rgba(20, 20, 30, 0.2);
-  --scrollbar-hover: rgba(20, 20, 30, 0.36);
+  --focus: #000000;
+  --selection: rgba(0, 0, 0, 0.18);
+  --scrollbar: rgba(0, 0, 0, 0.2);
+  --scrollbar-hover: rgba(0, 0, 0, 0.36);
 
-  --code-bg: #f6f6f9;
-  --code-header-bg: #ececf1;
-  --code-inline-bg: rgba(20, 20, 30, 0.07);
+  --code-bg: #f6f6f7;
+  --code-header-bg: #ececee;
+  --code-inline-bg: rgba(0, 0, 0, 0.07);
   --diff-add-bg: rgba(31, 170, 85, 0.15);
   --diff-del-bg: rgba(217, 58, 54, 0.13);
 
-  --shadow-sm: 0 1px 2px rgba(20, 20, 40, 0.08);
-  --shadow-md: 0 6px 18px rgba(20, 20, 40, 0.12);
-  --shadow-lg: 0 18px 48px rgba(20, 20, 40, 0.2);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.2);
 }

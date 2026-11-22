@@ -20,6 +20,7 @@ import { createPhase2 } from './mock-phase2.js';
 import { createPhase3 } from './mock-phase3.js';
 import { createPhase4 } from './mock-phase4.js';
 import { wantsRich, richScript } from './mock-phase5.js';
+import { wantsBlocked, devPreset, allowCovers, blockedNeeds, blockedScript } from './mock-phase6.js';
 
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -27,6 +28,7 @@ export function createMockApi() {
     language: 'en', theme: 'dark', codeTheme: 'vs-dark', claudePath: null, agyPath: null,
     lastProjectId: null, autoLaunch: false,
     walkthroughDone: !/#(walkthrough|first)/.test(location.hash),
+    developerMode: devPreset(location.hash) !== false,
   };
   let projects = [
     { id: 'p1', name: 'ClaudeClient', path: 'C:\\Users\\leo\\Code\\ClaudeClient', agent: 'claude', mode: 'default', sessionId: 'abc', lastOpened: new Date().toISOString(), autoCommit: true },
@@ -55,6 +57,7 @@ export function createMockApi() {
   window.addEventListener('hashchange', () => healthSubs.forEach((cb) => cb(health())));
 
   let richUsed = false;
+  let blockedRuns = 0;
   function runRich(projectId, text, style) {
     const proj = projects.find((p) => p.id === projectId);
     const timers = [];
@@ -69,7 +72,25 @@ export function createMockApi() {
     running.set(projectId, { timers, text });
   }
 
-  function runTurn(projectId, text) {
+  function runScript(projectId, text, script) {
+    const timers = [];
+    for (const [ms, ev] of script) {
+      timers.push(setTimeout(() => {
+        emit(projectId, ev);
+        if (ev.type === 'result') running.delete(projectId);
+      }, ms));
+    }
+    running.set(projectId, { timers, text });
+  }
+
+  function runTurn(projectId, text, allow) {
+    const variant = wantsBlocked(location.hash);
+    const bproj = projects.find((p) => p.id === projectId);
+    if (variant && bproj && bproj.agent === 'claude') {
+      const covered = bproj.mode === 'acceptEdits' || allowCovers(allow, blockedNeeds(bproj.path, variant));
+      runScript(projectId, text, blockedScript(bproj.path, variant, covered ? 'allowed' : 'blocked', ++blockedRuns));
+      return;
+    }
     const style = wantsRich(location.hash);
     if (style && !richUsed) { richUsed = true; runRich(projectId, text, style); return; }
     const proj = projects.find((p) => p.id === projectId);
@@ -133,7 +154,7 @@ export function createMockApi() {
       pickFolder: async () => 'C:\\Users\\leo\\Code\\NewProject',
     },
     agent: {
-      send: async ({ projectId, text }) => { p2.onUserSend(projectId, text); runTurn(projectId, text); return { turnId: 't' + Date.now() }; },
+      send: async ({ projectId, text, allow }) => { p2.onUserSend(projectId, text); runTurn(projectId, text, allow); return { turnId: 't' + Date.now() }; },
       stop: async (projectId) => {
         const r = running.get(projectId);
         if (r) r.timers.forEach(clearTimeout);

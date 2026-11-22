@@ -7,7 +7,7 @@ export const NODE_META = Object.freeze({
   command: { icon: 'terminal', tone: 'amber' },
   'git-commit': { icon: 'git', tone: 'green' },
   'ask-user': { icon: 'question', tone: 'blue' },
-  checkpoint: { icon: 'flag', tone: 'purple' },
+  checkpoint: { icon: 'flag', tone: 'amber' },
   artifact: { icon: 'file', tone: 'muted' },
   condition: { icon: 'branch', tone: 'accent' },
 });

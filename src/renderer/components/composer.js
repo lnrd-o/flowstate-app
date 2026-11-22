@@ -2,7 +2,8 @@
 import { h, icon, radioKeys } from '../lib/dom.js';
 import { t, getLanguage } from '../lib/i18n.js';
 import { pickLang, filterTemplates, render as renderTemplate, defaultValues } from '../lib/templates.js';
-import { activeProject } from '../lib/store.js';
+import { activeProject, isDev } from '../lib/store.js';
+import { agentIcon, setIconState } from './agent-icon.js';
 
 const MODES = ['default', 'acceptEdits', 'plan'];
 const AGENTS = ['claude', 'agy'];
@@ -24,9 +25,10 @@ export function mountComposer(root, { store, api, actions }) {
   let shownProject = null;
 
   const input = h('textarea', { class: 'composer__input', rows: 1, id: 'composer-input' });
-  const segmented = h('div', { class: 'segmented', attrs: { role: 'radiogroup' } });
+  const segmented = h('div', { class: 'segmented seg-agent', attrs: { role: 'radiogroup' } });
   const segButtons = AGENTS.map((a) => {
-    const b = h('button', { class: 'segmented__item', type: 'button', attrs: { role: 'radio', 'aria-checked': 'false' }, text: t('agent.' + a) });
+    const b = h('button', { class: 'segmented__item seg-agent__item seg-agent__item--' + a, type: 'button', attrs: { role: 'radio', 'aria-checked': 'false' } },
+      agentIcon(a, { size: 14 }), h('span', { class: 'seg-agent__label', text: t('agent.' + a) }));
     b.addEventListener('click', () => {
       const p = activeProject(store.get());
       if (p && p.agent !== a) actions.updateProject(p.id, { agent: a });
@@ -147,14 +149,18 @@ export function mountComposer(root, { store, api, actions }) {
     input.disabled = !p;
     AGENTS.forEach((a, i) => {
       const on = !!p && p.agent === a;
-      segButtons[i].textContent = t('agent.' + a);
+      segButtons[i].lastChild.textContent = t('agent.' + a);
+      setIconState(segButtons[i].firstChild, on && running ? 'running' : 'idle');
       segButtons[i].classList.toggle('is-active', on);
       segButtons[i].setAttribute('aria-checked', String(on));
       segButtons[i].tabIndex = on || (!p && i === 0) ? 0 : -1;
       segButtons[i].disabled = !p || running;
     });
     segmented.setAttribute('aria-label', t('agent.switch'));
-    [...modeSelect.options].forEach((o) => { o.textContent = t('mode.' + o.value); });
+    const dev = isDev(s);
+    [...modeSelect.options].forEach((o) => { o.textContent = t((dev ? 'mode.' : 'mode.friendly.') + o.value); });
+    composer.dataset.agent = p ? p.agent : '';
+    composer.classList.toggle('is-running', running);
     modeSelect.value = p ? p.mode : 'default';
     modeSelect.disabled = !p || running;
     modeSelect.setAttribute('aria-label', t('mode.label'));
@@ -173,7 +179,7 @@ export function mountComposer(root, { store, api, actions }) {
   const isRunning = (st) => !!(st.chats[st.activeProjectId] && st.chats[st.activeProjectId].running);
   store.subscribe((s, prev) => {
     if (s.projects !== prev.projects || s.activeProjectId !== prev.activeProjectId || s.health !== prev.health || s.signedIn !== prev.signedIn
-      || isRunning(s) !== isRunning(prev)) render();
+      || isRunning(s) !== isRunning(prev) || s.settings.developerMode !== prev.settings.developerMode) render();
   });
   render();
   return {

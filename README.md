@@ -33,7 +33,11 @@ terminal launching, process-group kill) is unit-tested with injected platform da
 [docs/building.md](docs/building.md) for the first-launch steps (SmartScreen, Gatekeeper, `chmod +x`) and how to build or release.
 
 ## Features
-- **Agents:** Claude / AGY switch per project, streaming chat, markdown + highlighted code (7 code themes), tool cards.
+- **Agents:** Claude / AGY switch per project, streaming chat, markdown + highlighted code (7 code themes). Each agent has its own identity: Claude in orange with an animated burst, AGY with a flowing rainbow sparkle.
+- **What the agent did:** rich cards with real diffs (computed by FlowState, since AGY only reports file paths), command output with exit codes, thinking time, a turn summary and an Activity timeline.
+- **Developer / Simple mode:** Developer shows code, diffs, commands and exact details; Simple shows plain-language steps ("Created hello.py", "Tested your project, it worked"). One click in the top bar.
+- **Approvals:** blocked actions show exactly what they are; "Allow this once" lets Claude run just that one command for one turn (never saved), no need to switch the whole project to auto-edit.
+- **Look:** white on black (dark), black on white (light), or Dark Gold.
 - **Projects:** registry, resume the last session automatically, saved chat history, project menu.
 - **Git:** optional auto-commit to a `claude/auto` branch after each turn (secret-safe), one-click undo of the last turn.
 - **Health:** detects Claude/AGY/Node/Git/Python, sign-in state, VPN adapters and whether Anthropic is reachable; banner asks you to leave the VPN.

@@ -2,15 +2,20 @@
 import { h, icon, nextId } from '../lib/dom.js';
 import { t, getLanguage } from '../lib/i18n.js';
 import { formatDuration, formatCount, elapsedSeconds, hasActivity } from '../lib/activity.js';
+import { agentIcon } from './agent-icon.js';
 
 /** Collapsed single line "Thought for 17.3 s - 1,600 tokens"; expandable only when the agent sent reasoning text (claude). */
 export function buildThinkingRow() {
+  let rowAgent = null;
+  const mkIcon = () => agentIcon(rowAgent, { size: 14 });
   const label = h('span', { class: 'think-row__label' });
   const bodyId = nextId('think');
   const body = h('div', { class: 'think-row__text', id: bodyId, hidden: true });
   const chevron = icon('chevron', 'tool-card__chevron');
-  const head = h('button', { class: 'think-row__head', type: 'button', attrs: { 'aria-expanded': 'false', 'aria-controls': bodyId } }, icon('sparkles', 'think-row__icon'), label, chevron);
-  const plain = h('div', { class: 'think-row__head think-row__head--plain' }, icon('sparkles', 'think-row__icon'));
+  const headIcon = h('span', { class: 'think-row__icon' });
+  const plainIcon = h('span', { class: 'think-row__icon' });
+  const head = h('button', { class: 'think-row__head', type: 'button', attrs: { 'aria-expanded': 'false', 'aria-controls': bodyId } }, headIcon, label, chevron);
+  const plain = h('div', { class: 'think-row__head think-row__head--plain' }, plainIcon);
   const plainLabel = h('span', { class: 'think-row__label' });
   plain.append(plainLabel);
   const el = h('div', { class: 'think-row' });
@@ -24,6 +29,7 @@ export function buildThinkingRow() {
   return {
     el,
     update(m) {
+      if (m.agent !== rowAgent) { rowAgent = m.agent || null; headIcon.replaceChildren(mkIcon()); plainIcon.replaceChildren(mkIcon()); }
       const loc = getLanguage();
       const time = m.durationMs > 0 ? formatDuration(m.durationMs) : '';
       const tokens = formatCount(m.tokens || 0, loc);
@@ -92,22 +98,28 @@ export function createLiveStatus() {
   const text = h('span', { class: 'live-status__text' });
   const secs = h('span', { class: 'live-status__secs faint' });
   const sr = h('span', { class: 'sr-only', attrs: { role: 'status', 'aria-live': 'polite' } });
-  const visible = h('span', { class: 'live-status__visible', attrs: { 'aria-hidden': 'true' } },
-    h('span', { class: 'thinking-dots' }, h('span'), h('span'), h('span')), text, secs);
+  const iconHost = h('span', { class: 'live-status__icon' });
+  const visible = h('span', { class: 'live-status__visible', attrs: { 'aria-hidden': 'true' } }, iconHost, text, secs);
   const el = h('div', { class: 'msg msg--assistant live-status' }, visible, sr);
   let timer = null;
   let since = null;
   let key = '';
   let phaseSince = null;
+  let shownAgent = null;
   const tick = () => {
     const base = since != null ? since : phaseSince;
     secs.textContent = base != null ? t('act.live.elapsed', { seconds: elapsedSeconds(base, Date.now()) }) : '';
   };
   return {
     el,
-    update(phase, root) {
+    update(phase, root, opts) {
+      const o = opts || {};
+      const agent = o.agent || 'claude';
+      if (agent !== shownAgent) { shownAgent = agent; iconHost.replaceChildren(agentIcon(agent, { size: 16, state: 'running' })); }
+      el.className = 'msg msg--assistant live-status live-status--' + agent + (o.simple ? ' is-simple' : '');
       const title = phase.title ? t(phase.title.key, phase.title.vars) : String(phase.name || '');
-      const label = phase.key === 'tool' ? (phase.cmd ? t('act.live.running', { title: phase.cmd }) : title + '...') : phase.key === 'writing' ? t('act.live.writing') : t('act.live.thinking');
+      let label = phase.key === 'tool' ? (phase.cmd ? t('act.live.running', { title: phase.cmd }) : title + '...') : phase.key === 'writing' ? t('act.live.writing') : t('act.live.thinking');
+      if (o.simple) label = phase.key === 'writing' ? t('act.live.writing') : phase.key === 'tool' ? t('plain.live.working') : t('act.live.thinking');
       const k = phase.key + ':' + (phase.id || '');
       if (k !== key) { key = k; phaseSince = Date.now(); sr.textContent = label; } // announce phase changes only
       since = phase.since;

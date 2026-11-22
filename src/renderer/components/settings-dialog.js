@@ -4,6 +4,7 @@ import { t, onChange } from '../lib/i18n.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { openDialog } from './modal.js';
 import { statusChip } from '../lib/login-state.js';
+import { isDev } from '../lib/store.js';
 
 export const CODE_THEMES = ['vs-dark', 'github-dark', 'github-light', 'dracula', 'one-dark', 'solarized-dark', 'monokai', 'gold-dark'];
 
@@ -68,6 +69,12 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       return inp;
     };
 
+    const devBox = h('input', { type: 'checkbox', id: 'set-devmode', checked: isDev(store.get()) });
+    devBox.addEventListener('change', () => actions.updateSettings({ developerMode: devBox.checked }));
+    const devRow = h('div', { class: 'field settings-dev' },
+      h('label', { class: 'toggle', for: 'set-devmode' }, devBox, h('span', { class: 'toggle__track' }), h('span', { class: 'strong', text: t('devmode.title') })),
+      h('div', { class: 'field__hint', text: t('devmode.hint') }));
+
     const auto = h('input', { type: 'checkbox', id: 'set-autolaunch', checked: !!s.autoLaunch });
     auto.addEventListener('change', () => actions.updateSettings({ autoLaunch: auto.checked }));
     const redo = h('button', { class: 'btn', type: 'button', text: t('settings.restartWalkthrough') });
@@ -91,6 +98,7 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       h('div', { class: 'settings-grid' },
         field(t('settings.language'), lang),
         field(t('settings.theme'), theme)),
+      devRow,
       field(t('settings.codeTheme'), code),
       h('div', { class: 'settings-preview-wrap', attrs: { 'aria-label': t('settings.codeTheme') } }, preview),
       accounts,

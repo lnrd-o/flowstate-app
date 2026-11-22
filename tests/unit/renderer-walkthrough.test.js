@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { STEPS, stepsFor, folderName } from '../../src/renderer/components/walkthrough.js';
 
-test('walkthrough has a Starting point step after agent and before git', () => {
-  assert.deepEqual(STEPS, ['welcome', 'prerequisites', 'folder', 'agent', 'start', 'git', 'done']);
+test('walkthrough has a mode step right after welcome and a Starting point step after agent', () => {
+  assert.deepEqual(STEPS, ['welcome', 'mode', 'prerequisites', 'folder', 'agent', 'start', 'git', 'done']);
   assert.deepEqual(stepsFor(''), STEPS);
 });
 

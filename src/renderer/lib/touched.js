@@ -65,7 +65,7 @@ export function touchedPath(name, input, root) {
 export function lastTouchedFile(messages, root) {
   for (let i = (messages || []).length - 1; i >= 0; i--) {
     const m = messages[i];
-    if (!m || m.role !== 'tool' || m.status === 'error') continue;
+    if (!m || m.role !== 'tool' || m.status === 'error' || m.status === 'blocked') continue;
     const rel = touchedPath(m.name, m.input, root);
     if (rel && isPreviewable(rel)) return rel;
   }

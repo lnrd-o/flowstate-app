@@ -142,7 +142,7 @@ export function createMethodEditor({ store, api, actions }) {
   function renderHead() {
     const d = m();
     titleEl.textContent = pickText(d.name, lang()) || t('method.untitled');
-    const srcTone = { bundled: 'badge--muted', user: 'badge--purple', recorded: 'badge--amber' }[d.source] || 'badge--muted';
+    const srcTone = { bundled: 'badge--muted', user: 'badge--accent', recorded: 'badge--amber' }[d.source] || 'badge--muted';
     badges.replaceChildren(...[h('span', { class: 'badge ' + srcTone, text: t('method.source.' + (d.source || 'user')) }),
       dirty() ? h('span', { class: 'badge badge--amber', text: t('method.editor.unsaved') }) : null].filter(Boolean));
     btnRun.disabled = isNew || dirty();

@@ -12,7 +12,8 @@ Icons: inline SVG with class `icon` (16px, stroke = currentColor); `icon--lg` is
 
 ## Tokens (tokens.css)
 Surfaces `--bg --bg-panel --bg-card --bg-elev --bg-input --bg-hover --bg-active --bg-overlay`; borders `--border --border-strong`;
-text `--text --text-2 --text-3`; accent `--accent --accent-hover --accent-btn --accent-btn-hover --accent-soft --accent-text --on-accent`;
+text `--text --text-2 --text-3`; accent `--accent --accent-hover --accent-btn --accent-btn-hover --accent-soft --accent-text --on-accent` (monochrome: white on black in dark, black on white in light; gold overrides it);
+agent identity `--claude --claude-soft --claude-text --gemini-red|yellow|green|blue --gemini-soft --gemini-*-t (text-safe variants) --gemini-gradient --gemini-gradient-v --gemini-flow --gemini-flow-text` (no purple; the flow gradients are palindromic so blue never blends into red);
 status `--green|amber|red|blue` + `-soft` (translucent bg) + `-text` (text on soft bg); `--focus --selection`;
 code `--code-bg --code-header-bg --code-inline-bg --diff-add-bg --diff-del-bg`;
 radii `--radius-xs/sm/md(8)/lg(12)/xl/pill`; spacing `--space-1..12` (4px grid: 1=4, 2=8, 3=12, 4=16, 5=20, 6=24, 8=32, 10=40, 12=48);
@@ -55,7 +56,7 @@ Splitter: add `.is-dragging` to `.splitter` and `.is-resizing` to `.app` while d
 ### Components (components.css)
 - `.btn` + `--primary --ghost --danger --icon --sm` (combine: `btn btn--ghost btn--icon btn--sm`).
 - `.input` `.select` `.select--sm` `.textarea`; wrap in `.field` with `.field__label`, `.field__hint`, `.field__error`.
-- `.badge` + `--green --amber --red --purple --muted`; dot: `<span class="badge badge--green"><span class="badge__dot"></span>Idle</span>`. Standalone `.dot` + `--green --amber --red --muted`.
+- `.badge` + `--green --amber --red --accent --muted`; dot: `<span class="badge badge--green"><span class="badge__dot"></span>Idle</span>`. Standalone `.dot` + `--green --amber --red --muted`.
 - `.pill-tabs > .pill-tab(.is-active)` (add `role="tablist"`/`role="tab"`, `aria-selected`).
 - `.card` (`.card--flush`), `.card__header`, `.card__title`, `.card__sub`; `.stat-card > .stat-card__label + .stat-card__value + .stat-card__sub` (`--up` green, `--down` red); `.bars > .bars__bar(.is-active)` with inline `height:%`.
 - `.nav-section-label`; `.nav-item(.is-active)` with `.nav-item__icon .nav-item__label .nav-item__count .nav-item__dot(--green|--amber|--red)`; `.nav-item--sub` for sessions under a project.
@@ -73,7 +74,7 @@ Splitter: add `.is-dragging` to `.splitter` and `.is-resizing` to `.app` while d
 ### Chat (chat.css)
 - `.msg.msg--user|--assistant|--system|--error` > `.msg__meta` + `.msg__body` (assistant body: add `.md`; user body is plain text, pre-wrap).
 - `.thinking-dots` = `<span class="thinking-dots"><span></span><span></span><span></span></span>`.
-- Tool card: `<div class="tool-card [is-open] [tool-card--running|--error]"><button class="tool-card__header"><svg class="tool-card__icon"/><span class="tool-card__name">Edit</span><span class="tool-card__summary">path</span><span class="badge badge--purple">Running</span><svg class="tool-card__chevron"/></button><div class="tool-card__body">mono output</div></div>`. Status badge: running = `badge--purple` (+ spinner), done = `badge--green`, error = `badge--red`. Toggle `.is-open` and `aria-expanded`.
+- Tool card: `<div class="tool-card [is-open] [tool-card--running|--error]"><button class="tool-card__header"><svg class="tool-card__icon"/><span class="tool-card__name">Edit</span><span class="tool-card__summary">path</span><span class="badge badge--accent">Running</span><svg class="tool-card__chevron"/></button><div class="tool-card__body">mono output</div></div>`. Status badge: running = `badge--accent` (+ spinner), done = `badge--green`, error = `badge--red`, blocked = `badge--amber` + lock icon (`tool-card--blocked`). Toggle `.is-open` and `aria-expanded`.
 - Permission card: `.permission-card > .permission-card__title + .permission-card__detail + .permission-card__actions` (Deny `btn`, Approve `btn btn--primary`); add `.is-resolved` after answering.
 - Composer: `<div class="composer"><textarea class="composer__input" rows="1"></textarea><div class="composer__toolbar"><div class="segmented">..</div><select class="select select--sm" style="width:auto"/><span class="composer__spacer"></span><button class="composer__send [composer__send--stop]"/></div></div>` + `.composer__hint`. Autosize: set `style.height` from scrollHeight (max 240px via CSS).
 - Markdown: wrap sanitized HTML in `.md` (h1-h4, p, ul/ol, blockquote, table, hr, a, img, code).
@@ -86,16 +87,17 @@ Styles every `.hljs-*` class listed in the brief via `--c-*` variables per theme
 Contrast ratios computed (WCAG, text on its actual background; blended for translucent badges):
 | Pair | Dark | Light |
 |---|---|---|
-| text / page bg | 15.6 | 15.8 |
-| text / card | 13.8 | 15+ |
-| text-2 / panel | 6.2 | 7.2 |
-| text-2 / card | 5.8 | 7.2 |
-| text-3 / panel | 4.8 | 5.3 |
-| text-3 / card | 4.5 | 5.3 |
-| accent-text / card | 6.5 | 6.5 |
-| white on primary button (hover) | 5.3 (4.5) | 5.3 (6.5) |
-| green / amber / red / purple badge text | 7.4 / 7.0 / 5.4 / 5.5 | 5.6 / 5.1 / 5.6 / 5.6 |
-All main pairs are >= 4.5:1. Raw `--accent` (#7c5cff) is ~4.0:1 on panels: use only for borders/dots/bars/focus, never body text (use `--accent-text`). Code themes: comment colors in Solarized/Monokai/vs-dark are the themes' own muted tones (about 3.5-4.5:1), accepted for comments only.
+| text / page bg | 19.8 | 21.0 |
+| text / card | 18.1 | 19.1 |
+| text-2 / panel | 7.5 | 7.4 |
+| text-2 / card | 7.2 | 7.0 |
+| text-3 / panel | 5.5 | 5.0 |
+| text-3 / card | 5.2 | 4.8 |
+| accent-text / accent-soft badge | 13.8 | 16.7 |
+| --on-accent on primary button (hover) | 21.0 (16.7) | 21.0 (14.9) |
+| green / amber / red badge text | 8.4 / 8.0 / 6.0 | 5.1 / 4.7 / 5.0 |
+| --claude-text / card | 7.5 | 4.5 |
+| Gemini text variants (red / yellow / green / blue) / panel | 7.5 / 11.1 / 9.6 / 8.5 | 5.6 / 4.8 / 5.7 / 5.9 |
 - Focus: global `:focus-visible` 2px ring in `--focus` with 2px offset; inputs also get a soft accent glow. Never remove outlines without a replacement.
 - Reduced motion: base.css `@media (prefers-reduced-motion: reduce)` neutralises all animation/transition.
 - Required ARIA from the frontend: icon-only buttons need `aria-label` (and `title`), tabs/segmented use roles above, banners `role="alert"`, toasts `role="status"`, modals `aria-modal` + focus trap + Esc.
@@ -127,3 +129,48 @@ All main pairs are >= 4.5:1. Raw `--accent` (#7c5cff) is ~4.0:1 on panels: use o
 - Activity tab (`components/activity-tab.js`, i18n `artifacts.activity`): `.act` with `.act__tl` timeline, files changed (inline diff), commands (jump to the card). Dot on the tab while the agent runs.
 - Pure logic: `lib/diff.js` (line diff, unified diff writer/parser, diffs derived from claude tool inputs), `lib/activity.js` (titles, ANSI strip, turn stats, timeline, live phase). Reducer: `thinking`, `file-change`, tool kind/duration/exit code, `turn { id, agent, startedAt, lastEventAt }`, `summary` marker; every message carries its turn and agent.
 - Browser mock: `lib/mock-phase5.js`; hash flags `#rich` (AGY style events) and `#richclaude` (claude tool inputs, client-side diffs); applies to the first send. `?mock=1` forces the mock inside Electron.
+
+
+## Phase 6: monochrome accent, agent identity, Developer / Simple mode, approvals
+Stylesheet `styles/agents.css` (loaded after `app.css`); every colour comes from tokens.css.
+
+### Monochrome theme
+Dark = near-black surfaces (`--bg #0a0a0a`, panel `#101010`, card `#161616`, elev `#1c1c1c`), text `#fff / #a3a3a3 / #8a8a8a`, accent white (`--accent-btn #fff` with `--on-accent #000`).
+Light = white surfaces (`--bg #fff`, panel `#fafafa`, card `#f4f4f5`), text `#000 / #52525b / #6b6b75`, accent black (`--accent-btn #000` with `--on-accent #fff`). Gold is unchanged.
+`--text-3` in light is #6b6b75 (not #71717a) so it stays >= 4.5:1 on `#f4f4f5` cards. Methodology node colours: prompt/condition = accent (neutral), command/checkpoint = amber, git-commit = green, ask-user = blue, artifact = muted (the type label and icon always accompany the colour).
+The default dark code palettes (vs-dark, github-dark) are not applied under the light app theme (the CSS auto github-light is used); explicit choices (dracula, ...) are kept. Code text inside tool cards uses the code palette foreground (`--c-fg`).
+
+### Agent identity
+`components/agent-icon.js`: `agentIcon('claude' | 'agy', { size = 16, state = 'idle' | 'running' })` returns `<span class="agent-icon agent-icon--<agent> [is-running]">` with an inline SVG (aria-hidden). `setIconState(span, state)` toggles `is-running`.
+- Claude: 12 rounded rays of different lengths/angles from a core, colour `--claude` (#D97757). Running: 10 s linear rotation of the SVG + a 3.2 s breathing scale/opacity pulse on the wrapper.
+- AGY: original 4-point sparkle star. Four soft colour blobs (red top, yellow left, green bottom, blue right) are blurred and clipped to the star (unique `agy-clip-N` / `agy-blur-N` ids per icon; blobs instead of a linearGradient because a linear gradient cannot give one colour per tip). Running: the blob group rotates inside the static clip (colours circulate) + a twinkle scale/rotate pulse.
+- Used by: assistant message label (agent of that turn), thinking rows, live status line, composer agent switch (selected segment = icon + orange outline for Claude / gradient border for AGY), sidebar project rows (replaces the folder glyph; the running dot is orange / conic gradient and pulses), title-bar chip `.titlebar__agent`, Activity tab dot (`.dot--agent.dot--claude|agy`), tool cards (`.tool-card[data-agent]` gets a 2px left stripe: orange / vertical gradient), method run panel header (`.rp[data-agent]`, 2px top rule).
+- Running composer: `.composer[data-agent].is-running` glows (Claude: pulsing orange box-shadow; AGY: rotating conic gradient border via `@property --fs-angle` + soft glow).
+- Live status text (`.live-status--claude|agy .live-status__text`): orange shimmer / flowing rainbow gradient with `background-clip:text`; without support the solid `--claude-text` / `--gemini-blue-t` shows. Everything animated stops under `prefers-reduced-motion`.
+
+### Developer vs Simple mode
+Setting `developerMode` (default true; `isDev(state)` in `lib/store.js`). Switch: pill `.titlebar__mode` in the title bar (`aria-pressed`, icon </> + "Dev" or smile + "Simple"), Settings toggle (`#set-devmode`), walkthrough step `mode` (two `.wt-mode` radio cards, step 2).
+Developer = everything as before. Simple:
+- `lib/plain.js` (pure): tool kind + path -> plain steps (`plain.step.*`: Created / Changed / Read / Searched the project / Looked around the folder / Tested your project - it worked or something failed / Ran your program / Waiting for your OK) and `summaryParts` ("I created 1 file and changed 1 file."). No code, diffs, commands, exit codes, tokens or tool names.
+- Per turn: user message, `.plain-steps` ("What I did", status icons, "Show details" expands that turn's tool cards only; raw toggles stay hidden), the answer (markdown code blocks folded in `details.show-code` "Show code"), then `.plain-summary` with one "Open file" button per file (opens the Files tab). Thinking rows are hidden; the live line just says "Thinking..." / "Working on it...".
+- Hidden: Activity tab, remote-control row and menu item, permission-mode jargon (friendly `mode.friendly.*` labels). The Git tab becomes "Changes" without the branch row.
+
+### Approvals (blocked actions)
+A tool result that says it needs approval/permission (`lib/approvals.js classifyBlocked`) or a `permission-denied` event for a known tool card puts that card in status `blocked` (amber, lock, never red). When the turn ends with blocked actions the reducer appends one `{ role: 'approval', status }` message; its items are derived from the turn (`blockedItems`).
+```html
+<div class="approval-card [is-resolved]" role="group">
+  <div class="approval-card__head"><span class="approval-card__lock"/><div class="approval-card__titles">title + sub</div>[agent icon]</div>
+  <ul class="approval-list"><li class="approval-item [approval-item--multi]">
+    [<label class="approval-item__check"><input type="checkbox"></label>]   <!-- only with 2+ actions -->
+    <div class="approval-item__body">
+      <div class="approval-item__what">icon + <strong>Claude wants to run a command</strong></div>
+      <div class="approval-item__why">plain reason (needs approval / outside the project / safety check)</div>
+      <div class="approval-item__code">pre.approval-term "$ cmd" | .approval-diff (createDiffView) | pre.approval-raw</div>  <!-- Simple: wrapped in details.approval-more "See exactly what it will do" -->
+    </div></li></ul>
+  <div class="approval-card__actions">[Allow this once | Allow selected once] [Allow for this project] [Don't allow] <span class="approval-card__hint">Enter / Esc (Developer only)</span></div>
+</div>
+```
+- Allow this once = re-send the last prompt of the turn with `allow: [{tool, pattern}]` (`allowPlan`/`ruleFor`: exact command for Bash/PowerShell, exact path for Write/Edit/MultiEdit/NotebookEdit; claude only, max 5, no `*`/parentheses). When a narrow rule is impossible (AGY, WebFetch, commands with parentheses...) the primary button becomes "Switch to Accept edits and retry" with an explanation.
+- Allow for this project = confirm dialog, then `mode: acceptEdits` and retry. Don't allow = card resolved + a system note. The retry text carries a fixed note (`RETRY_NOTE`), shown in the chat as a small "Sent again with your permission" tag.
+- Buttons exist only on the last turn while idle (`ctx.isActionable`); older approvals render without buttons ("no longer open").
+- Browser mock: `lib/mock-phase6.js`; hash flags `#blocked` (blocked command, then the retry succeeds), `#blocked2` (blocked command + blocked file write = grouped card), `#simple` / `#dev` (preset developerMode). Combine with `#rich` flags using extra hashes, e.g. `#richclaude#simple`.

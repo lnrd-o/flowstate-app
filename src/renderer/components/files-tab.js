@@ -83,7 +83,7 @@ export function mountFilesTab(el, { store, api }) {
     e.isDir ? icon('chevron', 'ft__chev' + (open ? ' is-open' : '')) : h('span', { class: 'ft__chev-gap' }),
     icon(e.isDir ? 'folder' : 'file', 'ft__icon'),
     h('span', { class: 'ft__name truncate', text: e.name }),
-    count ? h('span', { class: 'badge badge--purple ft__badge', attrs: { 'aria-label': t('files.artifactsCount', { count }) } }, String(count)) : null,
+    count ? h('span', { class: 'badge badge--accent ft__badge', attrs: { 'aria-label': t('files.artifactsCount', { count }) } }, String(count)) : null,
     st.loading.has(e.rel) ? h('span', { class: 'spinner ft__spin' }) : null);
     node.addEventListener('click', () => select(pid, e));
     return node;

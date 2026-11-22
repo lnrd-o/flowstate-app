@@ -108,7 +108,7 @@ export function mountActivityTab(el, { store, actions }) {
     const head = h('div', { class: 'act__head row between' },
       h('strong', { text: t('artifacts.activity') }),
       chat.running
-        ? h('span', { class: 'badge badge--purple' }, h('span', { class: 'spinner' }), t('act.tab.working'))
+        ? h('span', { class: 'badge badge--accent' }, h('span', { class: 'spinner' }), t('act.tab.working'))
         : h('span', { class: 'badge badge--muted', text: t('act.tab.lastTurn') }));
     const timeline = h('section', { class: 'act__sec', attrs: { 'aria-label': t('act.tab.timeline') } },
       h('h3', { class: 'act__h', text: t('act.tab.timeline') }),

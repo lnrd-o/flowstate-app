@@ -28,7 +28,7 @@ export function mountPrompts(el, { store, api, actions }) {
     },
     h('div', { class: 'row between gap-2 prompt-card__head' },
       h('span', { class: 'prompt-card__name truncate', text: pickLang(tpl.name, lang()) || tpl.id }),
-      h('span', { class: 'badge ' + (tpl.source === 'user' ? 'badge--purple' : 'badge--muted') }, tpl.source === 'user' ? t('prompts.sourceUser') : t('prompts.sourceDefault'))),
+      h('span', { class: 'badge ' + (tpl.source === 'user' ? 'badge--accent' : 'badge--muted') }, tpl.source === 'user' ? t('prompts.sourceUser') : t('prompts.sourceDefault'))),
     h('div', { class: 'prompt-card__desc', text: pickLang(tpl.description, lang()) }),
     tags.length ? h('div', { class: 'row wrap gap-1' }, ...tags) : null);
   }
@@ -130,7 +130,7 @@ export function mountPrompts(el, { store, api, actions }) {
     box.append(...[back,
       h('div', { class: 'prompts__title' },
         h('h2', { class: 'prompts__name', text: pickLang(tpl.name, lang()) || tpl.id }),
-        h('span', { class: 'badge ' + (isUser ? 'badge--purple' : 'badge--muted') }, isUser ? t('prompts.sourceUser') : t('prompts.sourceDefault'))),
+        h('span', { class: 'badge ' + (isUser ? 'badge--accent' : 'badge--muted') }, isUser ? t('prompts.sourceUser') : t('prompts.sourceDefault'))),
       h('p', { class: 'muted prompts__desc', text: pickLang(tpl.description, lang()) }),
       (tpl.tags || []).length ? h('div', { class: 'row wrap gap-1' }, ...tpl.tags.map((g) => h('span', { class: 'badge badge--muted', text: g }))) : null,
       vars.length ? h('div', { class: 'prompts__form', attrs: { role: 'group', 'aria-label': t('prompts.variables') } }, ...fields.map((f) => f.el)) : h('div', { class: 'faint small', text: t('prompts.noVars') }),

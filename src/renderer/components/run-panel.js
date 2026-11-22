@@ -5,9 +5,10 @@ import { t, getLanguage } from '../lib/i18n.js';
 import { activeProject } from '../lib/store.js';
 import { runSteps, formatDuration, countStates, isActiveRun } from '../lib/method-utils.js';
 import { createGraph } from './graph.js';
+import { agentIcon } from './agent-icon.js';
 
-const STATUS_TONE = { running: 'badge--purple', waiting: 'badge--amber', done: 'badge--green', error: 'badge--red', stopped: 'badge--muted' };
-const STEP_TONE = { running: 'badge--purple', waiting: 'badge--amber', done: 'badge--green', error: 'badge--red', warn: 'badge--amber', skipped: 'badge--muted', pending: 'badge--muted' };
+const STATUS_TONE = { running: 'badge--accent', waiting: 'badge--amber', done: 'badge--green', error: 'badge--red', stopped: 'badge--muted' };
+const STEP_TONE = { running: 'badge--accent', waiting: 'badge--amber', done: 'badge--green', error: 'badge--red', warn: 'badge--amber', skipped: 'badge--muted', pending: 'badge--muted' };
 const clock = (ms) => (ms ? new Date(ms).toLocaleTimeString(getLanguage(), { hour12: false }) : '');
 const quote = (a) => (/[\s"]/.test(a) || a === '' ? JSON.stringify(a) : a);
 
@@ -26,7 +27,8 @@ export function mountRunPanel(el, { store, api, actions }) {
   const btnStop = h('button', { class: 'btn btn--sm btn--danger', type: 'button', on: { click: () => { const s = cur(); if (s) actions.stopRun(s); } } }, icon('stop'), h('span'));
   const btnFold = h('button', { class: 'btn btn--ghost btn--icon btn--sm', type: 'button', on: { click: () => { collapsed = !collapsed; render(); } } });
   const btnClose = h('button', { class: 'btn btn--ghost btn--icon btn--sm', type: 'button', on: { click: () => { const s = cur(); if (s) { dismissed.add(s.runId); render(); } } } }, icon('x'));
-  const head = h('div', { class: 'rp__head' }, icon('layers'), title, statusBadge, elapsed, h('span', { class: 'grow' }), btnStop, btnFold, btnClose);
+  const agentHost = h('span', { class: 'rp__agent' });
+  const head = h('div', { class: 'rp__head' }, agentHost, title, statusBadge, elapsed, h('span', { class: 'grow' }), btnStop, btnFold, btnClose);
   const waitHost = h('div', { class: 'rp__wait' });
   const summaryHost = h('div', { class: 'rp__summary' });
   const graph = createGraph({ editable: false });
@@ -106,6 +108,9 @@ export function mountRunPanel(el, { store, api, actions }) {
     const m = methodOf(st);
     const active = isActiveRun(st);
     title.textContent = m ? pickText(m.name, getLanguage()) : st.methodologyId;
+    const proj = activeProject(store.get());
+    agentHost.replaceChildren(agentIcon(proj ? proj.agent : null, { size: 18, state: st.status === 'running' ? 'running' : 'idle' }));
+    root.dataset.agent = proj ? proj.agent : '';
     statusBadge.className = 'badge ' + STATUS_TONE[st.status];
     statusBadge.replaceChildren(h('span', { class: 'badge__dot' }), t('method.run.status.' + st.status));
     btnStop.hidden = !active;

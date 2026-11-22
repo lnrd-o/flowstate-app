@@ -5,7 +5,7 @@ import { t, getLanguage } from '../lib/i18n.js';
 import { filterMethods } from '../lib/method-utils.js';
 import { createMethodEditor } from './method-editor.js';
 
-const SRC_TONE = { bundled: 'badge--muted', user: 'badge--purple', recorded: 'badge--amber' };
+const SRC_TONE = { bundled: 'badge--muted', user: 'badge--accent', recorded: 'badge--amber' };
 
 export function mountMethods(el, deps) {
   const { store, actions } = deps;

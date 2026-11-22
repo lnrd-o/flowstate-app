@@ -394,7 +394,7 @@
   padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - var(--tb-right, 0px))) + var(--space-2));
 }
 .is-fullscreen .titlebar, .is-fullscreen.platform-win32 .titlebar, .is-fullscreen.platform-linux .titlebar { padding-left: var(--space-3); padding-right: var(--space-3); }
-.titlebar button, .titlebar input, .titlebar .search-box, .titlebar .badge, .titlebar__controls { -webkit-app-region: no-drag; }
+.titlebar button, .titlebar input, .titlebar .search-box, .titlebar .badge, .titlebar__agent, .titlebar__controls { -webkit-app-region: no-drag; }
 .titlebar__left { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex: 0 1 auto; }
 .titlebar__logo {
   flex: 0 0 auto; width: 22px; height: 22px; border-radius: var(--radius-sm);

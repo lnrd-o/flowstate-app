@@ -84,6 +84,9 @@ const ICONS = {
   maximize: [['rect', { x: 5, y: 5, width: 14, height: 14, rx: 1 }]],
   restore: [['rect', { x: 4, y: 8, width: 12, height: 12, rx: 1 }], ['path', { d: 'M8 8V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-3' }]],
   refresh: [['path', { d: 'M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8' }], ['path', { d: 'M21 4v5h-5M3 20v-5h5' }]],
+  lock: [['rect', { x: 4, y: 11, width: 16, height: 10, rx: 2 }], ['path', { d: 'M8 11V7a4 4 0 0 1 8 0v4M12 15v2' }]],
+  code: [['path', { d: 'm16 18 6-6-6-6M8 6l-6 6 6 6' }]],
+  smile: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8 14a5 5 0 0 0 8 0M9 9.5h.01M15 9.5h.01' }]],
 };
 
 export function icon(name, cls = '') {

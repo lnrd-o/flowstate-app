@@ -1,5 +1,5 @@
 // New-project walkthrough: welcome -> prerequisites -> folder -> agent -> git -> done.
-import { h, radioKeys } from '../lib/dom.js';
+import { h, icon, radioKeys } from '../lib/dom.js';
 import { pickText } from '../../shared/methodology.js';
 import { t, onChange, getLanguage } from '../lib/i18n.js';
 import { openDialog } from './modal.js';
@@ -8,6 +8,7 @@ import { createLogBox } from './log-box.js';
 import { buildVarsForm } from './vars-form.js';
 import { runDefaults } from '../lib/method-utils.js';
 import { statusChip } from '../lib/login-state.js';
+import { isDev } from '../lib/store.js';
 
 function loginChip(loggedIn) {
   const c = statusChip(loggedIn);
@@ -16,11 +17,11 @@ function loginChip(loggedIn) {
 
 const INSTALLABLE = ['git', 'node', 'python'];
 
-export const STEPS = ['welcome', 'prerequisites', 'folder', 'agent', 'start', 'git', 'done'];
+export const STEPS = ['welcome', 'mode', 'prerequisites', 'folder', 'agent', 'start', 'git', 'done'];
 
 /** Step ids for the wizard: the variables step only exists when a methodology is chosen. Pure. */
 export function stepsFor(methodId) {
-  return methodId ? ['welcome', 'prerequisites', 'folder', 'agent', 'start', 'variables', 'git', 'done'] : STEPS;
+  return methodId ? ['welcome', 'mode', 'prerequisites', 'folder', 'agent', 'start', 'variables', 'git', 'done'] : STEPS;
 }
 
 /** Last path segment of a Windows or POSIX path. Pure. */
@@ -79,7 +80,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
   }
 
   async function create() {
-    if (!data.path) { error = t('walkthrough.folderRequired'); step = 2; render(); return; }
+    if (!data.path) { error = t('walkthrough.folderRequired'); step = ids().indexOf('folder'); render(); return; }
     creating = true; error = ''; render();
     try {
       created = await actions.createProject({ ...data, name: data.name || folderName(data.path) });
@@ -98,7 +99,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
   }
 
   function next() {
-    if (step === 2 && !data.path) { error = t('walkthrough.folderRequired'); render(); return; }
+    if (ids()[step] === 'folder' && !data.path) { error = t('walkthrough.folderRequired'); render(); return; }
     error = '';
     if (ids()[step] === 'variables' && varsForm && !varsForm.validate()) return;
     if (ids()[step] === 'git') { create(); return; }
@@ -114,10 +115,28 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
         h('button', { class: 'btn btn--sm', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(data.agent) } }));
   }
 
+  /** Two big selectable cards: Simple / Developer. Applies immediately (persisted through settings). */
+  function modeCards() {
+    const dev = isDev(store.get());
+    const card = (isDevCard, ic, titleKey, textKey) => {
+      const on = dev === isDevCard;
+      return h('button', {
+        class: 'wt-mode' + (on ? ' is-active' : ''), type: 'button',
+        attrs: { role: 'radio', 'aria-checked': String(on), tabindex: on ? '0' : '-1' },
+        on: { click: () => { actions.updateSettings({ developerMode: isDevCard }).then(() => render()); } },
+      }, h('span', { class: 'wt-mode__ic' }, icon(ic, 'icon--lg')), h('span', { class: 'wt-mode__title strong', text: t(titleKey) }), h('span', { class: 'wt-mode__text muted small', text: t(textKey) }));
+    };
+    const group = h('div', { class: 'wt-modes', attrs: { role: 'radiogroup', 'aria-label': t('walkthrough.steps.mode') } },
+      card(false, 'smile', 'devmode.simpleTitle', 'devmode.simpleText'), card(true, 'code', 'devmode.devTitle', 'devmode.devText'));
+    radioKeys(group);
+    return group;
+  }
+
   function stepBody() {
     const id = ids()[step];
     const text = h('p', { text: t('walkthrough.' + id + 'Text') });
     if (id === 'welcome') return [h('h3', { class: 'wt__h', text: t('app.name') }), text, h('p', { class: 'muted', text: t('app.tagline') })];
+    if (id === 'mode') return [text, modeCards()];
     if (id === 'prerequisites') {
       const rows = prereqRows(health).map((r) => {
         const acts = [];
@@ -172,7 +191,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
           on: { click: () => { data.agent = a; render(); } },
         })));
       radioKeys(seg);
-      const mode = h('select', { class: 'select', id: 'wt-mode' }, ...['default', 'acceptEdits', 'plan'].map((m) => h('option', { value: m, text: t('mode.' + m) })));
+      const mode = h('select', { class: 'select', id: 'wt-mode' }, ...['default', 'acceptEdits', 'plan'].map((m) => h('option', { value: m, text: t((isDev(store.get()) ? 'mode.' : 'mode.friendly.') + m) })));
       mode.value = data.mode;
       mode.addEventListener('change', () => { data.mode = mode.value; });
       return [text, h('div', null, seg), h('div', { class: 'field' }, h('label', { class: 'field__label', for: 'wt-mode', text: t('mode.label') }), mode)];
@@ -226,7 +245,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
       ...ids().map((s, i) => h('div', {
         class: 'stepper__step' + (i === step ? ' is-active' : i < step ? ' is-done' : ''),
         attrs: { role: 'listitem', ...(i === step ? { 'aria-current': 'step' } : {}) },
-      }, h('span', { class: 'stepper__num', text: i < step ? '\u2713' : String(i + 1) }), h('span', { class: 'truncate', text: t('walkthrough.steps.' + s) }))));
+      }, h('span', { class: 'stepper__num', text: i < step ? '\u2713' : String(i + 1) }), h('span', { class: 'truncate', title: t('walkthrough.steps.' + s), text: t('walkthrough.steps.' + s) }))));
     const content = h('div', { class: 'wt__content' },
       h('div', { class: 'wt__title', text: t('walkthrough.steps.' + id) }), ...stepBody());
     body.replaceChildren(stepper, content);
@@ -241,7 +260,7 @@ export function openWalkthrough({ store, api, actions, firstRun }) {
       buttons.push(h('button', { class: 'btn btn--primary', type: 'button', text: t('common.close'), on: { click: () => { finished = true; actions.walkthroughClosed(); dlg.close('done'); } } }));
     }
     dlg.setFooter(buttons);
-    const focusTarget = content.querySelector('input:not([readonly]), select, .segmented__item.is-active, .wt-opt.is-active');
+    const focusTarget = content.querySelector('input:not([readonly]), select, .segmented__item.is-active, .wt-opt.is-active, .wt-mode.is-active');
     if (!dlg.dialog.contains(document.activeElement) || document.activeElement === document.body) (focusTarget || buttons[buttons.length - 1]).focus();
   }
 

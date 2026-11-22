@@ -3,6 +3,7 @@ import { h, icon, clear } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { filterProjects } from '../lib/store.js';
 import { openProjectMenu } from './project-menu.js';
+import { agentIcon } from './agent-icon.js';
 
 export function mountRail(el, { store, actions }) {
   const render = () => {
@@ -72,9 +73,9 @@ export function mountSidebar(el, { store, actions }) {
         attrs: active ? { 'aria-current': 'true' } : null,
         on: { click: () => actions.selectProject(p.id) },
       },
-      h('span', { class: 'nav-item__icon' }, icon('folder')),
+      h('span', { class: 'nav-item__icon nav-item__icon--agent', title: t('agent.' + p.agent) }, agentIcon(p.agent, { size: 16, state: running ? 'running' : 'idle' })),
       h('span', { class: 'nav-item__label truncate', text: p.name }),
-      running ? h('span', { class: 'nav-item__dot nav-item__dot--green', attrs: { role: 'img', 'aria-label': t('agent.running') }, title: t('agent.running') }) : null,
+      running ? h('span', { class: 'nav-item__dot nav-item__dot--run nav-item__dot--' + p.agent, attrs: { role: 'img', 'aria-label': t('agent.running') }, title: t('agent.running') }) : null,
       runWait ? h('span', { class: 'nav-item__dot nav-item__dot--amber', attrs: { role: 'img', 'aria-label': t('method.run.status.waiting') }, title: t('method.run.status.waiting') }) : null);
       item.addEventListener('contextmenu', (e) => { e.preventDefault(); openProjectMenu(kebab, p.id, { store, actions }); });
       scroll.append(h('div', { class: 'nav-row' }, item, kebab));
@@ -120,7 +121,7 @@ export function mountSidebar(el, { store, actions }) {
     const s = store.get();
     const signature = JSON.stringify([
       s.view, s.activeProjectId, s.search,
-      s.projects.map((p) => [p.id, p.name, !!(s.chats[p.id] && s.chats[p.id].running), s.runs[p.id] && s.runs[p.id].status]),
+      s.projects.map((p) => [p.id, p.name, p.agent, !!(s.chats[p.id] && s.chats[p.id].running), s.runs[p.id] && s.runs[p.id].status]),
       s.health && [s.health.vpn.active, s.health.anthropicReachable],
     ]) + t('nav.projects');
     if (signature === sig) return;

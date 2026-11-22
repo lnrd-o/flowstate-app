@@ -202,24 +202,28 @@ export function buildToolCard() {
     summary.title = m.summary || '';
     summary.hidden = !!tt || !m.summary;
     deltaHost.replaceChildren(...(ch ? [delta(ch)].filter(Boolean) : []));
-    card.className = 'tool-card tool-card--' + kind + (m.status === 'running' ? ' tool-card--running' : '') + (m.status === 'error' ? ' tool-card--error' : '');
+    card.className = 'tool-card tool-card--' + kind + (m.status === 'running' ? ' tool-card--running' : '') + (m.status === 'error' ? ' tool-card--error' : '') + (m.status === 'blocked' ? ' tool-card--blocked' : '');
+    if (m.agent) card.dataset.agent = m.agent; else delete card.dataset.agent;
     spinner.hidden = m.status !== 'running';
-    badge.className = 'badge ' + (m.status === 'running' ? 'badge--purple' : m.status === 'error' ? 'badge--red' : 'badge--green');
-    badge.textContent = m.status === 'running' ? t('chat.toolRunning') : m.status === 'error' ? t('chat.toolError') : t('chat.toolDone');
+    badge.className = 'badge ' + (m.status === 'running' ? 'badge--accent' : m.status === 'error' ? 'badge--red' : m.status === 'blocked' ? 'badge--amber' : 'badge--green');
+    if (m.status === 'blocked') badge.replaceChildren(icon('lock', 'badge__icon'), t('chat.toolBlocked'));
+    else badge.textContent = m.status === 'running' ? t('chat.toolRunning') : m.status === 'error' ? t('chat.toolError') : t('chat.toolDone');
+    rawBtn.hidden = c.dev === false;
     dur.textContent = m.durationMs != null && m.status !== 'running' ? formatDuration(m.durationMs) : '';
     rawBtn.textContent = t('act.raw');
     rawBtn.title = t('act.rawTitle');
     rawBtn.setAttribute('aria-pressed', String(rawOpen));
     rawBtn.classList.toggle('is-on', rawOpen);
 
-    if (kind === 'command') autoOpen = m.status === 'running' || m.status === 'error';
+    if (m.status === 'blocked') autoOpen = false; // the approval card shows the code
+    else if (kind === 'command') autoOpen = m.status === 'running' || m.status === 'error';
     else if (ch && ch.diff) autoOpen = countNewlines(ch.diff) <= AUTO_OPEN_DIFF_LINES;
     else autoOpen = false;
     applyOpen();
 
     const nextSig = JSON.stringify([
       getLanguage(), m.status, (m.output || '').length, (m.commandOutput || '').length, m.exitCode, m.input && m.input.CommandLine, m.input && m.input.command,
-      ch && [ch.path, ch.op, ch.added, ch.removed, ch.diff && ch.diff.length, ch.truncated], c.root, rawOpen, showAll, isOpen(),
+      ch && [ch.path, ch.op, ch.added, ch.removed, ch.diff && ch.diff.length, ch.truncated], c.root, rawOpen, showAll, isOpen(), c.dev,
     ]);
     if (nextSig === sig) return;
     sig = nextSig;

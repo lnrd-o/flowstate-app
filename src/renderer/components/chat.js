@@ -2,11 +2,23 @@
 import { h, icon, clear } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { renderMarkdown, attachLinkHandler, createFrameRenderer } from '../lib/markdown.js';
-import { resolvePermission } from '../lib/events.js';
-import { activeProject } from '../lib/store.js';
+import { activeProject, isDev } from '../lib/store.js';
 import { turnMessages, turnStats, livePhase } from '../lib/activity.js';
+import { blockedItems, stripRetryNote } from '../lib/approvals.js';
 import { buildToolCard } from './tool-card.js';
 import { buildThinkingRow, buildSummaryCard, createLiveStatus } from './activity-rows.js';
+import { buildApprovalCard } from './approval-card.js';
+import { buildPlainSteps, buildPlainSummary } from './plain-view.js';
+import { agentIcon } from './agent-icon.js';
+
+/** Simple mode: fold every markdown code block under a "Show code" disclosure. */
+function collapseCode(body) {
+  for (const block of [...body.querySelectorAll('.code-block')]) {
+    const det = h('details', { class: 'show-code' }, h('summary', { class: 'show-code__sum', text: t('plain.showCode') }));
+    block.replaceWith(det);
+    det.append(block);
+  }
+}
 
 /** Label of the agent that produced a message (recorded per turn), else the project's current agent. */
 function agentName(project, m) {
@@ -29,6 +41,10 @@ export function mountChat(root, { store, api, actions }) {
   let emptyEl = null;
   let live = null;
   let curMessages = [];
+  let curChat = null;
+  let curProject = null;
+  let shownDev = null;
+  const detailTurns = new Set(); // Simple mode: turns whose technical cards are expanded ("Show details")
   let stick = true;
 
   scroll.addEventListener('scroll', () => {
@@ -40,6 +56,19 @@ export function mountChat(root, { store, api, actions }) {
 
   const cardCtx = {
     root: '',
+    dev: true,
+    detailTurns,
+    agent: 'claude',
+    agentName: '',
+    messages: () => curMessages,
+    toggleDetails(turnId) { if (detailTurns.has(turnId)) detailTurns.delete(turnId); else detailTurns.add(turnId); render(); },
+    approvalItems: (turnId) => blockedItems(curMessages, turnId),
+    isActionable: (m) => !!curChat && !curChat.running && m.turn === curChat.turn.id,
+    approve: {
+      once: (id, rules) => actions.allowOnce(id, rules),
+      project: (id) => actions.allowForProject(id),
+      dismiss: (id) => actions.dismissApproval(id),
+    },
     openFile: (rel) => actions.openFile(rel),
     reveal: (id) => reveal(id),
     stats: (turnId) => turnStats(turnMessages(curMessages, turnId), cardCtx.root),
@@ -67,30 +96,48 @@ export function mountChat(root, { store, api, actions }) {
   function build(m) {
     if (m.role === 'user') {
       const body = h('div', { class: 'msg__body' });
-      const el = h('div', { class: 'msg msg--user' }, body);
-      return { el, update: (x) => { body.textContent = x.text; } };
+      const tag = h('div', { class: 'msg__tag small muted', hidden: true });
+      const el = h('div', { class: 'msg msg--user' }, body, tag);
+      return {
+        el,
+        update(x) {
+          // A retry after "Allow this once" carries a fixed note for the agent: show it as a small tag instead.
+          const shown = stripRetryNote(x.text);
+          body.textContent = shown;
+          tag.hidden = shown === x.text;
+          tag.textContent = t('approval.retryTag');
+        },
+      };
     }
     if (m.role === 'assistant') {
-      const meta = h('div', { class: 'msg__meta' });
+      const icoHost = h('span', { class: 'msg__avatar' });
+      const nameEl = h('span', { class: 'msg__name' });
+      const meta = h('div', { class: 'msg__meta' }, icoHost, nameEl);
       const body = h('div', { class: 'msg__body md' });
       const el = h('div', { class: 'msg msg--assistant' }, meta, body);
       let lastText = null;
       let lastOpen = null;
+      let lastAgent = null;
       return {
         el,
         update(x) {
-          meta.textContent = agentName(activeProject(store.get()), x);
+          const proj = activeProject(store.get());
+          nameEl.textContent = agentName(proj, x);
+          const ag = x.agent || (proj && proj.agent) || null;
+          if (ag !== lastAgent) { lastAgent = ag; icoHost.replaceChildren(agentIcon(ag, { size: 16 })); }
           if (x.text !== lastText || x.open !== lastOpen) {
             lastText = x.text; lastOpen = x.open;
             body.replaceChildren(renderMarkdown(x.text, { streaming: x.open }));
+            if (!cardCtx.dev) collapseCode(body);
           }
         },
       };
     }
     if (m.role === 'tool') return buildToolCard();
     if (m.role === 'thinking') return buildThinkingRow();
-    if (m.role === 'summary') return buildSummaryCard();
-    if (m.role === 'permission') return buildPermission(m);
+    if (m.role === 'summary') return cardCtx.dev ? buildSummaryCard() : buildPlainSummary();
+    if (m.role === 'approval') return buildApprovalCard();
+    if (m.role === 'permission') return { el: h('div', { class: 'msg-hidden', hidden: true }), update() {} };
     if (m.role === 'error') {
       const text = h('div', { class: 'msg__body' });
       const el = h('div', { class: 'msg msg--error', attrs: { role: 'alert' } }, text);
@@ -106,37 +153,6 @@ export function mountChat(root, { store, api, actions }) {
     }
     const el = h('div', { class: 'msg msg--system' });
     return { el, update: (x) => { el.textContent = x.key ? t(x.key) : x.text || ''; } };
-  }
-
-  function buildPermission(m0) {
-    const title = h('div', { class: 'permission-card__title' });
-    const detail = h('div', { class: 'permission-card__detail' });
-    const actionsEl = h('div', { class: 'permission-card__actions' });
-    const el = h('div', { class: 'permission-card', attrs: { role: 'group' } }, title, detail, actionsEl);
-    return {
-      el,
-      update(m) {
-        const proj = activeProject(store.get());
-        const resolved = m.status !== 'pending';
-        el.classList.toggle('is-resolved', resolved);
-        title.replaceChildren(icon('shield'), t('chat.permissionTitle'));
-        const lines = [t('chat.permissionText', { agent: agentName(proj, m), tool: m.tool })];
-        if (m.message) lines.push(m.message);
-        else if (m.reason) lines.push(m.reason);
-        detail.textContent = lines.join('\n');
-        actionsEl.replaceChildren();
-        if (resolved) {
-          actionsEl.append(h('span', { class: 'small muted', text: m.status === 'approved' ? t('chat.approved') : t('chat.denied') }));
-          return;
-        }
-        actionsEl.append(
-          h('button', { class: 'btn btn--sm', type: 'button', text: t('chat.deny'), on: { click: () => {
-            store.updateChat(store.get().activeProjectId, (s) => resolvePermission(s, m.id, 'denied'));
-          } } }),
-          h('button', { class: 'btn btn--primary btn--sm', type: 'button', text: t('chat.approveRetry'), on: { click: () => actions.approveAndRetry(m.id) } }),
-        );
-      },
-    };
   }
 
   function renderEmpty(project) {
@@ -166,23 +182,44 @@ export function mountChat(root, { store, api, actions }) {
     }
     const messages = chat ? chat.messages : [];
     curMessages = messages;
+    const dev = isDev(s);
+    if (shownDev !== null && dev !== shownDev) { entries.clear(); clear(inner); detailTurns.clear(); }
+    shownDev = dev;
     const projectRoot = project ? project.path : '';
     const rootChanged = cardCtx.root !== projectRoot;
     cardCtx.root = projectRoot;
+    cardCtx.dev = dev;
+    cardCtx.agent = project ? project.agent : 'claude';
+    cardCtx.agentName = t('agent.' + cardCtx.agent);
+    curChat = chat;
+    curProject = project;
     const order = [];
+    const keep = new Set();
+    const stepsSeen = new Set();
     for (const m of messages) {
+      if (!dev && m.role === 'tool' && !stepsSeen.has(m.turn)) {
+        stepsSeen.add(m.turn);
+        const key = 'steps:' + m.turn;
+        let se = entries.get(key);
+        if (!se) { se = buildPlainSteps(); entries.set(key, se); }
+        se.update(m.turn, cardCtx);
+        keep.add(key);
+        order.push(se.el);
+      }
       let e = entries.get(m.id);
       if (!e) { e = build(m); e.msg = null; entries.set(m.id, e); }
-      if (e.msg !== m || rootChanged || m.role === 'summary') { e.update(m, cardCtx); e.msg = m; }
+      if (e.msg !== m || rootChanged || m.role === 'summary' || m.role === 'approval') { e.update(m, cardCtx); e.msg = m; }
+      if (m.role === 'tool') e.el.hidden = !dev && !detailTurns.has(m.turn);
+      else if (m.role === 'thinking') e.el.hidden = !dev;
+      keep.add(m.id);
       order.push(e.el);
     }
-    const keep = new Set(messages.map((m) => m.id));
     for (const [id, e] of entries) if (!keep.has(id)) { e.el.remove(); entries.delete(id); }
 
     const running = !!(chat && chat.running);
     if (running) {
       if (!live) live = createLiveStatus();
-      live.update(livePhase(chat, projectRoot), projectRoot);
+      live.update(livePhase(chat, projectRoot), projectRoot, { agent: cardCtx.agent, simple: !dev });
       order.push(live.el);
     } else if (live) { live.stop(); live = null; }
     if (!messages.length && !running) order.unshift(renderEmpty(project));
@@ -199,7 +236,7 @@ export function mountChat(root, { store, api, actions }) {
 
   const schedule = createFrameRenderer(render);
   store.subscribe((s, prev) => {
-    if (s.chats !== prev.chats || s.activeProjectId !== prev.activeProjectId || s.projects !== prev.projects) schedule();
+    if (s.chats !== prev.chats || s.activeProjectId !== prev.activeProjectId || s.projects !== prev.projects || s.settings.developerMode !== prev.settings.developerMode) schedule();
   });
   render();
   return {

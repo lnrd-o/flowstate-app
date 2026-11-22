@@ -2,7 +2,8 @@
 import { getApi, isMockApi } from './lib/api.js';
 import { setLanguage, detectLanguage, onChange, t } from './lib/i18n.js';
 import { createStore, createInitialState, activeProject } from './lib/store.js';
-import { reduceEvent, addUserMessage, failTurn, resolvePermission, createChatState } from './lib/events.js';
+import { reduceEvent, addUserMessage, failTurn, resolvePermission, addSystemNote, createChatState } from './lib/events.js';
+import { RETRY_NOTE, stripRetryNote } from './lib/approvals.js';
 import { replayHistory, dedupeLive } from './lib/history.js';
 import { installJobs, dashboardJobs, WINGET_IDS } from './lib/install-state.js';
 import { openInstallDialog } from './components/install-dialog.js';
@@ -27,7 +28,9 @@ const store = createStore(createInitialState());
 function applyAppearance(settings) {
   const root = document.documentElement;
   root.dataset.theme = ['light', 'gold'].includes(settings.theme) ? settings.theme : 'dark';
-  if (settings.codeTheme) root.dataset.codeTheme = settings.codeTheme;
+  // The default dark code palettes would clash with the light app theme: let the CSS pick github-light there.
+  const darkDefault = settings.codeTheme === 'vs-dark' || settings.codeTheme === 'github-dark';
+  if (settings.codeTheme && !(settings.theme === 'light' && darkDefault)) root.dataset.codeTheme = settings.codeTheme;
   else delete root.dataset.codeTheme;
   if (ui.titlebar) ui.titlebar.syncTheme(); // recolour the native window controls
 }
@@ -288,14 +291,16 @@ const actions = {
       toast(t('errors.saveFailed'), 'error');
     }
   },
-  async send(text) {
+  /** opts.allow: optional per-turn narrow permission rules [{tool, pattern}] (claude only; never persisted). */
+  async send(text, opts) {
     const s = store.get();
     const p = activeProject(s);
     if (!p) return;
     store.updateChat(p.id, (c) => addUserMessage(c, text, { agent: p.agent, now: Date.now() }));
     ui.main.chat.stickToBottom();
     try {
-      await api.agent.send({ projectId: p.id, text });
+      const allow = opts && Array.isArray(opts.allow) && opts.allow.length ? opts.allow : null;
+      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}) });
     } catch (e) {
       store.updateChat(p.id, (c) => failTurn(c, (e && e.message) || t('errors.spawnFailed', { agent: t('agent.' + p.agent) })));
     }
@@ -313,18 +318,33 @@ const actions = {
     const id = store.get().activeProjectId;
     if (id) { try { await api.agent.stop(id); } catch { /* ignore */ } }
   },
-  async approveAndRetry(messageId) {
+  /** Approval card: "Allow this once" = re-send the last prompt of the turn with narrow per-turn allow rules. */
+  async allowOnce(approvalId, rules) {
+    const s = store.get();
+    const p = activeProject(s);
+    const chat = p && s.chats[p.id];
+    if (!p || !chat || !chat.lastPrompt || chat.running || !Array.isArray(rules) || !rules.length) return;
+    store.updateChat(p.id, (c) => resolvePermission(c, approvalId, 'allowed'));
+    await actions.send(stripRetryNote(chat.lastPrompt) + '\n\n' + RETRY_NOTE, { allow: rules });
+  },
+  /** "Allow for this project" (and the only option for AGY / tools that cannot be narrowed): switch to Accept edits, retry. */
+  async allowForProject(approvalId) {
     const s = store.get();
     const p = activeProject(s);
     const chat = p && s.chats[p.id];
     if (!p || !chat || !chat.lastPrompt || chat.running) return;
     const ok = await confirmDialog({
-      title: t('chat.approveRetry'), message: t('chat.approveRetryConfirm'), confirmLabel: t('chat.approveRetry'),
+      title: t('approval.projectConfirmTitle'), message: t('approval.projectConfirm', { agent: t('agent.' + p.agent) }), confirmLabel: t('approval.projectConfirmOk'),
     });
     if (!ok) return;
-    store.updateChat(p.id, (c) => resolvePermission(c, messageId, 'approved'));
+    store.updateChat(p.id, (c) => resolvePermission(c, approvalId, 'allowed'));
     await actions.updateProject(p.id, { mode: 'acceptEdits' });
-    await actions.send(chat.lastPrompt + '\n\n' + t('chat.approveRetryNote'));
+    await actions.send(stripRetryNote(chat.lastPrompt) + '\n\n' + RETRY_NOTE);
+  },
+  dismissApproval(approvalId) {
+    const id = store.get().activeProjectId;
+    if (!id) return;
+    store.updateChat(id, (c) => addSystemNote(resolvePermission(c, approvalId, 'dismissed'), 'approval.dismissedNote'));
   },
   async undoTurn() {
     const id = store.get().activeProjectId;

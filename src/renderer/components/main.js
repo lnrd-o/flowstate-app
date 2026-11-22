@@ -1,7 +1,7 @@
 // Main column: topbar + (chat | placeholder page).
 import { h, icon } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
-import { activeProject } from '../lib/store.js';
+import { activeProject, isDev } from '../lib/store.js';
 import { mountChat } from './chat.js';
 import { mountComposer } from './composer.js';
 import { mountPrompts } from './prompts.js';
@@ -59,7 +59,7 @@ export function mountMain(el, deps) {
     if (showChat) {
       const running = !!(s.chats[p.id] && s.chats[p.id].running);
       title.textContent = p.name;
-      status.className = 'badge ' + (running ? 'badge--purple' : 'badge--green');
+      status.className = 'badge ' + (running ? 'badge--accent' : 'badge--green');
       status.replaceChildren(h('span', { class: 'badge__dot' }), running ? t('agent.running') : t('agent.idle'));
     } else {
       title.textContent = s.view === 'project' ? t('app.name') : section;
@@ -76,9 +76,9 @@ export function mountMain(el, deps) {
   }
 
   function renderRemote(s, p) {
-    subbar.hidden = !p;
+    subbar.hidden = !p || !isDev(s); // Simple mode: no remote-control row
     remoteCard.hidden = true;
-    if (!p) return;
+    if (!p || !isDev(s)) return;
     const r = s.remote[p.id] || { running: false, supported: true };
     const supported = r.supported !== false;
     const cb = h('input', { type: 'checkbox', id: 'remote-toggle', checked: !!r.running, disabled: !supported || !!r.busy, attrs: { 'aria-describedby': 'remote-help' } });
@@ -112,7 +112,7 @@ export function mountMain(el, deps) {
   function update(force) {
     const s = store.get();
     const p = activeProject(s);
-    const signature = JSON.stringify([s.view, p && [p.id, p.name, p.mode], p && !!(s.chats[p.id] && s.chats[p.id].running), !!p, p && s.remote[p.id]]) + t('nav.projects');
+    const signature = JSON.stringify([isDev(s), s.view, p && [p.id, p.name, p.mode], p && !!(s.chats[p.id] && s.chats[p.id].running), !!p, p && s.remote[p.id]]) + t('nav.projects');
     if (!force && signature === sig) return;
     sig = signature;
     render();

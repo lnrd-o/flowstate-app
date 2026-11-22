@@ -1,7 +1,7 @@
 // Artifacts pane (tabs) + splitter (pointer + keyboard resize, width persisted).
 import { h, icon, clear } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
-import { activeProject } from '../lib/store.js';
+import { activeProject, isDev } from '../lib/store.js';
 import { readStore, writeStore } from '../lib/storage.js';
 import { confirmDialog } from './modal.js';
 import { lastTouchedFile } from '../lib/touched.js';
@@ -13,6 +13,11 @@ import { mountActivityTab } from './activity-tab.js';
 export const WIDTH_KEY = 'flowstate.artifactsWidth';
 export const COLLAPSED_KEY = 'flowstate.artifactsCollapsed';
 const TABS = ['preview', 'files', 'activity', 'dashboard', 'git'];
+
+/** Tabs shown for a mode: Simple hides the technical Activity tab. Pure. */
+export function tabsFor(dev) {
+  return dev ? TABS : TABS.filter((id) => id !== 'activity');
+}
 
 /** Clamp the artifacts width to [min, 60% of viewport]. Pure. */
 export function clampWidth(w, min, viewport) {
@@ -83,14 +88,14 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     const p = activeProject(s);
     const dashRunning = !!(p && s.dashboard[p.id] && s.dashboard[p.id].running);
     const agentRunning = !!(p && s.chats[p.id] && s.chats[p.id].running);
-    for (const id of TABS) {
+    for (const id of tabsFor(isDev(s))) {
       const on = s.artifactsTab === id;
       const b = h('button', {
         class: 'pill-tab' + (on ? ' is-active' : ''), type: 'button', id: 'art-tab-' + id,
         attrs: { role: 'tab', 'aria-selected': String(on), 'aria-controls': 'art-panel-' + id, tabindex: on ? '0' : '-1' },
         on: { click: () => selectTab(id) },
-      }, h('span', { class: 'truncate', text: t('artifacts.' + id) }),
-      id === 'activity' && agentRunning ? h('span', { class: 'tab-live', title: t('act.tab.working') }, h('span', { class: 'dot dot--green', attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('act.tab.working') })) : null,
+      }, h('span', { class: 'truncate', text: t(id === 'git' && !isDev(s) ? 'artifacts.gitSimple' : 'artifacts.' + id) }),
+      id === 'activity' && agentRunning ? h('span', { class: 'tab-live', title: t('act.tab.working') }, h('span', { class: 'dot dot--agent dot--' + ((p && p.agent) || 'claude'), attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('act.tab.working') })) : null,
       id === 'dashboard' && dashRunning ? h('span', { class: 'tab-live', title: t('dashboard.running') }, h('span', { class: 'dot dot--green', attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('dashboard.running') })) : null);
       tabEls.set(id, b);
       tabsEl.append(b);
@@ -109,9 +114,10 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
     e.preventDefault();
     const s = store.get();
-    const i = TABS.indexOf(s.artifactsTab);
-    const next = e.key === 'Home' ? TABS[0] : e.key === 'End' ? TABS[TABS.length - 1]
-      : TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+    const tabs = tabsFor(isDev(s));
+    const i = tabs.indexOf(s.artifactsTab);
+    const next = e.key === 'Home' ? tabs[0] : e.key === 'End' ? tabs[tabs.length - 1]
+      : tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
     selectTab(next);
     const el = tabsEl.querySelector('[aria-selected="true"]');
     if (el) el.focus();
@@ -119,22 +125,23 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
 
   function renderGit(s, p) {
     const st = s.git[p.id];
+    const dev = isDev(s);
     const wrap = h('div', { class: 'git-panel' });
     wrap.append(h('div', { class: 'row between' },
-      h('strong', { text: t('artifacts.git') }),
+      h('strong', { text: t(dev ? 'artifacts.git' : 'artifacts.gitSimple') }),
       h('button', { class: 'btn btn--ghost btn--sm', type: 'button', on: { click: () => actions.refreshGit() } }, icon('refresh'), t('artifacts.refresh'))));
     if (!st) {
       wrap.append(h('div', { class: 'muted row' }, h('span', { class: 'spinner' }), t('common.loading')));
     } else if (!st.isRepo) {
-      wrap.append(h('div', { class: 'muted', text: t('artifacts.notRepo') }));
+      wrap.append(h('div', { class: 'muted', text: t(dev ? 'artifacts.notRepo' : 'artifacts.notRepoSimple') }));
     } else {
       wrap.append(
         h('div', { class: 'card' },
-          h('div', { class: 'row between' },
+          dev ? h('div', { class: 'row between' },
             h('span', { class: 'row' }, icon('git'), h('span', { class: 'muted', text: t('artifacts.branch') })),
-            h('span', { class: 'mono strong', text: st.branch || '-' })),
+            h('span', { class: 'mono strong', text: st.branch || '-' })) : null,
           h('div', { class: 'row between' },
-            h('span', { class: 'muted', text: st.dirty ? t('artifacts.changes', { count: st.dirty }) : t('artifacts.clean') }),
+            h('span', { class: 'muted', text: dev ? (st.dirty ? t('artifacts.changes', { count: st.dirty }) : t('artifacts.clean')) : (st.dirty ? t('artifacts.changesSimple', { count: st.dirty }) : t('artifacts.cleanSimple')) }),
             h('span', { class: 'badge ' + (st.dirty ? 'badge--amber' : 'badge--green') }, h('span', { class: 'badge__dot' }), String(st.dirty || 0)))),
         h('button', {
           class: 'btn btn--danger', type: 'button',
@@ -173,11 +180,11 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     const s = store.get();
     const p = activeProject(s);
     const dash = p && s.dashboard[p.id];
-    const signature = JSON.stringify([s.artifactsTab, p && p.id, p && s.git[p.id], dash && [dash.running, dash.url], !!(p && s.chats[p.id] && s.chats[p.id].running)]) + t('artifacts.title');
+    const signature = JSON.stringify([isDev(s), s.artifactsTab, p && p.id, p && s.git[p.id], dash && [dash.running, dash.url], !!(p && s.chats[p.id] && s.chats[p.id].running)]) + t('artifacts.title');
     if (signature !== sig) {
       sig = signature;
       renderTabs(s);
-      for (const id of TABS) panels[id].hidden = id !== s.artifactsTab;
+      for (const id of TABS) panels[id].hidden = id !== s.artifactsTab || !tabsFor(isDev(s)).includes(id);
       if (s.artifactsTab === 'git') {
         panels.git.replaceChildren(p ? renderGit(s, p) : h('div', { class: 'empty-state' },
           h('div', { class: 'empty-state__title', text: t('files.noProject') })));
@@ -190,7 +197,8 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   }
   store.subscribe((s, prev) => {
     if (s.artifactsTab !== prev.artifactsTab || s.activeProjectId !== prev.activeProjectId || s.git !== prev.git
-      || s.dashboard !== prev.dashboard || s.projects !== prev.projects) render();
+      || s.dashboard !== prev.dashboard || s.projects !== prev.projects || s.settings.developerMode !== prev.settings.developerMode) render();
+    if (!isDev(s) && s.artifactsTab === 'activity') store.set({ artifactsTab: 'preview' });
     if (s.dashboard !== prev.dashboard && s.artifactsTab === 'dashboard') dashTab.render();
     if (s.chats !== prev.chats && s.artifactsTab === 'preview') syncPreview();
     if (s.chats !== prev.chats && agentRunning(s) !== agentRunning(prev)) render();

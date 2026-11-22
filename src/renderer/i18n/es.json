@@ -52,7 +52,8 @@
     "approveRetry": "Aprobar y reintentar",
     "approveRetryConfirm": "\u00bfCambiar este proyecto al modo \"Aceptar ediciones\" y volver a enviar tu \u00faltima petici\u00f3n?",
     "approveRetryNote": "Permiso concedido: ya puedes hacer las ediciones. Reintenta la petici\u00f3n anterior.",
-    "undoConfirm": "\u00bfDeshacer el \u00faltimo turno? Los cambios del agente se revertir\u00e1n con git."
+    "undoConfirm": "\u00bfDeshacer el \u00faltimo turno? Los cambios del agente se revertir\u00e1n con git.",
+    "toolBlocked": "Bloqueado"
   },
   "composer": {
     "placeholder": "Escr\u00edbele a {agent}...",
@@ -100,7 +101,12 @@
     "label": "Modo",
     "default": "Preguntar antes de editar",
     "acceptEdits": "Aceptar ediciones",
-    "plan": "Solo planificar"
+    "plan": "Solo planificar",
+    "friendly": {
+      "default": "Preg\u00fantame antes de cambiar archivos",
+      "acceptEdits": "Hacer los cambios autom\u00e1ticamente",
+      "plan": "Solo planear, no cambiar nada"
+    }
   },
   "banner": {
     "vpn": "Se detect\u00f3 una VPN. Descon\u00e9ctala y usa una red normal para llegar a Claude.",
@@ -171,7 +177,8 @@
       "template": "Plantilla",
       "done": "Listo",
       "start": "Punto de partida",
-      "variables": "Variables"
+      "variables": "Variables",
+      "mode": "\u00bfC\u00f3mo vas a usar FlowState?"
     },
     "welcomeText": "Dejemos un proyecto listo en unos pocos pasos.",
     "prerequisitesText": "Revisamos que tengas instaladas las herramientas necesarias.",
@@ -196,7 +203,8 @@
     "startRunNote": "La metodolog\u00eda empieza en cuanto se crea el proyecto.",
     "runFailed": "El proyecto se cre\u00f3 pero la metodolog\u00eda no pudo iniciar: {message}",
     "signInNeeded": "No has iniciado sesi\u00f3n en {agent}. Puedes continuar, pero no podr\u00e1s enviar mensajes hasta que lo hagas.",
-    "signedInOk": "{agent} tiene la sesi\u00f3n iniciada."
+    "signedInOk": "{agent} tiene la sesi\u00f3n iniciada.",
+    "modeText": "Elige la vista que m\u00e1s te convenga. Puedes cambiarla cuando quieras desde la barra de t\u00edtulo o en Ajustes."
   },
   "prompts": {
     "title": "Plantillas de prompt",
@@ -284,7 +292,11 @@
     "changes": "{count} archivos modificados",
     "clean": "Sin cambios pendientes",
     "notRepo": "No es un repositorio git",
-    "activity": "Actividad"
+    "activity": "Actividad",
+    "gitSimple": "Cambios",
+    "notRepoSimple": "Tus cambios todav\u00eda no se est\u00e1n guardando con control de versiones.",
+    "changesSimple": "{count} archivos cambiados hasta ahora",
+    "cleanSimple": "Todav\u00eda no hay cambios"
   },
   "errors": {
     "generic": "Algo sali\u00f3 mal.",
@@ -817,5 +829,110 @@
       "noCommands": "Ning\u00fan comando ejecutado",
       "offset": "+{time}"
     }
+  },
+  "devmode": {
+    "title": "Modo desarrollador",
+    "hint": "Muestra el c\u00f3digo a aprobar, los diffs, los comandos y el detalle t\u00e9cnico. Desact\u00edvalo para una vista m\u00e1s simple y amigable.",
+    "on": "Activado",
+    "off": "Desactivado",
+    "pillDev": "Dev",
+    "pillSimple": "Simple",
+    "pillTitle": "Cambia entre el modo desarrollador (c\u00f3digo y detalle t\u00e9cnico) y el modo simple",
+    "simpleTitle": "Simple",
+    "simpleText": "Solo quiero describir lo que necesito.",
+    "devTitle": "Desarrollador",
+    "devText": "Mu\u00e9strame el c\u00f3digo, los diffs y los comandos."
+  },
+  "plain": {
+    "whatIDid": "Lo que hice",
+    "working": "Trabajando en ello...",
+    "showDetails": "Ver detalles",
+    "hideDetails": "Ocultar detalles",
+    "showCode": "Ver c\u00f3digo",
+    "openFile": "Abrir archivo",
+    "summaryLabel": "Resumen de lo que hice",
+    "live": {
+      "working": "Trabajando en ello..."
+    },
+    "sum": {
+      "and": " y ",
+      "sentence": "Listo: {parts}.",
+      "createdOne": "cre\u00e9 1 archivo",
+      "createdMany": "cre\u00e9 {count} archivos",
+      "changedOne": "cambi\u00e9 1 archivo",
+      "changedMany": "cambi\u00e9 {count} archivos",
+      "deletedOne": "borr\u00e9 1 archivo",
+      "deletedMany": "borr\u00e9 {count} archivos"
+    },
+    "step": {
+      "created": "Cre\u00e9 {file}",
+      "creating": "Creando {file}...",
+      "changed": "Cambi\u00e9 {file}",
+      "changing": "Cambiando {file}...",
+      "deleted": "Borr\u00e9 {file}",
+      "deleting": "Borrando {file}...",
+      "read": "Le\u00ed {file}",
+      "reading": "Leyendo {file}...",
+      "readNoFile": "Le\u00ed un archivo",
+      "searched": "Busqu\u00e9 en el proyecto",
+      "searching": "Buscando en el proyecto...",
+      "looked": "Revis\u00e9 la carpeta",
+      "looking": "Revisando la carpeta...",
+      "tested": "Prob\u00e9 tu proyecto: funcion\u00f3",
+      "testing": "Probando tu proyecto...",
+      "testFailed": "Prob\u00e9 tu proyecto: algo fall\u00f3",
+      "ran": "Ejecut\u00e9 tu programa",
+      "running": "Ejecutando tu programa...",
+      "ranFailed": "Ejecut\u00e9 tu programa: algo sali\u00f3 mal",
+      "blocked": "Esperando tu OK",
+      "other": "Hice una tarea",
+      "otherRunning": "Trabajando...",
+      "stepFailed": "Un paso no funcion\u00f3",
+      "createFailed": "No pude crear {file}",
+      "changeFailed": "No pude cambiar {file}",
+      "blockedRun": "Esperando tu OK para ejecutar un comando",
+      "blockedFile": "Esperando tu OK para cambiar {file}"
+    }
+  },
+  "approval": {
+    "title": "Necesita tu OK",
+    "titleMany": "Necesita tu OK",
+    "sub": "{agent} se detuvo porque necesita tu permiso para hacer esto.",
+    "subMany": "{agent} se detuvo: {count} acciones necesitan tu permiso.",
+    "wants": {
+      "run": "{agent} quiere ejecutar un comando",
+      "create": "{agent} quiere crear {file}",
+      "edit": "{agent} quiere editar {file}",
+      "createNoFile": "{agent} quiere crear un archivo",
+      "editNoFile": "{agent} quiere editar un archivo",
+      "use": "{agent} quiere usar {tool}"
+    },
+    "why": {
+      "approval": "Este tipo de acci\u00f3n siempre necesita tu aprobaci\u00f3n.",
+      "workingDir": "Est\u00e1 fuera de la carpeta de tu proyecto.",
+      "safetyCheck": "Activ\u00f3 una revisi\u00f3n de seguridad."
+    },
+    "seeExactly": "Ver exactamente qu\u00e9 va a hacer",
+    "codeLabel": "C\u00f3digo exacto de la acci\u00f3n bloqueada",
+    "noCode": "(sin detalles disponibles)",
+    "selectOne": "Incluir esta acci\u00f3n",
+    "allowOnce": "Permitir solo esta vez",
+    "allowSelected": "Permitir las seleccionadas una vez",
+    "allowProject": "Permitir en este proyecto",
+    "allowProjectTitle": "Cambia este proyecto a Aceptar cambios y vuelve a intentar",
+    "switchRetry": "Cambiar a Aceptar cambios y reintentar",
+    "dismiss": "No permitir",
+    "hintAllow": "permitir una vez",
+    "hintDismiss": "no permitir",
+    "statusAllowed": "Permitido: se envi\u00f3 de nuevo.",
+    "statusDismissed": "No permitido.",
+    "statusStale": "Esta solicitud ya no est\u00e1 abierta.",
+    "noNarrowClaude": "Esta acci\u00f3n no se puede permitir por separado. Cambiar el proyecto a Aceptar cambios le permite continuar.",
+    "noNarrowAgy": "{agent} no admite permisos de una sola vez: sus aprobaciones dependen del modo del proyecto. Cambia a Aceptar cambios y reintenta para continuar.",
+    "projectConfirmTitle": "\u00bfPermitir en este proyecto?",
+    "projectConfirm": "Esto cambia el proyecto a Aceptar cambios: {agent} podr\u00e1 modificar archivos sin preguntar cada vez, hasta que vuelvas a cambiar el modo. Tu \u00faltima solicitud se enviar\u00e1 de nuevo.",
+    "projectConfirmOk": "Cambiar y reintentar",
+    "dismissedNote": "Elegiste no permitir esa acci\u00f3n.",
+    "retryTag": "Enviado de nuevo con tu permiso"
   }
 }

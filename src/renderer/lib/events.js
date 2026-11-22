@@ -6,16 +6,20 @@
 // Message kinds (m.role):
 //   user        { id, role, text }
 //   assistant   { id, role, text, open, fromDelta }
-//   tool        { id, role, toolId, name, kind, input, summary, output, status: 'running'|'done'|'error', startedAt?, endedAt?,
+//   tool        { id, role, toolId, name, kind, input, summary, output, status: 'running'|'done'|'error'|'blocked', blocked?: { reason, message }, startedAt?, endedAt?,
 //                 durationMs?, exitCode?, commandOutput?, change? }     change = { path, op, added, removed, diff, truncated }
 //   thinking    { id, role, durationMs, tokens, outputTokens, text, steps }
 //   summary     { id, role }                    marker after the final text of a turn that did something (stats computed from the turn)
 //   permission  { id, role, kind: 'denied'|'request', toolId, tool, reason, message, input, status: 'pending'|'approved'|'denied' }
+//               (only for denied actions that have no tool card; the approval card lists them with the blocked tool cards)
+//   approval    { id, role, status: 'pending'|'allowed'|'dismissed' }   one per turn that ended with blocked actions (items are derived
+//               from the turn: tool cards with status 'blocked' + pending permission messages)
 //   error       { id, role, kind, message, stderr }
 //   system      { id, role, key?, text? }       key is an i18n key rendered by the UI
 
 import { classifyTool } from '../../shared/events.js';
 import { turnMessages, turnStats, hasActivity } from './activity.js';
+import { classifyBlocked, blockedItems, reasonOf } from './approvals.js';
 
 const MAX_OUTPUT = 20000;
 const MAX_COMMAND_OUTPUT = 60000;
@@ -85,6 +89,11 @@ export function resolvePermission(state, id, status) {
   const i = state.messages.findIndex((m) => m.id === id);
   if (i < 0) return state;
   return replaceAt(state, i, { ...state.messages[i], status });
+}
+
+/** Append a small system note (i18n key) to the chat, e.g. after the user declined an approval. */
+export function addSystemNote(state, key) {
+  return push(closeOpenAssistant(state), { role: 'system', key });
 }
 
 /** Local failure (e.g. agent.send rejected): show an error and stop the running flag. */
@@ -179,8 +188,13 @@ function reduceCore(state, ev, now) {
       const idx = findTool(state, ev.id);
       const isCommand = (ev.kind || (idx >= 0 ? state.messages[idx].kind : classifyTool(null, ev.name))) === 'command';
       const exitCode = typeof ev.exitCode === 'number' ? ev.exitCode : null;
-      const status = ev.isError || (isCommand && exitCode != null && exitCode !== 0) ? 'error' : 'done';
+      const prevIdx = idx;
+      const wasBlocked = prevIdx >= 0 && state.messages[prevIdx].status === 'blocked';
+      const cls = ev.isError && exitCode == null && !wasBlocked ? classifyBlocked(ev.output) : { blocked: false };
+      const blocked = wasBlocked || cls.blocked;
+      const status = blocked ? 'blocked' : ev.isError || (isCommand && exitCode != null && exitCode !== 0) ? 'error' : 'done';
       const extra = {};
+      if (cls.blocked) extra.blocked = { reason: cls.reason, message: '' };
       if (typeof ev.durationMs === 'number') extra.durationMs = ev.durationMs;
       if (exitCode != null) extra.exitCode = exitCode;
       if (typeof ev.commandOutput === 'string') extra.commandOutput = clip(ev.commandOutput, MAX_COMMAND_OUTPUT);
@@ -214,6 +228,12 @@ function reduceCore(state, ev, now) {
     case 'permission-denied':
     case 'permission-request': {
       if (state.messages.some((m) => m.role === 'permission' && m.toolId === ev.id && ev.id != null)) return state;
+      const ti = ev.type === 'permission-denied' ? findTool(state, ev.id) : -1;
+      if (ti >= 0) {
+        // The blocked tool card becomes the 'blocked' state (amber); the approval card is added when the turn ends.
+        const cur = state.messages[ti];
+        return replaceAt(state, ti, { ...cur, status: 'blocked', blocked: { reason: reasonOf(ev.reason, ev.message), message: ev.message || '' } });
+      }
       const s = closeOpenAssistant(state);
       return push(s, {
         role: 'permission', kind: ev.type === 'permission-denied' ? 'denied' : 'request', toolId: ev.id,
@@ -233,6 +253,7 @@ function reduceCore(state, ev, now) {
       }
       if (ev.stopped) s = push(s, { role: 'system', key: 'chat.stopped' });
       else if (ev.ok === false) s = push(s, { role: 'error', kind: 'api', message: ev.text || '', stderr: '' });
+      if (blockedItems(s.messages, s.turn.id).length && !ev.stopped) s = push(s, { role: 'approval', status: 'pending' });
       if (hasActivity(turnStats(turnMessages(s.messages, s.turn.id)))) s = push(s, { role: 'summary' });
       return { ...s, running: false };
     }

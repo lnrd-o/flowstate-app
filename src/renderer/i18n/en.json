@@ -52,7 +52,8 @@
     "approveRetry": "Approve & retry",
     "approveRetryConfirm": "Switch this project to \"Accept edits\" mode and send your last request again?",
     "approveRetryNote": "Permission granted: you may now make the edits. Please retry the request above.",
-    "undoConfirm": "Undo the last turn? The changes the agent made will be reverted with git."
+    "undoConfirm": "Undo the last turn? The changes the agent made will be reverted with git.",
+    "toolBlocked": "Blocked"
   },
   "composer": {
     "placeholder": "Message {agent}...",
@@ -100,7 +101,12 @@
     "label": "Mode",
     "default": "Ask before edits",
     "acceptEdits": "Accept edits",
-    "plan": "Plan only"
+    "plan": "Plan only",
+    "friendly": {
+      "default": "Ask me before changing files",
+      "acceptEdits": "Make changes automatically",
+      "plan": "Plan only, don't change anything"
+    }
   },
   "banner": {
     "vpn": "VPN detected. Disconnect and use a regular network to reach Claude.",
@@ -171,7 +177,8 @@
       "template": "Template",
       "done": "Done",
       "start": "Starting point",
-      "variables": "Variables"
+      "variables": "Variables",
+      "mode": "How will you use FlowState?"
     },
     "welcomeText": "Let's get a project ready in a few steps.",
     "prerequisitesText": "We check that the tools you need are installed.",
@@ -196,7 +203,8 @@
     "startRunNote": "The methodology starts as soon as the project is created.",
     "runFailed": "The project was created but the methodology could not start: {message}",
     "signInNeeded": "You are not signed in to {agent}. You can continue, but sending messages stays disabled until you sign in.",
-    "signedInOk": "{agent} is signed in."
+    "signedInOk": "{agent} is signed in.",
+    "modeText": "Pick the view that fits you. You can switch any time from the title bar or Settings."
   },
   "prompts": {
     "title": "Prompt templates",
@@ -284,7 +292,11 @@
     "changes": "{count} changed files",
     "clean": "Working tree clean",
     "notRepo": "Not a git repository",
-    "activity": "Activity"
+    "activity": "Activity",
+    "gitSimple": "Changes",
+    "notRepoSimple": "Your changes are not being tracked yet.",
+    "changesSimple": "{count} files changed so far",
+    "cleanSimple": "No changes yet"
   },
   "errors": {
     "generic": "Something went wrong.",
@@ -817,5 +829,110 @@
       "noCommands": "No commands run",
       "offset": "+{time}"
     }
+  },
+  "devmode": {
+    "title": "Developer mode",
+    "hint": "Show the code to approve, diffs, commands and technical detail. Turn it off for a simpler, friendlier view.",
+    "on": "On",
+    "off": "Off",
+    "pillDev": "Dev",
+    "pillSimple": "Simple",
+    "pillTitle": "Switch between Developer mode (code and technical detail) and Simple mode",
+    "simpleTitle": "Simple",
+    "simpleText": "I just want to describe what I need.",
+    "devTitle": "Developer",
+    "devText": "Show me the code, diffs and commands."
+  },
+  "plain": {
+    "whatIDid": "What I did",
+    "working": "Working on it...",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "showCode": "Show code",
+    "openFile": "Open file",
+    "summaryLabel": "Summary of what I did",
+    "live": {
+      "working": "Working on it..."
+    },
+    "sum": {
+      "and": " and ",
+      "sentence": "I {parts}.",
+      "createdOne": "created 1 file",
+      "createdMany": "created {count} files",
+      "changedOne": "changed 1 file",
+      "changedMany": "changed {count} files",
+      "deletedOne": "deleted 1 file",
+      "deletedMany": "deleted {count} files"
+    },
+    "step": {
+      "created": "Created {file}",
+      "creating": "Creating {file}...",
+      "changed": "Changed {file}",
+      "changing": "Changing {file}...",
+      "deleted": "Deleted {file}",
+      "deleting": "Deleting {file}...",
+      "read": "Read {file}",
+      "reading": "Reading {file}...",
+      "readNoFile": "Read a file",
+      "searched": "Searched the project",
+      "searching": "Searching the project...",
+      "looked": "Looked around the folder",
+      "looking": "Looking around the folder...",
+      "tested": "Tested your project - it worked",
+      "testing": "Testing your project...",
+      "testFailed": "Tested your project - something failed",
+      "ran": "Ran your program",
+      "running": "Running your program...",
+      "ranFailed": "Ran your program - something went wrong",
+      "blocked": "Waiting for your OK",
+      "other": "Did a task",
+      "otherRunning": "Working...",
+      "stepFailed": "A step did not work",
+      "createFailed": "Could not create {file}",
+      "changeFailed": "Could not change {file}",
+      "blockedRun": "Waiting for your OK to run a command",
+      "blockedFile": "Waiting for your OK to change {file}"
+    }
+  },
+  "approval": {
+    "title": "Needs your OK",
+    "titleMany": "Needs your OK",
+    "sub": "{agent} paused because it needs your permission before it can do this.",
+    "subMany": "{agent} paused: {count} actions need your permission.",
+    "wants": {
+      "run": "{agent} wants to run a command",
+      "create": "{agent} wants to create {file}",
+      "edit": "{agent} wants to edit {file}",
+      "createNoFile": "{agent} wants to create a file",
+      "editNoFile": "{agent} wants to edit a file",
+      "use": "{agent} wants to use {tool}"
+    },
+    "why": {
+      "approval": "This kind of action always needs your approval.",
+      "workingDir": "It is outside your project folder.",
+      "safetyCheck": "It tripped a safety check."
+    },
+    "seeExactly": "See exactly what it will do",
+    "codeLabel": "Exact code of the blocked action",
+    "noCode": "(no details available)",
+    "selectOne": "Include this action",
+    "allowOnce": "Allow this once",
+    "allowSelected": "Allow selected once",
+    "allowProject": "Allow for this project",
+    "allowProjectTitle": "Switch this project to Accept edits and try again",
+    "switchRetry": "Switch to Accept edits and retry",
+    "dismiss": "Don't allow",
+    "hintAllow": "allow once",
+    "hintDismiss": "don't allow",
+    "statusAllowed": "Allowed - sent again.",
+    "statusDismissed": "Not allowed.",
+    "statusStale": "This request is no longer open.",
+    "noNarrowClaude": "This action cannot be allowed on its own. Switching the project to Accept edits lets it continue.",
+    "noNarrowAgy": "{agent} does not support one-time permissions: its approvals depend on the project mode. Switch to Accept edits and retry to continue.",
+    "projectConfirmTitle": "Allow for this project?",
+    "projectConfirm": "This switches the project to Accept edits: {agent} can then change files without asking each time, until you change the mode back. Your last request is sent again.",
+    "projectConfirmOk": "Switch and retry",
+    "dismissedNote": "You chose not to allow that action.",
+    "retryTag": "Sent again with your permission"
   }
 }

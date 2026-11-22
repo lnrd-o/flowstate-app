@@ -33,7 +33,7 @@ export function createInitialState() {
   return {
     settings: {
       language: 'en', theme: 'dark', codeTheme: 'vs-dark', claudePath: null, agyPath: null,
-      lastProjectId: null, autoLaunch: false, walkthroughDone: true,
+      lastProjectId: null, autoLaunch: false, walkthroughDone: true, developerMode: true,
     },
     projects: [],
     activeProjectId: null,
@@ -60,6 +60,11 @@ export function createInitialState() {
 
 export function activeProject(state) {
   return state.projects.find((p) => p.id === state.activeProjectId) || null;
+}
+
+/** Developer mode (technical detail: code, diffs, commands). On unless explicitly turned off. */
+export function isDev(state) {
+  return !state || !state.settings || state.settings.developerMode !== false;
 }
 
 export function activeChat(state) {

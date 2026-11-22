@@ -125,6 +125,7 @@ export function turnStats(messages, root) {
     if (m.role === 'thinking') { st.thinkingMs += m.durationMs || 0; st.thinkingTokens += m.tokens || 0; continue; }
     if (m.role !== 'tool') continue;
     st.tools++;
+    if (m.status === 'blocked') continue; // never ran: not counted as work done
     const kind = kindOf(m);
     if (kind === 'command') {
       st.commands++;
