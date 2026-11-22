@@ -133,21 +133,21 @@ const mapChars = (s, table) => (s.length && [...s].every((c) => table[c] !== und
 export function mathToText(expr) {
   let s = String(expr ?? '');
   for (let i = 0; i < 4; i++) { // nested \text{\textbf{..}} and \frac{\sqrt{..}}{..}
-    s = s.replace(/\(?:text|textbf|textit|mathrm|mathbf|mathit|operatorname|mbox)\s*\{([^{}]*)\}/g, '$1')
-      .replace(/\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)')
-      .replace(/\sqrt\s*\{([^{}]*)\}/g, '√($1)');
+    s = s.replace(/\\(?:text|textbf|textit|mathrm|mathbf|mathit|operatorname|mbox)\s*\{([^{}]*)\}/g, '$1')
+      .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)')
+      .replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)');
   }
-  s = s.replace(/\^\s*\{?\circ\}?/g, '°')
+  s = s.replace(/\^\s*\{?\\circ\}?/g, '°')
     .replace(/\^\s*\{([^{}]*)\}|\^\s*([0-9+-])/g, (_m, a, b) => { const x = a ?? b; return mapChars(x, SUP) ?? `^(${x})`; })
     .replace(/_\s*\{([^{}]*)\}|_\s*([0-9])/g, (_m, a, b) => { const x = a ?? b; return mapChars(x, SUB) ?? `_${x}`; })
-    .replace(/\([%$&#_{}])/g, '$1')
-    .replace(/\[,;:! ]/g, ' ')
-    .replace(/\([A-Za-z]+)/g, (_m, name) => (name in SYMBOLS ? SYMBOLS[name] : name))
+    .replace(/\\([%$&#_{}])/g, '$1')
+    .replace(/\\[,;:! ]/g, ' ')
+    .replace(/\\([A-Za-z]+)/g, (_m, name) => (name in SYMBOLS ? SYMBOLS[name] : name))
     .replace(/[{}]/g, '');
   return s.replace(/[ \t]+/g, ' ').trim();
 }
 
-const LATEX_HINT = /\[A-Za-z]|\^\s*[{0-9+-]|_\s*\{/;
+const LATEX_HINT = /\\[A-Za-z]|\^\s*[{0-9+-]|_\s*\{/;
 
 /** Replace $...$ and $$...$$ spans that use LaTeX syntax with plain text. Fenced code and `inline code` are left untouched. */
 export function simplifyMath(text) {

@@ -249,7 +249,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   const isEmpty = (st) => !(st.chats[st.activeProjectId] && st.chats[st.activeProjectId].messages.length);
   store.subscribe((s, prev) => {
     if (s.projects !== prev.projects || s.activeProjectId !== prev.activeProjectId || s.health !== prev.health || s.signedIn !== prev.signedIn
-      || isRunning(s) !== isRunning(prev) || isEmpty(s) !== isEmpty(prev) || s.models !== prev.models || s.modelsLoading !== prev.modelsLoading) render();
+      || isRunning(s) !== isRunning(prev) || isEmpty(s) !== isEmpty(prev) || s.models !== prev.models || s.modelsLoading !== prev.modelsLoading || s.settings !== prev.settings) render();
   });
   render();
   return {

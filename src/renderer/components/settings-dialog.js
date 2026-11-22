@@ -28,7 +28,7 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
   const body = h('div', { class: 'settings-form' });
   const closeBtn = h('button', { class: 'btn btn--primary', type: 'button' });
   const dlg = openDialog({
-    title: t('settings.title'), body, footer: [closeBtn], size: 'lg',
+    title: t('settings.title'), body, footer: [closeBtn], size: 'lg', isDirty: () => false, // every change applies immediately
     onClose: () => { if (unsub) unsub(); },
   });
   closeBtn.addEventListener('click', () => dlg.close('done'));

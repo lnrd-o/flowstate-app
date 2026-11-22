@@ -9,6 +9,8 @@ import { createDashboards, waitForPort, streamlitArgs, probeHttp, freePort, pars
 
 const tmp = () => fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'fs-dash-')));
 const venvPy = (root) => path.join(root, '.venv', 'Scripts', 'python.exe');
+// These tests model the Windows Python layout (.venv\Scripts\python.exe, py -3) on a REAL temp folder, which only lines up on Windows.
+const winOnly = process.platform === 'win32' ? {} : { skip: 'models the Windows Python layout on a real folder' };
 
 
 const ALL = PIP_PACKAGES;
@@ -47,7 +49,7 @@ test('status discovers apps; global packages satisfy deps without a venv', async
   assert.equal((await none.status('p')).python.found, false);
 });
 
-test('auto mode: missing global packages need a choice; a satisfied project venv is used; nothing is installed', async () => {
+test('auto mode: missing global packages need a choice; a satisfied project venv is used; nothing is installed', winOnly, async () => {
   const root = tmp();
   const proj = { id: 'p', path: root };
   const spawned = [];
@@ -111,7 +113,7 @@ test('streamlit args bind to 127.0.0.1 headless', () => {
     '--server.port', '8765', '--server.headless', 'true', '--browser.gatherUsageStats', 'false']);
 });
 
-test('start validates the app path, spawns venv python, waits, stop kills the tree', async () => {
+test('start validates the app path, spawns venv python, waits, stop kills the tree', winOnly, async () => {
   const root = tmp();
   fs.mkdirSync(path.join(root, '.venv', 'Scripts'), { recursive: true });
   fs.writeFileSync(venvPy(root), '');
@@ -142,7 +144,7 @@ test('start validates the app path, spawns venv python, waits, stop kills the tr
   assert.equal(events.at(-1).status.running, false);
 });
 
-test('start fails cleanly when the port never answers or the process dies', async () => {
+test('start fails cleanly when the port never answers or the process dies', winOnly, async () => {
   const root = tmp();
   fs.mkdirSync(path.join(root, '.venv', 'Scripts'), { recursive: true });
   fs.writeFileSync(venvPy(root), '');
@@ -158,7 +160,7 @@ test('start fails cleanly when the port never answers or the process dies', asyn
   assert.equal((await d.status('p').catch(() => ({ running: false }))).running, false);
 });
 
-test('setup with choice=venv streams logs, creates the venv, pip installs, remembers the choice, one at a time', async () => {
+test('setup with choice=venv streams logs, creates the venv, pip installs, remembers the choice, one at a time', winOnly, async () => {
   const root = tmp();
   const events = []; const cmds = []; const updates = [];
   const spawn = (cmd, args) => {

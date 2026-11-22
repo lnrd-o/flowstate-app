@@ -42,7 +42,8 @@ export function openWalkthrough({ store, api, actions }) {
   const imported = {};
 
   const body = h('div', { class: 'wt' });
-  const dlg = openDialog({ title: t('wizard.title'), body, footer: [], size: 'lg', onClose: () => { unsubLang(); unsubStore(); } });
+  const dlg = openDialog({ title: t('wizard.title'), body, footer: [], size: 'lg', onClose: () => { unsubLang(); unsubStore(); },
+    isDirty: () => !finished && !created && (!!data.choice || !!data.name.trim() || step > 0) });
   const hasQuestions = () => !!(data.method && (data.method.vars || []).length);
   const ids = () => wizardSteps(hasQuestions());
   const cur = () => ids()[step];

@@ -472,7 +472,10 @@
     "never": "Nunca",
     "justNow": "Justo ahora",
     "loading": "Cargando...",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "discardTitle": "\u00bfDescartar cambios?",
+    "discardMessage": "Tienes cambios sin guardar en esta ventana. \u00bfCerrarla y perderlos?",
+    "discard": "Descartar"
   },
   "auth": {
     "loginStarted": "Se abri\u00f3 una ventana de consola. Termina el inicio de sesi\u00f3n ah\u00ed y luego pulsa Volver a comprobar.",

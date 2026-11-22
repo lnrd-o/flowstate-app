@@ -472,7 +472,10 @@
     "never": "Never",
     "justNow": "Just now",
     "loading": "Loading...",
-    "continue": "Continue"
+    "continue": "Continue",
+    "discardTitle": "Discard changes?",
+    "discardMessage": "You have unsaved changes in this window. Close it and lose them?",
+    "discard": "Discard"
   },
   "auth": {
     "loginStarted": "A console window opened. Finish signing in there, then press Recheck.",

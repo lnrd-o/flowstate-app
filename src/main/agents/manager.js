@@ -15,7 +15,7 @@ import { loadAttachmentImages } from '../svc/attachments.js';
 export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker(), routeEnv, contextNote }) {
   // contextNote(project, text) -> Promise<string|null> : short note appended to the prompt sent to the agent (never stored in history), e.g. which Python interpreter to use.
   // routeEnv(project, route) -> {env}|{error}|null : per-turn child env for a route (DeepSeek key from safeStorage). Main only; the key never leaves it.
-  const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter(), opencode: new OpencodeAdapter() };
+  const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter({ warm: true }), opencode: new OpencodeAdapter() };
   const running = new Map(); // projectId -> handle | null (starting)
   const committing = new Map(); // projectId -> Promise (auto-commit after a finished turn)
   const finished = new Set(); // projectIds whose current turn already emitted result/error (process may still be exiting)
@@ -133,6 +133,9 @@ ${note}`; } catch { /* best effort */ } }
       running.get(projectId)?.stop();
     },
 
-    stopAll() { for (const h of running.values()) h?.stop(); },
+    stopAll() {
+      for (const h of running.values()) h?.stop();
+      for (const a of Object.values(ad)) { try { a.dispose?.(); } catch { /* ignore */ } } // warm agy processes
+    },
   };
 }

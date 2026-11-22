@@ -169,3 +169,12 @@ test('manager: persists sessionId, rejects concurrent send, stop kills, autoComm
   } finally { delete process.env.FAKE_DELAY; }
   await assert.rejects(mgr.send({ projectId: 'nope', text: 'x' }), /Unknown project/);
 });
+
+test('agy warm mode: stdin line format and long-lived args (no -p)', async () => {
+  const { agyInputLine } = await import('../../src/main/agents/agy.js');
+  assert.equal(agyInputLine('hola'), '{"event":"user","message":{"content":"hola"}}\n');
+  const a = new AgyAdapter({ warm: true });
+  const args = a.buildWarmArgs({ sessionId: 'c1', mode: 'plan' });
+  assert.deepEqual(args.slice(0, 4), ['--output-format', 'stream-json', '--input-format', 'stream-json']);
+  assert.ok(args.includes('--conversation') && args.includes('plan') && !args.some((x) => x.startsWith('-p')));
+});
