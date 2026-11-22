@@ -101,6 +101,10 @@ export const CH = Object.freeze({
   // Images / attachments (stored in <project>/.flowstate/attachments/)
   attachmentsSave: 'attachments:save',       // (projectId, {name, mime, dataBase64}) -> Attachment
   attachmentsRead: 'attachments:read',       // (projectId, rel) -> {dataUrl}   thumbnail/preview, only inside attachments/
+  // Office cases: bring the user's own files into a project, and a sensible default place for new projects
+  filesPick: 'files:pick',                   // ({kind?:'office'|'data'|'any', multi?:boolean}) -> string[]   native open dialog (absolute paths, [] when cancelled); 'office' = xlsx xls csv txt json md docx pdf html
+  filesImport: 'files:import',               // (projectId, sourcePath) -> {rel, name, size}   COPIES the file into <project>/data/ (never moves/changes the original; name de-duplicated; <= 200 MB; regular files only; extension allow-list)
+  projectsDefaultDir: 'projects:default-dir',// () -> string   <Documents>/FlowState (created if missing): where new projects go by default
   // Boot / lifecycle / about
   appInfo: 'app:info',                       // () -> {name, version, electron, chrome, node, platform, arch, userData, packaged}
   appReady: 'app:ready',                     // () -> void   renderer calls after first render: main hides the splash and shows the window
@@ -211,12 +215,12 @@ export const CH = Object.freeze({
 //   health.check, git.status/undoTurn, onAgentEvent(cb)->unsubscribe, onHealth(cb)->unsubscribe
 export const API_SHAPE = Object.freeze({
   settings: ['get', 'set'],
-  projects: ['list', 'add', 'update', 'remove', 'pickFolder'],
+  projects: ['list', 'add', 'update', 'remove', 'pickFolder', 'defaultDir'],
   agent: ['send', 'stop', 'status'],
   health: ['check'],
   git: ['status', 'undoTurn'],
   prompts: ['list', 'save', 'delete', 'export'],
-  files: ['list', 'read', 'reveal', 'open', 'watch'],
+  files: ['list', 'read', 'reveal', 'open', 'watch', 'pick', 'import'],
   dashboard: ['status', 'setup', 'start', 'stop'],
   prereq: ['install'],
   auth: ['login'],

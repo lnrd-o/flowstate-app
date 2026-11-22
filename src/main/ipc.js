@@ -82,6 +82,17 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
       return svc('attachments').save(id, { name: meta.name, mime: meta.mime, dataBase64: meta.dataBase64 });
     },
     [CH.attachmentsRead]: (_e, id, rel) => { need(id); if (!isRel(rel) || !rel.startsWith('.flowstate/attachments/')) throw new TypeError('invalid attachment path'); return svc('attachments').read(id, rel); },
+    [CH.filesPick]: (_e, opts = {}) => {
+      if (!isPlain(opts)) throw new TypeError('options must be an object');
+      if (opts.kind !== undefined && !['office', 'data', 'any'].includes(opts.kind)) throw new TypeError('invalid kind');
+      return svc('imports').pick({ kind: opts.kind ?? 'office', multi: opts.multi === true });
+    },
+    [CH.filesImport]: (_e, id, sourcePath) => {
+      need(id);
+      if (typeof sourcePath !== 'string' || !path.isAbsolute(sourcePath) || sourcePath.length > 1024) throw new TypeError('source path must be an absolute path');
+      return svc('imports').importFile(id, sourcePath);
+    },
+    [CH.projectsDefaultDir]: () => svc('imports').defaultDir(),
     [CH.appInfo]: () => svc('boot').info(),
     [CH.appReady]: () => svc('boot').ready(),
     [CH.appFlushed]: () => svc('boot').flushed(),

@@ -17,7 +17,10 @@
 //   condition  { var, equals }                 follow the edge labelled 'yes' if vars[var] === equals, else 'no'
 
 export const NODE_TYPES = Object.freeze(['prompt', 'command', 'git-commit', 'ask-user', 'checkpoint', 'artifact', 'condition']);
-export const VAR_TYPES = Object.freeze(['text', 'textarea', 'select', 'path']);
+// 'file' = a file the user picks; it is COPIED into the project (<project>/data/) and the variable holds the project-relative path.
+export const VAR_TYPES = Object.freeze(['text', 'textarea', 'select', 'path', 'file']);
+// Office/analysis "cases" are bundled methodologies with meta = { kind:'case', category, icon }; the new-project wizard lists them as cards.
+export const CASE_CATEGORIES = Object.freeze(['excel', 'web', 'data', 'dashboard', 'research', 'document', 'automation', 'other']);
 export const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]{0,40}$/;
 export const LIMITS = Object.freeze({ nodes: 200, edges: 400, vars: 40, text: 20000, title: 200 });
@@ -33,6 +36,15 @@ export function validateMethodology(m) {
   if (m.version !== 1) errs.push('version must be 1');
   if (!isI18n(m.name)) errs.push('name must be {en, es?}');
   if (m.description !== undefined && !isI18n(m.description)) errs.push('description must be {en, es?}');
+  if (m.meta !== undefined) {
+    const me = m.meta;
+    if (!me || typeof me !== 'object' || Array.isArray(me)) errs.push('meta must be an object');
+    else {
+      if (me.kind !== undefined && me.kind !== 'case') errs.push('meta.kind must be "case"');
+      if (me.category !== undefined && !CASE_CATEGORIES.includes(me.category)) errs.push('meta.category invalid');
+      if (me.icon !== undefined && !isStr(me.icon, 40)) errs.push('meta.icon invalid');
+    }
+  }
   const vars = Array.isArray(m.vars) ? m.vars : (m.vars === undefined ? [] : null);
   if (!vars) errs.push('vars must be an array');
   else {

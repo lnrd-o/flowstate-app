@@ -43,6 +43,14 @@ test('command node needs exe + args array; limits enforced', () => {
   assert.ok(validateMethodology(big).some((e) => e.includes('prompt.text')));
 });
 
+test('file var type and case meta are accepted; bad meta is rejected', () => {
+  const m = base(); m.vars.push({ key: 'sheet', type: 'file' }); m.meta = { kind: 'case', category: 'excel', icon: 'table' };
+  assert.deepEqual(validateMethodology(m), []);
+  const bad = base(); bad.meta = { kind: 'case', category: 'nope' };
+  assert.ok(validateMethodology(bad).some((e) => e.includes('meta.category')));
+  const bad2 = base(); bad2.meta = 'x'; assert.ok(validateMethodology(bad2).some((e) => e.includes('meta')));
+});
+
 test('navigation and conditions', () => {
   const m = base();
   assert.equal(nextNodeId(m, 'a'), 'b');
