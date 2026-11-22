@@ -8,10 +8,11 @@ import { lastTouchedFile } from '../lib/touched.js';
 import { createFileViewer } from './file-viewer.js';
 import { mountFilesTab } from './files-tab.js';
 import { mountDashboardTab } from './dashboard-tab.js';
+import { mountActivityTab } from './activity-tab.js';
 
 export const WIDTH_KEY = 'flowstate.artifactsWidth';
 export const COLLAPSED_KEY = 'flowstate.artifactsCollapsed';
-const TABS = ['preview', 'files', 'dashboard', 'git'];
+const TABS = ['preview', 'files', 'activity', 'dashboard', 'git'];
 
 /** Clamp the artifacts width to [min, 60% of viewport]. Pure. */
 export function clampWidth(w, min, viewport) {
@@ -81,6 +82,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     clear(tabsEl);
     const p = activeProject(s);
     const dashRunning = !!(p && s.dashboard[p.id] && s.dashboard[p.id].running);
+    const agentRunning = !!(p && s.chats[p.id] && s.chats[p.id].running);
     for (const id of TABS) {
       const on = s.artifactsTab === id;
       const b = h('button', {
@@ -88,10 +90,13 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
         attrs: { role: 'tab', 'aria-selected': String(on), 'aria-controls': 'art-panel-' + id, tabindex: on ? '0' : '-1' },
         on: { click: () => selectTab(id) },
       }, h('span', { class: 'truncate', text: t('artifacts.' + id) }),
+      id === 'activity' && agentRunning ? h('span', { class: 'tab-live', title: t('act.tab.working') }, h('span', { class: 'dot dot--green', attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('act.tab.working') })) : null,
       id === 'dashboard' && dashRunning ? h('span', { class: 'tab-live', title: t('dashboard.running') }, h('span', { class: 'dot dot--green', attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('dashboard.running') })) : null);
       tabEls.set(id, b);
       tabsEl.append(b);
     }
+    const activeTab = tabEls.get(s.artifactsTab);
+    if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
     closeBtn.setAttribute('aria-label', t('nav.toggleArtifacts'));
     closeBtn.title = t('nav.toggleArtifacts');
     splitter.setAttribute('aria-label', t('nav.toggleArtifacts'));
@@ -150,6 +155,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   panels.preview.append(previewViewer.el);
   const filesTab = mountFilesTab(panels.files, { store, api, actions });
   const dashTab = mountDashboardTab(panels.dashboard, { store, api, actions });
+  const activityTab = mountActivityTab(panels.activity, { store, actions });
 
   function syncPreview() {
     const s = store.get();
@@ -161,12 +167,13 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     previewViewer.show(p.id, rel);
   }
 
+  const agentRunning = (st) => { const pr = activeProject(st); return !!(pr && st.chats[pr.id] && st.chats[pr.id].running); };
   let sig = '';
   function render() {
     const s = store.get();
     const p = activeProject(s);
     const dash = p && s.dashboard[p.id];
-    const signature = JSON.stringify([s.artifactsTab, p && p.id, p && s.git[p.id], dash && [dash.running, dash.url]]) + t('artifacts.title');
+    const signature = JSON.stringify([s.artifactsTab, p && p.id, p && s.git[p.id], dash && [dash.running, dash.url], !!(p && s.chats[p.id] && s.chats[p.id].running)]) + t('artifacts.title');
     if (signature !== sig) {
       sig = signature;
       renderTabs(s);
@@ -177,6 +184,7 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
       }
       if (s.artifactsTab === 'files') filesTab.render();
       if (s.artifactsTab === 'dashboard') dashTab.render();
+      if (s.artifactsTab === 'activity') activityTab.render();
     }
     if (s.artifactsTab === 'preview') syncPreview();
   }
@@ -185,10 +193,12 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
       || s.dashboard !== prev.dashboard || s.projects !== prev.projects) render();
     if (s.dashboard !== prev.dashboard && s.artifactsTab === 'dashboard') dashTab.render();
     if (s.chats !== prev.chats && s.artifactsTab === 'preview') syncPreview();
+    if (s.chats !== prev.chats && agentRunning(s) !== agentRunning(prev)) render();
   });
   render();
   return {
-    update() { sig = ''; render(); previewViewer.update(); filesTab.update(); dashTab.update(); },
+    update() { sig = ''; render(); previewViewer.update(); filesTab.update(); dashTab.update(); activityTab.update(); },
+    openFile(rel) { filesTab.render(); filesTab.openPath(rel); },
     onFiles(evt) {
       filesTab.onFiles(evt);
       const p = activeProject(store.get());

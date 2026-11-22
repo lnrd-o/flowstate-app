@@ -67,12 +67,13 @@ async function loadHistory(pid, force) {
     let running = false;
     try { running = !!(api.agent.status && (await api.agent.status(pid)).running); } catch { running = false; }
     store.updateChat(pid, () => {
-      let st = replayHistory(records);
-      for (const ev of dedupeLive(records, buffered)) st = reduceEvent(st, ev);
+      const agent = (store.get().projects.find((p) => p.id === pid) || {}).agent;
+      let st = replayHistory(records, undefined, { agent });
+      for (const ev of dedupeLive(records, buffered)) st = reduceEvent(st, ev, { now: Date.now() });
       return { ...st, running: running || (buffered.length > 0 && !buffered.some((e) => e && e.type === 'result')) };
     });
   } else {
-    for (const ev of buffered) store.updateChat(pid, (c) => reduceEvent(c, ev));
+    for (const ev of buffered) store.updateChat(pid, (c) => reduceEvent(c, ev, { now: Date.now() }));
   }
   if (store.get().activeProjectId === pid && ui.main) ui.main.chat.stickToBottom();
 }
@@ -291,7 +292,7 @@ const actions = {
     const s = store.get();
     const p = activeProject(s);
     if (!p) return;
-    store.updateChat(p.id, (c) => addUserMessage(c, text));
+    store.updateChat(p.id, (c) => addUserMessage(c, text, { agent: p.agent, now: Date.now() }));
     ui.main.chat.stickToBottom();
     try {
       await api.agent.send({ projectId: p.id, text });
@@ -299,6 +300,15 @@ const actions = {
       store.updateChat(p.id, (c) => failTurn(c, (e && e.message) || t('errors.spawnFailed', { agent: t('agent.' + p.agent) })));
     }
   },
+  /** Show a project file in the Files tab (opens the pane if collapsed). */
+  openFile(rel) {
+    if (!rel) return;
+    store.set({ artifactsTab: 'files', artifactsCollapsed: false });
+    writeStore(COLLAPSED_KEY, '0');
+    if (ui.artifacts) ui.artifacts.openFile(rel);
+  },
+  /** Scroll the chat to a tool card (Activity tab and turn summary links). */
+  revealCard(id) { if (ui.main) ui.main.chat.reveal(id); },
   async stop() {
     const id = store.get().activeProjectId;
     if (id) { try { await api.agent.stop(id); } catch { /* ignore */ } }
@@ -437,7 +447,7 @@ async function boot() {
   if (api.onWindow) api.onWindow((w) => store.set((s) => ({ win: { ...s.win, ...w } })));
   api.onAgentEvent(({ projectId, event }) => {
     if (histBuffer.has(projectId)) { histBuffer.get(projectId).push(event); return; }
-    store.updateChat(projectId, (c) => reduceEvent(c, event));
+    store.updateChat(projectId, (c) => reduceEvent(c, event, { now: Date.now() }));
     if (event && event.type === 'result') refreshGit(projectId);
   });
 

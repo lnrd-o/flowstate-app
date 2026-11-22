@@ -43,3 +43,14 @@ Phase 2 smoke test (claude 2.1.328, piped stdio, no TTY): `claude remote-control
 - NOT verified: whether a trusted folder works over pipes or needs a TTY (a second run against an already-trusted real folder was not performed: it would register a live remote session). The code handles it anyway: early exit with tty/terminal/raw-mode text maps to `error:'needs-terminal'` and falls back to a visible console window (`cmd /c start`), where Stop is unsupported (user closes the window).
 - `agy remote-control status` on this machine prints `Daemon status: not registered` / `Instance name: not assigned yet...`. `start` flags: `--name`, `--session` (login-scoped). The daemon was NOT started for real. The `running` status wording is unverified, so parseAgyStatus treats "not registered/running/started", "stopped" and "inactive" as not running and otherwise looks for running/active/started/registered.
 - Policy: managed claude children are killed on app quit and on project removal; the agy daemon is left running on quit (login-scoped, machine-wide), and only stopped on project removal if FlowState started it.
+
+## agy rich capture (phase 5)
+
+Real `agy` stream-json capture, looking for what a rich activity view can show:
+
+- Step types seen: `user_input`, `agent_response`, `tool`, `system_message`.
+- `agent_response`: ACTIVE steps carry `text_delta`; the DONE step carries `usage` (`duration_seconds`, `thinking_tokens`, `output_tokens`) but no text. The intermediate `agent_response` steps carry no text at all, and the reasoning itself is never streamed (only timing and token counts), so the UI can only show "thought for N s".
+- `tool` (ACTIVE then DONE): `write_file` / `edit_file` carry ONLY the file `Path` in `tool_info.parameters` (no content, no diff, no old/new strings); `run_command` carries `CommandLine` and a full output blob that includes `Command exited with code N.` followed by `Command output:`.
+- `system_message`: no content.
+
+Consequence: FlowState computes file changes itself (src/main/changes.js): snapshot the file at tool-use, re-read at the matching tool-result and emit a `file-change` event with a unified diff (src/main/diff.js). If the snapshot raced with the tool, `git show HEAD:<path>` is the fallback "before".

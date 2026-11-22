@@ -6,6 +6,7 @@ export const MAX_BYTES = 2 * 1024 * 1024;
 export const KEEP_BYTES = Math.floor(MAX_BYTES * 0.75);
 export const RETURN_LAST = 500;
 const FIELD_CAP = 20000;
+export const DIFF_CAP = 200 * 1024;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Cap very long string fields so a single record cannot blow up the file. */
@@ -14,6 +15,8 @@ export function capEvent(ev) {
   for (const k of ['text', 'output', 'stderr', 'message']) {
     if (typeof out[k] === 'string' && out[k].length > FIELD_CAP) out[k] = `${out[k].slice(0, FIELD_CAP)}\n[truncated]`;
   }
+  if (typeof out.diff === 'string' && out.diff.length > DIFF_CAP) { out.diff = `${out.diff.slice(0, DIFF_CAP)}\n[truncated]`; out.truncated = true; }
+  if (typeof out.commandOutput === 'string' && out.commandOutput.length > FIELD_CAP) out.commandOutput = `${out.commandOutput.slice(0, FIELD_CAP)}\n[truncated]`;
   if (out.input !== undefined) {
     const s = JSON.stringify(out.input);
     if (s && s.length > FIELD_CAP) out.input = { truncated: s.slice(0, 2000) };

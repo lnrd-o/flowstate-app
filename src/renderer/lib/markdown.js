@@ -78,7 +78,7 @@ export function lineNumbersEnabled() {
   return readStore('flowstate.lineNumbers', '0') === '1';
 }
 
-function highlightLines(text, lang) {
+export function highlightLines(text, lang) {
   let html;
   try {
     html = lang === 'plaintext' ? escapeHtml(text) : hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;

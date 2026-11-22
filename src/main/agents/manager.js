@@ -1,13 +1,14 @@
 import crypto from 'node:crypto';
 import { ClaudeAdapter } from './claude.js';
 import { AgyAdapter } from './agy.js';
+import { createChangeTracker } from '../changes.js';
 
 /**
  * Owns one running child per project. Deps are injected:
  *  projects {get, update}, resolveLauncher(agent) -> Promise<{command, baseArgs?}|null>, emit(projectId, event),
  *  git {autoCommit}, spawn, kill, history {recordUser}.
  */
-export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history }) {
+export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker() }) {
   const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter() };
   const running = new Map(); // projectId -> handle | null (starting)
   const committing = new Map(); // projectId -> Promise (auto-commit after a finished turn)
@@ -51,7 +52,10 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
           project, text, launcher, spawn, kill,
           emit: (event) => {
             if (event?.type === 'result' || event?.type === 'error') finished.add(projectId);
+            let extra = [];
+            try { extra = changes.observe({ ...project, id: projectId }, event) ?? []; } catch { /* best effort */ }
             emit(projectId, event);
+            for (const fc of extra) emit(projectId, fc); // file-change goes out right after the tool-result that produced it
           },
           onSession: (sessionId) => {
             if (!switched && projects.get(projectId)?.sessionId !== sessionId) projects.update(projectId, { sessionId });
@@ -65,6 +69,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       running.set(projectId, handle);
       try { history?.recordUser(projectId, text); } catch { /* best effort */ }
       handle.done.then((r) => {
+        try { changes.endTurn({ ...project, id: projectId }); } catch { /* best effort */ }
         running.delete(projectId);
         finished.delete(projectId);
         if (r.ok && project.autoCommit && git) {

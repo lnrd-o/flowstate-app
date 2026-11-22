@@ -1,5 +1,6 @@
 // Fake claude/agy CLI emitting canned stream-json. Usage: node fake-agent.js --style claude|agy [other flags ignored]
-// Env: FAKE_DELAY (ms between lines), FAKE_FAIL=1 (stderr + exit 2, no result), FAKE_PERMISSION_MODE (agy init), FAKE_DUMP_ARGS=1.
+// Env: FAKE_DELAY (ms between lines), FAKE_FAIL=1 (stderr + exit 2, no result), FAKE_PERMISSION_MODE (agy init), FAKE_DUMP_ARGS=1,
+// FAKE_EDIT=1 (really writes/modifies <cwd>/fake-edit.txt between an Edit/Write tool-use and its tool-result; FAKE_EDIT_PATH overrides the path).
 const argv = process.argv.slice(2);
 const style = argv[argv.indexOf('--style') + 1] === 'agy' ? 'agy' : 'claude';
 const delay = Number(process.env.FAKE_DELAY || 0);
@@ -33,7 +34,22 @@ if (process.env.FAKE_FAIL === '1') {
   process.exit(2);
 }
 
-const lines = style === 'claude' ? [
+const fs = await import('node:fs');
+const pathMod = await import('node:path');
+const editFile = process.env.FAKE_EDIT_PATH || pathMod.join(process.cwd(), 'fake-edit.txt');
+const existed = process.env.FAKE_EDIT === '1' && fs.existsSync(editFile);
+const doEdit = () => fs.writeFileSync(editFile, existed ? 'one\nTWO\nthree\n' : 'one\ntwo\nthree\n');
+const editLines = process.env.FAKE_EDIT !== '1' ? [] : style === 'claude' ? [
+  { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'edit1', name: existed ? 'Edit' : 'Write', input: { file_path: editFile } }] } },
+  { __do: doEdit },
+  { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'edit1', content: 'ok' }] } },
+] : [
+  { event: 'step_update', step_update: { conversation_id: 'fake-conv-1', step_index: 5, step_type: 'tool', state: 'ACTIVE', tool_name: existed ? 'edit_file' : 'write_file', tool_info: { parameters: { Path: editFile } } } },
+  { __do: doEdit },
+  { event: 'step_update', step_update: { conversation_id: 'fake-conv-1', step_index: 5, step_type: 'tool', state: 'DONE', tool_name: existed ? 'edit_file' : 'write_file', tool_info: { output: 'ok' } } },
+];
+
+const base = style === 'claude' ? [
   { type: 'system', subtype: 'init', session_id: 'fake-session-1', model: 'fake', permissionMode: 'default', tools: ['Bash'], args: process.env.FAKE_DUMP_ARGS ? argv : undefined },
   { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'echo: ' } } },
   { type: 'assistant', message: { content: [{ type: 'text', text: `echo: ${prompt}` }] } },
@@ -48,7 +64,9 @@ const lines = style === 'claude' ? [
   { event: 'result', result: { status: 'SUCCESS', response: 'done', duration_seconds: 0.005 } },
 ];
 
+const lines = [...base.slice(0, -1), ...editLines, base[base.length - 1]];
 for (const l of lines) {
+  if (l.__do) { await sleep(150); l.__do(); await sleep(150); continue; }
   out(l);
   if (delay) await sleep(delay);
 }

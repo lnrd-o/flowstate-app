@@ -19,6 +19,7 @@ const MOCK_REPLY = [
 import { createPhase2 } from './mock-phase2.js';
 import { createPhase3 } from './mock-phase3.js';
 import { createPhase4 } from './mock-phase4.js';
+import { wantsRich, richScript } from './mock-phase5.js';
 
 export function createMockApi() {
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -53,7 +54,24 @@ export function createMockApi() {
   const p3 = createPhase3({ projects: () => projects, getHistory: (pid) => p2.api.history.get(pid), emitAgent: emit });
   window.addEventListener('hashchange', () => healthSubs.forEach((cb) => cb(health())));
 
+  let richUsed = false;
+  function runRich(projectId, text, style) {
+    const proj = projects.find((p) => p.id === projectId);
+    const timers = [];
+    const script = richScript(style, proj.path);
+    for (const [ms, ev] of script) {
+      timers.push(setTimeout(() => {
+        emit(projectId, ev);
+        if (ev.type === 'file-change') p2.emitFiles(projectId, [ev.path]);
+        if (ev.type === 'result') running.delete(projectId);
+      }, ms));
+    }
+    running.set(projectId, { timers, text });
+  }
+
   function runTurn(projectId, text) {
+    const style = wantsRich(location.hash);
+    if (style && !richUsed) { richUsed = true; runRich(projectId, text, style); return; }
     const proj = projects.find((p) => p.id === projectId);
     const timers = [];
     const at = (ms, fn) => timers.push(setTimeout(fn, ms));

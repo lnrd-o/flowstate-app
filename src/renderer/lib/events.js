@@ -1,20 +1,30 @@
 // Pure reducer: normalised agent events -> chat state. No DOM, unit-tested.
 //
-// Chat state: { messages, running, seq, turnHadText, needsAuth, alwaysProceed, lastPrompt, rateLimited }
+// Chat state: { messages, running, seq, turnHadText, needsAuth, alwaysProceed, lastPrompt, rateLimited, turn }
+//   turn = { id, agent, startedAt, lastEventAt, endedAt }   timestamps only when the caller passes { now } (live events, history ts)
+// Every message carries { turn: turn id, agent?: agent that produced the turn, at?: epoch ms }.
 // Message kinds (m.role):
 //   user        { id, role, text }
 //   assistant   { id, role, text, open, fromDelta }
-//   tool        { id, role, toolId, name, input, summary, output, status: 'running'|'done'|'error' }
+//   tool        { id, role, toolId, name, kind, input, summary, output, status: 'running'|'done'|'error', startedAt?, endedAt?,
+//                 durationMs?, exitCode?, commandOutput?, change? }     change = { path, op, added, removed, diff, truncated }
+//   thinking    { id, role, durationMs, tokens, outputTokens, text, steps }
+//   summary     { id, role }                    marker after the final text of a turn that did something (stats computed from the turn)
 //   permission  { id, role, kind: 'denied'|'request', toolId, tool, reason, message, input, status: 'pending'|'approved'|'denied' }
 //   error       { id, role, kind, message, stderr }
 //   system      { id, role, key?, text? }       key is an i18n key rendered by the UI
 
+import { classifyTool } from '../../shared/events.js';
+import { turnMessages, turnStats, hasActivity } from './activity.js';
+
 const MAX_OUTPUT = 20000;
+const MAX_COMMAND_OUTPUT = 60000;
 
 export function createChatState() {
   return {
     messages: [], running: false, seq: 0, turnHadText: false,
     needsAuth: false, alwaysProceed: false, rateLimited: false, lastPrompt: null,
+    turn: { id: 0, agent: null, startedAt: null, lastEventAt: null, endedAt: null },
   };
 }
 
@@ -24,7 +34,9 @@ function nextId(state) {
 
 function push(state, msg) {
   const { id, seq } = nextId(state);
-  return { ...state, seq, messages: [...state.messages, { id, ...msg }] };
+  const extra = { turn: state.turn.id };
+  if (state.turn.agent) extra.agent = state.turn.agent;
+  return { ...state, seq, messages: [...state.messages, { id, ...extra, ...msg }] };
 }
 
 function replaceAt(state, index, msg) {
@@ -40,23 +52,31 @@ function closeOpenAssistant(state) {
   return state;
 }
 
-function clip(s) {
+function clip(s, max = MAX_OUTPUT) {
   const str = typeof s === 'string' ? s : s == null ? '' : JSON.stringify(s, null, 2);
-  return str.length > MAX_OUTPUT ? str.slice(0, MAX_OUTPUT) + '\n...' : str;
+  return str.length > max ? str.slice(0, max) + '\n...' : str;
 }
+
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
 
 /** One-line summary of a tool input for the tool card header. */
 export function summarizeTool(name, input) {
   const i = input && typeof input === 'object' ? input : {};
-  const v = i.file_path ?? i.path ?? i.command ?? i.pattern ?? i.url ?? i.query ?? i.description ?? i.prompt ?? '';
+  const v = i.file_path ?? i.path ?? i.command ?? i.CommandLine ?? i.TargetFile ?? i.AbsolutePath ?? i.pattern ?? i.url ?? i.query ?? i.description ?? i.prompt ?? '';
   const s = String(v).replace(/\s+/g, ' ').trim();
   return s.length > 140 ? s.slice(0, 137) + '...' : s;
 }
 
-/** Add the user's prompt and mark the turn as running. */
-export function addUserMessage(state, text) {
+/**
+ * Add the user's prompt and mark the turn as running.
+ * opts: { agent, now } - the agent that will answer (labels the turn) and the clock.
+ */
+export function addUserMessage(state, text, opts) {
+  const o = opts || {};
   const s = closeOpenAssistant(state);
-  const next = push(s, { role: 'user', text: String(text ?? '') });
+  const now = typeof o.now === 'number' ? o.now : null;
+  const turn = { id: s.turn.id + 1, agent: o.agent || null, startedAt: now, lastEventAt: now, endedAt: null };
+  const next = push({ ...s, turn }, { role: 'user', text: String(text ?? ''), ...(now != null ? { at: now } : {}) });
   return { ...next, running: true, turnHadText: false, lastPrompt: String(text ?? ''), needsAuth: false };
 }
 
@@ -73,8 +93,29 @@ export function failTurn(state, message) {
   return { ...push(s, { role: 'error', kind: 'process', message: String(message || ''), stderr: '' }), running: false };
 }
 
-export function reduceEvent(state, ev) {
+function findTool(state, id) {
+  return id == null ? -1 : state.messages.findIndex((m) => m.role === 'tool' && m.toolId === id);
+}
+
+/**
+ * Reduce one normalised event. opts.now (epoch ms) is optional: when present messages get `at`, tool cards get
+ * startedAt/endedAt and the turn tracks lastEventAt (used for the live status line and the timeline).
+ */
+export function reduceEvent(state, ev, opts) {
   if (!ev || typeof ev !== 'object') return state;
+  const now = opts && typeof opts.now === 'number' ? opts.now : null;
+  const next = reduceCore(state, ev, now);
+  if (next === state || now == null) return next;
+  let out = next;
+  if (next.messages.length > state.messages.length) {
+    const messages = next.messages.slice();
+    for (let i = state.messages.length; i < messages.length; i++) if (messages[i].at == null) messages[i] = { ...messages[i], at: now };
+    out = { ...out, messages };
+  }
+  return { ...out, turn: { ...out.turn, lastEventAt: now, endedAt: ev.type === 'result' ? now : out.turn.endedAt } };
+}
+
+function reduceCore(state, ev, now) {
   switch (ev.type) {
     case 'session': {
       let s = { ...state, needsAuth: false };
@@ -93,37 +134,82 @@ export function reduceEvent(state, ev) {
     }
     case 'text': {
       const text = String(ev.text ?? '');
-      const i = state.messages.length - 1;
+      // Authoritative full text after streamed deltas: replace instead of duplicating (thinking rows may sit in between).
+      let i = state.messages.length - 1;
+      while (i >= 0 && state.messages[i].role === 'thinking') i--;
       const last = state.messages[i];
-      // Authoritative full text after streamed deltas: replace instead of duplicating.
       if (last && last.role === 'assistant' && last.fromDelta) {
         return { ...replaceAt(state, i, { ...last, text, open: false }), turnHadText: true };
       }
       if (!text) return state;
       return { ...push(state, { role: 'assistant', text, open: false, fromDelta: false }), turnHadText: true };
     }
+    case 'thinking': {
+      const s = closeOpenAssistant(state);
+      const durationMs = num(ev.durationMs);
+      const tokens = num(ev.tokens);
+      const outputTokens = num(ev.outputTokens);
+      const text = typeof ev.text === 'string' ? ev.text : '';
+      const i = s.messages.length - 1;
+      const last = s.messages[i];
+      if (last && last.role === 'thinking' && last.turn === s.turn.id) {
+        return replaceAt(s, i, {
+          ...last, durationMs: last.durationMs + durationMs, tokens: last.tokens + tokens, outputTokens: last.outputTokens + outputTokens,
+          text: last.text && text ? last.text + '\n\n' + text : last.text || text, steps: last.steps + 1,
+        });
+      }
+      return push(s, { role: 'thinking', durationMs, tokens, outputTokens, text, steps: 1 });
+    }
     case 'tool-use': {
-      let s = closeOpenAssistant(state);
-      const idx = s.messages.findIndex((m) => m.role === 'tool' && m.toolId === ev.id);
+      const s = closeOpenAssistant(state);
+      const idx = findTool(s, ev.id);
+      const name = ev.name || 'tool';
       const card = {
-        role: 'tool', toolId: ev.id, name: ev.name || 'tool', input: ev.input ?? null,
-        summary: summarizeTool(ev.name, ev.input), output: '', status: 'running',
+        role: 'tool', toolId: ev.id, name, kind: ev.kind || classifyTool(null, name), input: ev.input ?? null,
+        summary: summarizeTool(name, ev.input), output: '', status: 'running', startedAt: now ?? undefined,
       };
-      if (idx >= 0) return replaceAt(s, idx, { ...s.messages[idx], ...card, output: s.messages[idx].output });
+      if (idx >= 0) {
+        // A standalone file-change card may already exist: keep what it knows.
+        const cur = s.messages[idx];
+        return replaceAt(s, idx, { ...cur, ...card, output: cur.output, status: cur.status === 'error' ? 'error' : 'running' });
+      }
       return push(s, card);
     }
     case 'tool-result': {
-      const idx = state.messages.findIndex((m) => m.role === 'tool' && m.toolId === ev.id);
-      const status = ev.isError ? 'error' : 'done';
+      const idx = findTool(state, ev.id);
+      const isCommand = (ev.kind || (idx >= 0 ? state.messages[idx].kind : classifyTool(null, ev.name))) === 'command';
+      const exitCode = typeof ev.exitCode === 'number' ? ev.exitCode : null;
+      const status = ev.isError || (isCommand && exitCode != null && exitCode !== 0) ? 'error' : 'done';
+      const extra = {};
+      if (typeof ev.durationMs === 'number') extra.durationMs = ev.durationMs;
+      if (exitCode != null) extra.exitCode = exitCode;
+      if (typeof ev.commandOutput === 'string') extra.commandOutput = clip(ev.commandOutput, MAX_COMMAND_OUTPUT);
+      if (now != null) extra.endedAt = now;
       if (idx < 0) {
         const s = closeOpenAssistant(state);
+        const kind = ev.kind || classifyTool(null, ev.name);
         return push(s, {
-          role: 'tool', toolId: ev.id, name: ev.name || 'tool', input: null, summary: '',
-          output: clip(ev.output), status,
+          role: 'tool', toolId: ev.id, name: ev.name || 'tool', kind, input: null, summary: '',
+          output: clip(ev.output), status, ...extra,
         });
       }
       const cur = state.messages[idx];
-      return replaceAt(state, idx, { ...cur, name: cur.name || ev.name || 'tool', output: clip(ev.output), status });
+      if (extra.durationMs == null && cur.startedAt != null && now != null) extra.durationMs = Math.max(0, now - cur.startedAt);
+      return replaceAt(state, idx, { ...cur, name: cur.name || ev.name || 'tool', kind: ev.kind || cur.kind, output: clip(ev.output), status, ...extra });
+    }
+    case 'file-change': {
+      if (!ev.path || typeof ev.path !== 'string') return state;
+      const change = {
+        path: ev.path, op: ev.op === 'create' || ev.op === 'delete' ? ev.op : 'modify', added: num(ev.added), removed: num(ev.removed),
+        diff: typeof ev.diff === 'string' ? ev.diff : '', truncated: !!ev.truncated,
+      };
+      const idx = findTool(state, ev.id);
+      if (idx >= 0) return replaceAt(state, idx, { ...state.messages[idx], change });
+      const s = closeOpenAssistant(state);
+      return push(s, {
+        role: 'tool', toolId: ev.id, name: 'file-change', kind: change.op === 'create' ? 'write' : 'edit', input: null,
+        summary: change.path, output: '', status: 'done', change,
+      });
     }
     case 'permission-denied':
     case 'permission-request': {
@@ -147,6 +233,7 @@ export function reduceEvent(state, ev) {
       }
       if (ev.stopped) s = push(s, { role: 'system', key: 'chat.stopped' });
       else if (ev.ok === false) s = push(s, { role: 'error', kind: 'api', message: ev.text || '', stderr: '' });
+      if (hasActivity(turnStats(turnMessages(s.messages, s.turn.id)))) s = push(s, { role: 'summary' });
       return { ...s, running: false };
     }
     case 'error': {

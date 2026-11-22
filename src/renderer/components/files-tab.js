@@ -175,8 +175,33 @@ export function mountFilesTab(el, { store, api }) {
     paint();
   }
 
+  /** Select a file by project-relative path: expand its folders, show it in the viewer. */
+  async function openPath(rel) {
+    const p = activeProject(store.get());
+    if (!p) return;
+    const st = stateFor(p.id);
+    const clean = normRel(rel);
+    const parts = clean.split('/');
+    st.selected = clean;
+    st.focus = clean;
+    let dir = '';
+    const loads = [];
+    if (!st.children.has('')) loads.push(loadDir(p.id, ''));
+    for (let i = 0; i < parts.length - 1; i++) {
+      dir = dir ? dir + '/' + parts[i] : parts[i];
+      st.expanded.add(dir);
+      if (!st.children.has(dir)) loads.push(loadDir(p.id, dir));
+    }
+    viewer.show(p.id, clean);
+    paint();
+    await Promise.all(loads);
+    const node = [...treeEl.children].find((x) => x.dataset.rel === clean);
+    if (node && node.scrollIntoView) node.scrollIntoView({ block: 'nearest' });
+  }
+
   return {
     render,
+    openPath,
     update() { viewer.update(); paint(); },
     onFiles(evt) {
       if (!evt || !states.has(evt.projectId)) return;
