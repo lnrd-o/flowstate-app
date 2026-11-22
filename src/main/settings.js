@@ -11,6 +11,8 @@ export function defaultSettings(locale = 'en') {
     lastProjectId: null,
     autoLaunch: false,
     walkthroughDone: false,
+    // Developer mode: show code, diffs, commands and exact details in approvals. Off = simple, plain-language view.
+    developerMode: true,
   };
 }
 
@@ -35,6 +37,7 @@ const TYPES = {
   lastProjectId: (v) => v === null || typeof v === 'string',
   autoLaunch: (v) => typeof v === 'boolean',
   walkthroughDone: (v) => typeof v === 'boolean',
+  developerMode: (v) => typeof v === 'boolean',
 };
 
 export function createSettings({ dir, locale = 'en', fsx = fs }) {

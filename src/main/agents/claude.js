@@ -1,5 +1,6 @@
 import { AgentAdapter } from './base.js';
 import { NORMALIZERS } from '../../shared/events.js';
+import { allowArgs } from '../permissions.js';
 
 const MODES = new Set(['default', 'acceptEdits', 'plan']);
 
@@ -15,6 +16,7 @@ export class ClaudeAdapter extends AgentAdapter {
       '-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '--input-format', 'stream-json',
       ...(project.sessionId ? ['--resume', project.sessionId] : []),
       '--permission-mode', mode,
+      ...allowArgs(project.allow), // per-turn narrow rules (see permissions.js); empty unless the user pressed "Allow this once"
     ];
   }
 

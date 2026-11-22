@@ -7,7 +7,9 @@
 //   Project  = { id, name, path, agent, mode, sessionId|null, lastOpened: ISO, autoCommit: boolean }
 //   Mode     = 'default' | 'acceptEdits' | 'plan'   (agy mapping: default->accept-edits, acceptEdits->accept-edits, plan->plan)
 //   Settings = { language:'en'|'es', theme:'dark'|'light'|'gold', codeTheme, claudePath|null, agyPath|null,
-//                lastProjectId|null, autoLaunch:boolean, walkthroughDone:boolean }
+//                lastProjectId|null, autoLaunch:boolean, walkthroughDone:boolean, developerMode:boolean (default true) }
+//   agent.send({projectId, text, allow?}) - allow: optional array (max 5) of {tool, pattern} per-turn permission rules for claude
+//                (tools Bash|PowerShell|Edit|MultiEdit|Write|NotebookEdit; pattern REQUIRED, exact: no '*', no parentheses); see src/main/permissions.js
 //   Event    = normalised event from src/shared/events.js, wrapped: { projectId, event }
 //   Health   = { claude:{found,path,version,loggedIn}, agy:{found,path,version}, node:{found,version},
 //                git:{found,version}, python:{found,version}, vpn:{active:boolean, adapters:string[]},

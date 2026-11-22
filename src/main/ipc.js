@@ -160,7 +160,8 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
       if (!req || typeof req !== 'object') throw new TypeError('request required');
       need(req.projectId);
       if (!isStr(req.text)) throw new TypeError('text required');
-      return agents.send({ projectId: req.projectId, text: req.text });
+      // `allow` = optional per-turn narrow rules [{tool, pattern}]; strictly validated by the agent manager (permissions.js)
+      return agents.send({ projectId: req.projectId, text: req.text, ...(req.allow !== undefined ? { allow: req.allow } : {}) });
     },
     [CH.agentStop]: (_e, id) => { need(id); agents.stop(id); },
     [CH.agentStatus]: (_e, id) => { need(id); return agents.status(id); },

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { ClaudeAdapter } from './claude.js';
 import { AgyAdapter } from './agy.js';
 import { createChangeTracker } from '../changes.js';
+import { sanitizeAllow } from '../permissions.js';
 
 /**
  * Owns one running child per project. Deps are injected:
@@ -19,10 +20,12 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
     status: (projectId) => ({ running: running.has(projectId) || committing.has(projectId) }),
 
     /** agent/mode: optional per-turn override (methodology runner); the stored project is never changed by it. */
-    async send({ projectId, text, agent, mode }) {
+    /** allow: optional per-turn narrow permission rules [{tool, pattern}] (claude only; validated in permissions.js, never persisted). */
+    async send({ projectId, text, agent, mode, allow }) {
       const base = projects.get(projectId);
       if (!base) throw new Error('Unknown project');
       const project = { ...base };
+      project.allow = sanitizeAllow(allow); // throws TypeError on anything invalid
       const switched = agent !== undefined && agent !== base.agent;
       if (agent !== undefined) project.agent = agent;
       if (mode !== undefined) project.mode = mode;
