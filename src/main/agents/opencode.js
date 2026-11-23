@@ -10,12 +10,15 @@ export const opencodeAgentFor = (mode) => (mode === 'plan' ? 'plan' : null);
 export class OpencodeAdapter extends AgentAdapter {
   constructor() { super('opencode', NORMALIZERS.opencode); }
 
+  /** opencode session ids look like ses_xxx (anything else is rejected by `--session`). */
+  validSession(id) { return typeof id === 'string' && /^ses[_A-Za-z0-9-]{1,100}$/.test(id); }
+
   buildArgs(project, text) {
     const agent = opencodeAgentFor(project.mode);
     const model = typeof project.model === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/.test(project.model) && project.model !== 'default' ? project.model : null;
     return [
       'run', '--format', 'json',
-      ...(project.sessionId ? ['--session', project.sessionId] : []),
+      ...(this.validSession(project.sessionId) ? ['--session', project.sessionId] : []),
       ...(model ? ['--model', model] : []),
       ...(agent ? ['--agent', agent] : []),
       ...(project.mode === 'auto' ? ['--auto'] : []),

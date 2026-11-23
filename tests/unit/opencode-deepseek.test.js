@@ -229,3 +229,11 @@ test('opencode installer: only https opencode.ai downloads, install path under ~
   assert.equal(r.ok, false);
   assert.equal(r.error, 'unsupported');
 });
+
+test('session ids from another agent are never passed on (opencode needs ses_..., claude/agy need UUIDs)', () => {
+  const uuid = '3a141309-a3c1-4216-b902-b19b8c5cd2ba';
+  const oc = new OpencodeAdapter();
+  assert.equal(oc.validSession(uuid), false);
+  assert.equal(oc.validSession('ses_df928be8dffekFpeJeCqKFjhO7'), true);
+  assert.ok(!oc.buildArgs({ mode: 'default', sessionId: uuid }, 'x').includes('--session'));
+});

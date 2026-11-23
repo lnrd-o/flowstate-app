@@ -17,6 +17,9 @@ export class ClaudeAdapter extends AgentAdapter {
     this.closeStdinOnResult = true;
   }
 
+  /** claude session ids are UUIDs. */
+  validSession(id) { return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id); }
+
   buildArgs(project) {
     // Auto-accept keeps "always ask" protections (deny rules; acceptEdits + broad allows when the outside-project guard is on).
     const prot = project.mode === 'auto' ? protectionArgs(project) : null;

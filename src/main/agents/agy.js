@@ -33,6 +33,9 @@ export class AgyAdapter extends AgentAdapter {
     this.pool = new Map(); // project path -> warm entry
   }
 
+  /** agy conversation ids are UUIDs. */
+  validSession(id) { return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id); }
+
   buildArgs(project, text) {
     return [
       '--output-format', 'stream-json',

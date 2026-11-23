@@ -59,6 +59,9 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       const route = routeOf(project);
       let routeNote = false;
       if (project.sessionId && (base.sessionRoute ?? 'anthropic') !== route && !(project.agent !== 'claude' && base.sessionRoute == null)) { project.sessionId = null; routeNote = true; }
+      // A session id must belong to this agent (opencode: ses_..., claude/agy: UUID). An id left over from another agent (agent
+      // switched in the same conversation) would make the CLI fail; start fresh instead (the context-notes hand-off covers it).
+      if (project.sessionId && typeof adapter.validSession === 'function' && !adapter.validSession(project.sessionId)) { project.sessionId = null; routeNote = true; }
       let extraEnv;
       if (routeEnv) {
         const r = await routeEnv(project, route);
