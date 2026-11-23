@@ -77,13 +77,17 @@ const base = style === 'opencode' ? [
   { event: 'result', result: { status: 'SUCCESS', response: 'done', duration_seconds: 0.005 } },
 ];
 
-const lines = [...base.slice(0, -1), ...editLines, base[base.length - 1]];
+const lines = process.env.FAKE_NO_RESULT === '1' ? [...base.slice(0, -1)] : [...base.slice(0, -1), ...editLines, base[base.length - 1]]; // FAKE_NO_RESULT=1: exits 0 without any result
 for (const l of lines) {
   if (l.__do) { await sleep(150); l.__do(); await sleep(150); continue; }
   out(l);
   if (delay) await sleep(delay);
 }
-if (style === 'claude') {
+if (process.env.FAKE_LINGER === '1') {
+  // answered, but never exits (ignores stdin closing): the manager / adapter must end it
+  process.stdin.resume();
+  setInterval(() => {}, 1000);
+} else if (style === 'claude') {
   // like the real CLI with stream-json input: stay alive until stdin closes
   process.stdin.on('end', () => process.exit(0));
   process.stdin.resume();

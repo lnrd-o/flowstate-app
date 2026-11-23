@@ -43,11 +43,15 @@ export function childSpawnOptions({ platform = process.platform } = {}) {
  * Base adapter. Subclasses implement buildArgs(project, text) and may override stdinPayload / closeStdinOnResult /
  * augment. `launcher` = { command, baseArgs? } so tests can point at `node fake-agent.js`.
  */
+/** After a turn's result/error the CLI should exit by itself; if it is still alive this long afterwards it is ended (a child holding the pipes, a hung exit). */
+export const LINGER_MS = 5000;
+
 export class AgentAdapter {
   constructor(name, normalizer) {
     this.name = name;
     this.normalize = normalizer;
     this.closeStdinOnResult = false;
+    this.lingerMs = LINGER_MS;
   }
 
   buildArgs() { throw new Error('not implemented'); }
@@ -68,6 +72,7 @@ export class AgentAdapter {
     let ok = false;
     let finished = false;
     const stderrLines = [];
+    let lingerTimer = null;
 
     const opts = childSpawnOptions();
     // PWD must match cwd: some CLIs (opencode) take their working folder from $PWD, which otherwise is FlowState's own folder.
@@ -84,6 +89,7 @@ export class AgentAdapter {
         if (ev.type === 'result') {
           resultSeen = true; ok = !!ev.ok;
           if (this.closeStdinOnResult) { try { child.stdin?.end(); } catch { /* ignore */ } }
+          if (!lingerTimer) { lingerTimer = setTimeout(() => { if (!finished) { try { kill(child); } catch { /* ignore */ } } }, this.lingerMs); lingerTimer.unref?.(); }
         }
         emit(ev);
       }
@@ -110,6 +116,7 @@ export class AgentAdapter {
       const finish = (code, spawnErr) => {
         if (finished) return;
         finished = true;
+        clearTimeout(lingerTimer);
         if (errBuf.trim()) stderrLines.push(errBuf.trim());
         const stderr = stderrLines.join('\n').slice(-4000);
         if (spawnErr) {
@@ -118,6 +125,11 @@ export class AgentAdapter {
           if (!resultSeen) emit({ type: 'result', ok: false, text: 'Stopped by user', stopped: true });
         } else if (code !== 0 && !resultSeen) {
           emit({ type: 'error', kind: 'process', message: `${this.name} exited with code ${code}${stderr ? `: ${stderr.split('\n').slice(-1)[0]}` : ''}`, code, stderr });
+        } else if (!resultSeen) {
+          // A clean exit without any result (the CLI quit early): close the turn, otherwise the chat would stay "running" for ever.
+          const ev = typeof this.finishWithoutResult === 'function' ? this.finishWithoutResult() : null;
+          if (ev) { emit(ev); resultSeen = true; ok = !!ev.ok; }
+          else emit({ type: 'error', kind: 'process', message: `${this.name} finished without sending an answer`, code, stderr });
         }
         resolve({ code, resultSeen, ok, stopped });
       };

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const FILES = { smoke: 'smoke.mjs', features: 'features.mjs', work: 'work.mjs', versions: 'versions.mjs', phase7: 'phase7.mjs', opencode: 'opencode.mjs' };
+const FILES = { accept: 'accept-real.mjs', smoke: 'smoke.mjs', features: 'features.mjs', work: 'work.mjs', versions: 'versions.mjs', phase7: 'phase7.mjs', opencode: 'opencode.mjs' };
 const suites = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(FILES);
 const jobs = Math.max(1, Number(process.env.E2E_JOBS) || 4);
 const t0 = Date.now();

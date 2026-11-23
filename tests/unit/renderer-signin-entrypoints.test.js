@@ -38,3 +38,12 @@ test('banners: signed-out banner for the active agent only', () => {
   const b = computeBanners({ agent: 'agy', mode: 'plan' }, health(true, true), null, { claude: true, agy: false }).find((x) => x.id === 'agy-login');
   assert.deepEqual(b.actions, ['signin', 'recheck']);
 });
+
+test('VPN banner can be dismissed (and comes back when reachability changes)', async () => {
+  const { computeBanners } = await import('../../src/renderer/components/banners.js');
+  const hl = (reachable) => ({ vpn: { active: true, adapters: ['TAP'] }, anthropicReachable: reachable, claude: { found: true, loggedIn: true }, agy: { found: true, loggedIn: true } });
+  const down = computeBanners({ agent: 'claude', mode: 'default' }, hl(false), null, { claude: true, agy: true }).find((b) => b.id.startsWith('vpn'));
+  assert.ok(down.actions.includes('dismiss') && down.actions.includes('recheck'));
+  const up = computeBanners({ agent: 'claude', mode: 'default' }, hl(true), null, { claude: true, agy: true }).find((b) => b.id.startsWith('vpn'));
+  assert.notEqual(down.id, up.id); // a changed state shows the banner again even after a dismiss
+});

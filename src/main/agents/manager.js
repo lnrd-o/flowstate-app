@@ -12,7 +12,7 @@ import { loadAttachmentImages } from '../svc/attachments.js';
  *  projects {get, update}, resolveLauncher(agent) -> Promise<{command, baseArgs?}|null>, emit(projectId, event),
  *  git {autoCommit}, spawn, kill, history {recordUser}.
  */
-export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker(), routeEnv, contextNote, defaultModel }) {
+export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker(), routeEnv, contextNote, defaultModel, exitWaitMs = 5000, stopWaitMs = 3000, commitTimeoutMs = 90000 }) {
   // defaultModel(agent) -> Promise<string|null> : model for a project with none chosen (opencode: a plan-covered Go model).
   // contextNote(project, text) -> Promise<string|null> : short note appended to the prompt sent to the agent (never stored in history), e.g. which Python interpreter to use.
   // routeEnv(project, route) -> {env}|{error}|null : per-turn child env for a route (DeepSeek key from safeStorage). Main only; the key never leaves it.
@@ -47,8 +47,14 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
         if (committing.has(projectId)) { await committing.get(projectId); continue; }
         const h = running.get(projectId);
         if (h && finished.has(projectId)) {
-          await Promise.race([Promise.resolve(h.done).catch(() => {}), new Promise((res) => setTimeout(res, 5000))]);
-          if (running.get(projectId) === h) break; // did not exit in time: fall through to the 'already running' error
+          await Promise.race([Promise.resolve(h.done).catch(() => {}), new Promise((res) => setTimeout(res, exitWaitMs))]);
+          if (running.get(projectId) === h) {
+            // The previous turn already answered but its process is still alive: end it instead of refusing every follow-up
+            // (this is what left the approval card stuck: "Allow" re-sends the prompt right after the turn).
+            try { h.stop?.(); } catch { /* ignore */ }
+            await Promise.race([Promise.resolve(h.done).catch(() => {}), new Promise((res) => setTimeout(res, stopWaitMs))]);
+            if (running.get(projectId) === h) { running.delete(projectId); meta.delete(projectId); finished.delete(projectId); } // last resort: forget it
+          }
           continue;
         }
         break;
@@ -115,7 +121,7 @@ ${note}`; } catch { /* best effort */ } }
         if (r.ok && project.autoCommit && git) {
           // Tracked in `committing` (same tick as the delete above, so status() never flickers to idle).
           commitStart.set(projectId, { agent: project.agent, startedAt: Date.now() });
-          const p = Promise.resolve().then(() => git.autoCommit(project.path, text, { agent: project.agent })).catch(() => { /* best effort */ })
+          const p = Promise.race([Promise.resolve().then(() => git.autoCommit(project.path, text, { agent: project.agent })).catch(() => { /* best effort */ }), new Promise((res) => { const t = setTimeout(res, commitTimeoutMs); t.unref?.(); })])
             .finally(() => { committing.delete(projectId); commitStart.delete(projectId); });
           committing.set(projectId, p);
         }

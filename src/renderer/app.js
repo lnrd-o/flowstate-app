@@ -839,6 +839,24 @@ async function boot() {
     if (ev && ev.kind === 'open-project' && ev.projectId) actions.selectProject(ev.projectId);
     else if (ev && ev.kind === 'quick-ask' && quick) quick.open();
   });
+  // Safety net: if the chat says "running" but the main process has had no running turn for ~30 s (a lost end-of-turn event),
+  // end the turn in the UI so the approval buttons and the composer work again.
+  const notRunning = new Map();
+  setInterval(async () => {
+    const s = store.get();
+    for (const [pid, c] of Object.entries(s.chats)) {
+      if (!c || !c.running) { notRunning.delete(pid); continue; }
+      let st = null;
+      try { st = await api.agent.status(pid); } catch { continue; }
+      if (!st || st.running) { notRunning.delete(pid); continue; }
+      const n = (notRunning.get(pid) || 0) + 1;
+      notRunning.set(pid, n);
+      if (n >= 5) {
+        notRunning.delete(pid);
+        store.updateChat(pid, (cc) => (cc.running ? reduceEvent(cc, { type: 'error', kind: 'process', message: t('chat.recovered') }, { now: Date.now() }) : cc));
+      }
+    }
+  }, 6000);
   // Queue: when the active project's turn ended cleanly (no error, limit, approval request or stop), send the next waiting message.
   const draining = new Set();
   store.subscribe((s) => {

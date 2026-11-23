@@ -181,7 +181,8 @@ try {
   // hover actions on the user message (Copy / Edit / Send again / Resend with another model)
   await app.waitFor(`document.querySelectorAll('.msg--user .msg__actions button').length >= 4`, 10000).catch(() => {});
   const macts = await app.ev(`return [...document.querySelectorAll('.msg--user .msg__actions button')].map((b) => b.title).join('|')`);
-  check('user messages have Copy, Edit, Send again and Resend-with-another-model', macts.split('|').length === 4, macts);
+  const diag = macts.split('|').length === 4 ? '' : await app.ev(`return 'users=' + document.querySelectorAll('.msg--user').length + ' msgs=' + document.querySelectorAll('.msg').length + ' view=' + document.querySelector('.chat')?.hidden + ' proj=' + (document.querySelector('.topbar')?.innerText || '').slice(0, 60) + ' chat=' + (document.querySelector('.chat__list')?.innerText || '').slice(0, 160)`);
+  check('user messages have Copy, Edit, Send again and Resend-with-another-model', macts.split('|').length === 4, macts + ' ' + diag);
   await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
   await sleep(400);
   check('Settings has Notifications and Auto-update switches', await app.ev(`return !!document.getElementById('set-notifications') && !!document.getElementById('set-autoupdate') && !!document.getElementById('set-autoinstall')`));

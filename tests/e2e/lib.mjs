@@ -20,7 +20,19 @@ const isIndex = (t) => t.type === 'page' && t.url.split('?')[0].endsWith('index.
 export const targets = async (port) => (await (await fetch(`http://127.0.0.1:${port}/json`)).json());
 
 /** Launch the app (E2E_EXE = packaged exe) with an isolated profile. -> {child, exited:Promise, ev, call, send, targets, shutdown(), quitGracefully()} */
-export async function launch({ profile, port, extraArgs = [], waitForIndex = true } = {}) {
+/** The requested port when it is free, otherwise any free port (a stopped run can leave its debugging port occupied). */
+async function freePort(wanted) {
+  const { createServer } = await import('node:net');
+  const tryListen = (p) => new Promise((resolve) => {
+    const srv = createServer();
+    srv.once('error', () => resolve(null));
+    srv.listen(p, '127.0.0.1', () => { const got = srv.address().port; srv.close(() => resolve(got)); });
+  });
+  return (wanted && await tryListen(wanted)) || await tryListen(0);
+}
+
+export async function launch({ profile, port: wantedPort, extraArgs = [], waitForIndex = true } = {}) {
+  const port = await freePort(wantedPort);
   const packaged = process.env.E2E_EXE;
   const exe = packaged || join(root, 'node_modules', 'electron', 'dist', 'electron.exe');
   const child = spawn(exe, [...(packaged ? [] : [root]), `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, ...extraArgs], { stdio: process.env.E2E_LOG ? 'inherit' : 'ignore' });

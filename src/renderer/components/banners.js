@@ -14,7 +14,7 @@ export function computeBanners(project, health, chat, signedIn, usage, now = Dat
   const out = [];
   if (health && health.vpn && health.vpn.active) {
     const reach = health.anthropicReachable ? t('health.reachable') : t('health.unreachable');
-    out.push({ id: 'vpn', level: 'danger', text: t('banner.vpn') + ' ' + t('health.anthropic') + ': ' + reach, actions: ['recheck'] });
+    out.push({ id: 'vpn:' + (health.anthropicReachable ? 'ok' : 'down'), level: 'danger', text: t('banner.vpn') + ' ' + t('health.anthropic') + ': ' + reach, actions: ['recheck', 'dismiss'] });
   }
   const offSource = project && settings ? disabledSourceOf(settings, project) : null;
   if (offSource) out.push({ id: 'source-off:' + offSource, level: 'warn', text: t('banner.sourceOff', { source: t('sources.name.' + offSource) }), actions: ['settings'] });

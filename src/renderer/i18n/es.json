@@ -56,7 +56,8 @@
     "approveRetryConfirm": "\u00bfCambiar este proyecto al modo \"Aceptar ediciones\" y volver a enviar tu \u00faltima petici\u00f3n?",
     "approveRetryNote": "Permiso concedido: ya puedes hacer las ediciones. Reintenta la petici\u00f3n anterior.",
     "undoConfirm": "\u00bfDeshacer el \u00faltimo turno? Los cambios del agente se revertir\u00e1n con git.",
-    "toolBlocked": "Bloqueado"
+    "toolBlocked": "Bloqueado",
+    "recovered": "El agente se detuvo sin responder. Puedes enviar tu mensaje de nuevo."
   },
   "composer": {
     "placeholder": "Escr\u00edbele a {agent}...",

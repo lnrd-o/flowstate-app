@@ -56,7 +56,8 @@
     "approveRetryConfirm": "Switch this project to \"Accept edits\" mode and send your last request again?",
     "approveRetryNote": "Permission granted: you may now make the edits. Please retry the request above.",
     "undoConfirm": "Undo the last turn? The changes the agent made will be reverted with git.",
-    "toolBlocked": "Blocked"
+    "toolBlocked": "Blocked",
+    "recovered": "The agent stopped without answering. You can send your message again."
   },
   "composer": {
     "placeholder": "Message {agent}...",

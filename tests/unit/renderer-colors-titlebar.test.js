@@ -61,7 +61,7 @@ test('status chips', () => {
   const health = { vpn: { active: false }, anthropicReachable: true };
   assert.deepEqual(statusChips({ health, remote: null, signedIn: { claude: true, agy: true }, project: { agent: 'claude' } }).map((c) => c.id), ['conn']);
   const all = statusChips({ health: { vpn: { active: true }, anthropicReachable: true }, remote: { running: true }, signedIn: { claude: false, agy: null }, project: { agent: 'claude' } });
-  assert.deepEqual(all.map((c) => c.id), ['vpn', 'remote', 'conn', 'signin']);
+  assert.deepEqual(all.map((c) => c.id.split(':')[0]), ['vpn', 'remote', 'conn', 'signin']);
   assert.equal(all.find((c) => c.id === 'conn').tone, 'red');
   assert.equal(all.find((c) => c.id === 'signin').vars.agent, 'claude');
   assert.deepEqual(statusChips({ health: null, remote: null, signedIn: {}, project: null }), []);

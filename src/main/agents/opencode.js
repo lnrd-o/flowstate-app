@@ -36,15 +36,8 @@ export class OpencodeAdapter extends AgentAdapter {
     const self = Object.create(this);
     const norm = createOpencodeNormalizer();
     self.normalize = norm;
-    const h = AgentAdapter.prototype.run.call(self, opts);
-    // opencode may exit cleanly without a final step_finish: close the turn with a result so the UI and auto-commit see it end.
-    const done = h.done.then((r) => {
-      if (r.resultSeen || r.stopped || r.code !== 0) return r;
-      const ev = norm.finish();
-      if (!ev) return r;
-      try { opts.emit(ev); } catch { /* ignore */ }
-      return { ...r, resultSeen: true, ok: true };
-    });
-    return { ...h, done };
+    // opencode may exit cleanly without a final step_finish: the base adapter asks for the closing result (see AgentAdapter.finishWithoutResult)
+    self.finishWithoutResult = () => norm.finish();
+    return AgentAdapter.prototype.run.call(self, opts);
   }
 }

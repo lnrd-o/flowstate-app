@@ -178,3 +178,48 @@ test('agy warm mode: stdin line format and long-lived args (no -p)', async () =>
   assert.deepEqual(args.slice(0, 4), ['--output-format', 'stream-json', '--input-format', 'stream-json']);
   assert.ok(args.includes('--conversation') && args.includes('plan') && !args.some((x) => x.startsWith('-p')));
 });
+
+// ---- a turn can never wedge: exits without a result, or an answered process that never exits ----
+test('a clean exit without any result still ends the turn (error event, done resolves)', async () => {
+  const { events, r } = await runAdapter(new AgyAdapter(), 'agy', {}, { FAKE_NO_RESULT: '1' });
+  assert.ok(r.code === 0 && r.resultSeen === false);
+  const last = events.at(-1);
+  assert.equal(last.type, 'error');
+  assert.equal(last.kind, 'process');
+  assert.match(last.message, /without sending an answer/);
+});
+
+test('a process that answered but never exits is ended by the adapter (linger timeout)', async () => {
+  const a = new ClaudeAdapter();
+  a.lingerMs = 300;
+  const t0 = Date.now();
+  const { events, r } = await runAdapter(a, 'claude', { mode: 'default' }, { FAKE_LINGER: '1' });
+  assert.ok(events.some((e) => e.type === 'result'));
+  assert.ok(Date.now() - t0 < 8000, 'done resolved without waiting for the process');
+  assert.ok(r.resultSeen);
+});
+
+test('manager: a follow-up right after a turn whose process lingers ends it instead of "already running" (stuck approval)', async () => {
+  const store = { pl: { id: 'pl', path: cwd, agent: 'claude', mode: 'default', sessionId: null, autoCommit: false } };
+  const events = [];
+  const adapter = new ClaudeAdapter();
+  adapter.lingerMs = 60000; // the adapter would wait a minute: the manager must not
+  const mgr = createAgentManager({
+    projects: { get: (id) => ({ ...store[id] }), update: (id, p) => Object.assign(store[id], p) },
+    emit: (id, e) => events.push(e), resolveLauncher: async () => launcher('claude'), adapters: { claude: adapter },
+    exitWaitMs: 300, stopWaitMs: 2000,
+  });
+  process.env.FAKE_LINGER = '1';
+  try {
+    await mgr.send({ projectId: 'pl', text: 'first' });
+    for (let i = 0; i < 100 && !events.some((e) => e.type === 'result'); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.ok(events.some((e) => e.type === 'result'), 'first turn answered');
+    // "Allow this once" re-sends immediately: the old process is still alive
+    const t0 = Date.now();
+    await mgr.send({ projectId: 'pl', text: 'retry after approval' });
+    assert.ok(Date.now() - t0 < 6000);
+    assert.equal(mgr.status('pl').running, true);
+    mgr.stop('pl');
+    for (let i = 0; i < 100 && mgr.status('pl').running; i++) await new Promise((r) => setTimeout(r, 50));
+  } finally { delete process.env.FAKE_LINGER; mgr.stopAll(); }
+});
