@@ -381,7 +381,8 @@ const actions = {
     return actions.threadOp(pid, () => api.threads.remove(pid, tid), true);
   },
   /** Open the markdown notes of the active conversation (the project overview lives next to it). */
-  openContext(pid) {
+  async openContext(pid) {
+    try { await api.threads.list(pid); } catch { /* notes are written by list() when missing */ }
     const info = (store.get().threads || {})[pid];
     const cur = info && info.threads.find((x) => x.id === info.active);
     actions.openFile(cur ? cur.contextPath : '.flowstate/context/PROJECT.md');

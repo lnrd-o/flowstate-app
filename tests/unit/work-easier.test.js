@@ -55,3 +55,19 @@ test('schedule: cleanTask validates and normalises', () => {
   assert.equal(cleanTask({ name: 'x', projectId: 'p1', prompt: 'a', time: '25:00' }).time, '09:00');
   assert.equal(cleanTask({ name: 'x', projectId: 'p1', kind: 'recipe', recipeId: 'data-analysis', vars: { q: 'why' } }).recipeId, 'data-analysis');
 });
+
+test('usage: per-model totals (today + 7 days) from finished turns', async () => {
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { createUsage } = await import('../../src/main/svc/usage.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-use-'));
+  const u = createUsage({ dir, getProject: () => ({ agent: 'opencode', model: 'opencode-go/glm-5.3-flash' }), runUsage: async () => ({ code: 1, stdout: '' }) });
+  u.onAgentEvent('p1', { type: 'result', ok: true, usage: { input_tokens: 1000, output_tokens: 200 } }, { agent: 'opencode' });
+  u.onAgentEvent('p1', { type: 'result', ok: true, usage: { input_tokens: 500, output_tokens: 100 }, costUsd: 0.25 }, { agent: 'opencode' });
+  const m = u.snapshot().models;
+  const k = 'opencode|opencode-go/glm-5.3-flash';
+  assert.deepEqual(m.week[k], { inputTokens: 1500, outputTokens: 300, turns: 2, costUsd: 0.25 });
+  assert.equal(m.today[k].turns, 2);
+  u.dispose();
+});

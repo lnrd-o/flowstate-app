@@ -24,8 +24,7 @@ writeFileSync(join(proj, 'dirty.txt'), 'wip');
 let app = null;
 try {
   app = await launch({ profile: join(base, 'profile'), port: PORT });
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.ready();
   const p = await app.call(`window.flowstate.projects.add({ name: 'ver-project', path: ${JSON.stringify(proj)}, autoCommit: false })`);
   check('project added', !!p.id);
 
@@ -38,10 +37,8 @@ try {
   check('invalid branch name rejected', bad.ok === false && bad.reason === 'invalid-name');
 
   // UI: reload so the renderer lists the new project, select it, open the Versions tab
-  app.ev('location.reload(); return 1').catch(() => {});
-  await sleep(3500);
-  await app.ev(`try { await window.flowstate.app.ready(); } catch {} return 1`);
-  await sleep(1200);
+  await app.reload();
+  await app.waitFor(`[...document.querySelectorAll('button, [role=button], a, li')].some((n) => n.textContent.includes('ver-project'))`);
   await app.ev(`
     const el = [...document.querySelectorAll('button, [role=button], a, li')].find((n) => n.textContent.includes('ver-project'));
     if (el) el.click();

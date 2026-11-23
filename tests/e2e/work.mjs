@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { launch, makeChecker, sleep } from './lib.mjs';
 
-const PORT = 9614;
+const PORT = 9616;
 const { check, done } = makeChecker();
 const base = realpathSync.native(mkdtempSync(join(tmpdir(), 'flowstate-work-')));
 const proj = join(base, 'work-project');
@@ -30,11 +30,16 @@ const recs = [
 ];
 writeFileSync(join(proj, '.flowstate', 'history.jsonl'), recs.map((r) => JSON.stringify(r)).join('\n') + '\n');
 
+
+const pad = (n) => String(n).padStart(2, '0');
+const d0 = new Date();
+const today = d0.getFullYear() + '-' + pad(d0.getMonth() + 1) + '-' + pad(d0.getDate());
+mkdirSync(join(base, 'profile'), { recursive: true });
+writeFileSync(join(base, 'profile', 'usage.json'), JSON.stringify({ days: { [today]: { models: { 'claude|default': { inputTokens: 12000, outputTokens: 3400, turns: 3, costUsd: 0.12 } } } } }));
 let app = null;
 try {
   app = await launch({ profile: join(base, 'profile'), port: PORT });
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.ready();
   const p = await app.call(`window.flowstate.projects.add({ name: 'work-project', path: ${JSON.stringify(proj)}, autoCommit: true })`);
   const P = JSON.stringify(p.id);
 
@@ -55,11 +60,9 @@ try {
   check('updater reports its state (no self-update in dev or portable builds)', typeof up.status === 'string' && typeof up.supported === 'boolean', JSON.stringify(up));
 
   // UI
-  app.ev('location.reload(); return 1').catch(() => {});
-  await sleep(3500);
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.reload();
   await app.ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1`);
+  await app.waitFor(`[...document.querySelectorAll('button, [role=button], a, li')].some((n) => n.textContent.includes('work-project'))`);
   await app.ev(`const el = [...document.querySelectorAll('button, [role=button], a, li')].find((n) => n.textContent.includes('work-project')); if (el) el.click(); return 1`);
   let bar = '';
   for (let i = 0; i < 30 && !/PDF/.test(bar); i++) { await sleep(300); bar = await app.ev(`const b = document.querySelector('.after-turn'); return b && !b.hidden ? b.innerText : ''`); }
@@ -122,6 +125,24 @@ try {
   // Settings switches
   await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
   await sleep(500);
+  await app.ev(`document.querySelector('.modal .dialog__footer .btn')?.click(); return 1`);
+  await sleep(300);
+  // Threads bar: no stray "null" text; Context notes open even on a brand-new conversation
+  const tb = await app.ev(`return document.querySelector('.threads-bar')?.innerText || ''`);
+  check('conversations bar has no stray "null" text', !!tb && !/null/.test(tb), tb);
+  await app.ev(`[...document.querySelectorAll('.threads-bar button')].find((b) => /Context notes|Notas de contexto/.test(b.textContent)).click(); return 1`);
+  let note = '';
+  for (let i = 0; i < 20 && !note; i++) { await sleep(300); note = await app.ev(`const c = [...document.querySelectorAll('.fv__content')].find((x) => x.offsetParent); return c ? c.innerText : ''`); }
+  check('Context notes open (written on demand, no file-not-found error)', !!note && !/ENOENT|no existe|does not exist/.test(note), note.slice(0, 160));
+  // Model picker: estimated usage per model
+  await app.ev(`document.querySelector('.mp__btn').click(); return 1`);
+  let use = '';
+  for (let i = 0; i < 30 && !use; i++) { await sleep(300); use = await app.ev(`const u = document.querySelector('.mp__item-use'); return u ? u.textContent : ''`); }
+  check('model picker shows estimated usage per model', /15\.4k/.test(use) && /3/.test(use), use);
+  await app.ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1`);
+  await sleep(200);
+  await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
+  await sleep(400);
   check('Settings has Notifications and Auto-update switches', await app.ev(`return !!document.getElementById('set-notifications') && !!document.getElementById('set-autoupdate')`));
   check('no renderer errors', app.problems.length === 0, app.problems.join(' | ').slice(0, 400));
 } catch (e) {

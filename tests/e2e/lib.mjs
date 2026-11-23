@@ -59,8 +59,32 @@ export async function launch({ profile, port, extraArgs = [], waitForIndex = tru
     await send('Runtime.enable');
   }
 
+  /** Poll a JS expression (in the page) until it is truthy; returns its value. Throws after timeoutMs. */
+  const waitFor = async (expr, timeoutMs = 15000, everyMs = 100) => {
+    const end = Date.now() + timeoutMs;
+    let last;
+    for (;;) {
+      try { last = await ev(`return (${expr})`); } catch { last = undefined; }
+      if (last) return last;
+      if (Date.now() > end) throw new Error('timed out waiting for: ' + expr.slice(0, 120));
+      await sleep(everyMs);
+    }
+  };
+  /** App ready: backend answered and the shell (sidebar) is on screen. */
+  const ready = async () => {
+    await ev('try { await window.flowstate.app.ready(); } catch {} return 1');
+    await waitFor("!!document.querySelector('.sidebar__header')");
+  };
+  /** Reload the renderer and wait until the new page is ready (no fixed sleeps). */
+  const reload = async () => {
+    const before = await ev('return performance.timeOrigin');
+    ev('location.reload(); return 1').catch(() => {});
+    await waitFor(`performance.timeOrigin !== ${before} && document.readyState === 'complete' && !!window.flowstate`, 20000, 150);
+    await ready();
+  };
+
   return {
-    child, exited, ev, call, send, problems, seen, targets: () => targets(port),
+    child, exited, ev, call, send, waitFor, ready, reload, problems, seen, targets: () => targets(port),
     isRunning: () => exitedCode === null,
     /** Graceful quit through the real quit flow (menu action file.quit): the app saves state and exits. */
     async quitGracefully(timeoutMs = 15000) {

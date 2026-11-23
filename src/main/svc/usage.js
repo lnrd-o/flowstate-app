@@ -175,7 +175,22 @@ export function createUsage({
     b.agy = { ...emptyAgy(), ...(b.agy ?? {}) };
     b.deepseek = { ...emptyTokens(), ...(b.deepseek ?? {}) };
     b.opencode = { ...emptyTokens(), ...(b.opencode ?? {}) };
+    b.models = b.models && typeof b.models === 'object' ? b.models : {}; // "<agent>|<model>" -> {inputTokens, outputTokens, turns, costUsd}
     return b;
+  };
+
+  /** Per-model totals for today and the last 7 days (estimates from FlowState's own records of finished turns). */
+  const modelTotals = () => {
+    const today = dayKey(now());
+    const keys = Object.keys(state.days).sort().slice(-7);
+    const week = {};
+    for (const k of keys) {
+      for (const [m, v] of Object.entries(state.days[k]?.models ?? {})) {
+        const w = (week[m] ??= { inputTokens: 0, outputTokens: 0, turns: 0, costUsd: 0 });
+        w.inputTokens += v.inputTokens || 0; w.outputTokens += v.outputTokens || 0; w.turns += v.turns || 0; w.costUsd = Math.round((w.costUsd + (v.costUsd || 0)) * 1e6) / 1e6;
+      }
+    }
+    return { today: { ...(state.days[today]?.models ?? {}) }, week };
   };
 
   /** Windows whose reset time is in the past are stale -> null. */
@@ -200,6 +215,7 @@ export function createUsage({
       claude: { windows: freshWindows(), models: freshModels(), activity: state.claude.activity ?? null, today: { ...b.claude }, lastLimit: state.claude.lastLimit, updatedAt: state.claude.updatedAt },
       agy: { today: { ...b.agy }, lastLimit: state.agy.lastLimit, updatedAt: state.agy.updatedAt },
       opencode: { today: { ...b.opencode } },
+      models: modelTotals(),
       deepseek: { today: { ...b.deepseek }, configured: !!deepseek.configured, ...(deepseek.balance ? { balance: deepseek.balance } : {}), ...(deepseek.updatedAt ? { updatedAt: deepseek.updatedAt } : {}) },
     };
     return out;
@@ -261,6 +277,13 @@ export function createUsage({
     } else if (ev.type === 'result') {
       const b = bucket();
       const t = tokensOf(ev.usage);
+      {
+        const route = meta?.route === 'deepseek' ? 'claude' : agent;
+        const mk = `${route}|${getProject(projectId)?.model || 'default'}`.slice(0, 160);
+        const mb = (b.models[mk] ??= { inputTokens: 0, outputTokens: 0, turns: 0, costUsd: 0 });
+        mb.inputTokens += t.input; mb.outputTokens += t.output; mb.turns += 1;
+        mb.costUsd = Math.round((mb.costUsd + n0(ev.costUsd)) * 1e6) / 1e6;
+      }
       if (meta?.route === 'deepseek' || agent === 'opencode') {
         const tb = meta?.route === 'deepseek' ? b.deepseek : b.opencode;
         tb.inputTokens += t.input; tb.outputTokens += t.output; tb.turns += 1;

@@ -27,8 +27,7 @@ mkdirSync(proj, { recursive: true });
 let app = null;
 try {
   app = await launch({ profile: join(base, 'profile'), port: PORT });
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.ready();
   const p = await app.call(`window.flowstate.projects.add({ name: 'feat-project', path: ${JSON.stringify(proj)}, autoCommit: false })`);
   check('project added', !!p.id);
   const P = JSON.stringify(p.id);
@@ -53,10 +52,8 @@ try {
   check('threads.remove', rm.ok && rm.threads.length === 1);
 
   // UI: select the project, conversations bar visible
-  app.ev('location.reload(); return 1').catch(() => {});
-  await sleep(3500);
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1200);
+  await app.reload();
+  await app.waitFor(`[...document.querySelectorAll('button, [role=button], a, li')].some((n) => n.textContent.includes('feat-project'))`);
   await app.ev(`const el = [...document.querySelectorAll('button, [role=button], a, li')].find((n) => n.textContent.includes('feat-project')); if (el) el.click(); return 1`);
   let bar = false;
   for (let i = 0; i < 20 && !bar; i++) { await sleep(250); bar = await app.ev(`const b = document.querySelector('.threads-bar'); return !!b && !b.hidden && !!document.getElementById('threads-select')`); }

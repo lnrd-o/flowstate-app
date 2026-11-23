@@ -68,7 +68,8 @@ export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyTex
     let res;
     try { res = api.files.preview ? await api.files.preview(projectId, rel) : legacy(await api.files.read(projectId, rel)); } catch (e) {
       if (my !== token) return;
-      content.replaceChildren(h('div', { class: 'fv__note', attrs: { role: 'alert' } }, icon('alert'), (e && e.message) || t('files.readFailed')));
+      const missing = /ENOENT|no such file/i.test(String(e && e.message));
+      content.replaceChildren(h('div', { class: 'fv__note', attrs: { role: 'alert' } }, icon('alert'), missing ? t('files.notFound') : t('files.readFailed')));
       return;
     }
     if (my !== token) return;

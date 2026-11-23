@@ -172,7 +172,13 @@ export function create({ projects, history, agents, fsx = fs, now = Date.now }) 
   };
 
   return {
-    list(id) { const { st, p } = adopt(need(id)); return view(p, st); },
+    /** Write the notes now (Context notes button). */
+    ensureContext(id) { const { st, p } = adopt(need(id)); writeContext(p, st); return view(p, st); },
+    list(id) {
+      const { st, p } = adopt(need(id));
+      if (!fsx.existsSync(ctxAbs(p, st.active)) || !fsx.existsSync(path.join(storeDir(p), CONTEXT_DIR, 'PROJECT.md'))) writeContext(p, st);
+      return view(p, st);
+    },
 
     create(id, o = {}) {
       const { st, p } = adopt(need(id));

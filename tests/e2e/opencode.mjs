@@ -14,8 +14,7 @@ mkdirSync(proj, { recursive: true });
 let app = null;
 try {
   app = await launch({ profile: join(base, 'profile'), port: PORT });
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.ready();
   const hc = await app.call('window.flowstate.health.check()');
   check('health finds opencode (desktop app CLI included)', hc.opencode && hc.opencode.found === true, JSON.stringify(hc.opencode));
   check('health reports opencode version and sign-in', /\d+\.\d+/.test(hc.opencode.version || '') && hc.opencode.loggedIn === true, JSON.stringify(hc.opencode));
@@ -46,10 +45,7 @@ try {
   }
 
   // Sign-in dialog: OpenCode tab + terminal with `opencode auth login`
-  app.ev('location.reload(); return 1').catch(() => {});
-  await sleep(3500);
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.reload();
   await app.ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1`);
   await sleep(300);
   await app.ev(`document.querySelector('.settings-btn').click(); return 1`);

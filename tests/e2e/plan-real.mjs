@@ -15,14 +15,11 @@ writeFileSync(join(proj, 'notes.txt'), 'buy milk\ncall Ana\n');
 let app = null;
 try {
   app = await launch({ profile: join(base, 'profile'), port: PORT });
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.ready();
   await app.call(`window.flowstate.projects.add({ name: 'plan-project', path: ${JSON.stringify(proj)}, agent: 'claude', autoCommit: false })`);
-  app.ev('location.reload(); return 1').catch(() => {});
-  await sleep(3500);
-  await app.ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-  await sleep(1500);
+  await app.reload();
   await app.ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1`);
+  await app.waitFor(`[...document.querySelectorAll('button, [role=button], a, li')].some((n) => n.textContent.includes('plan-project'))`);
   await app.ev(`const el = [...document.querySelectorAll('button, [role=button], a, li')].find((n) => n.textContent.includes('plan-project')); if (el) el.click(); return 1`);
   await sleep(800);
   await app.ev(`document.querySelector('.composer__plan').click(); return 1`);

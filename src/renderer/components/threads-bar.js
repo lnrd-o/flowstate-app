@@ -38,13 +38,13 @@ export function mountThreadsBar(host, { store, actions }) {
       main = sel;
     }
     const btn = (ic, label, on, extra = {}) => h('button', { class: 'btn btn--ghost btn--sm' + (extra.icon === false ? '' : ' btn--icon'), type: 'button', title: label, attrs: { 'aria-label': label }, disabled: !!extra.disabled, on: { click: on } }, icon(ic), extra.text || '');
-    host.replaceChildren(
+    host.replaceChildren(...[
       h('div', { class: 'threads-bar__label' }, agentIcon(cur.agent, { size: 14 }), h('span', { class: 'xs faint', text: t('threads.label') })),
       main,
       btn('plus', t('threads.new'), () => actions.createThread(p.id), { disabled: running, icon: false, text: ' ' + t('threads.new') }),
       cur.main ? null : btn('edit', t('threads.rename'), () => { renaming = true; sig = ''; render(); }, { disabled: running }),
       cur.main ? null : btn('trash', t('threads.delete'), () => actions.removeThread(p.id, cur.id), { disabled: running }),
-      btn('file', t('threads.context'), () => actions.openContext(p.id), { icon: false, text: ' ' + t('threads.context') }));
+      btn('file', t('threads.context'), () => actions.openContext(p.id), { icon: false, text: ' ' + t('threads.context') })].filter(Boolean));
   }
 
   host.className = 'threads-bar';

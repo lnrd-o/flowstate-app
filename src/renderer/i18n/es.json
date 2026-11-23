@@ -535,7 +535,8 @@
     "archiveCount": "{n} entradas",
     "entryName": "Nombre",
     "entrySize": "Tama\u00f1o",
-    "pdfHint": "Si el PDF no se muestra aqu\u00ed, \u00e1brelo con tu app predeterminada."
+    "pdfHint": "Si el PDF no se muestra aqu\u00ed, \u00e1brelo con tu app predeterminada.",
+    "notFound": "Este archivo no existe (todav\u00eda)."
   },
   "preview": {
     "emptyTitle": "A\u00fan no se escribi\u00f3 ning\u00fan archivo",
@@ -1266,6 +1267,11 @@
       "low": "R\u00e1pido",
       "medium": "Equilibrado",
       "high": "A fondo"
+    },
+    "use": {
+      "week": "7 d\u00edas: {tokens} tokens, {turns} turnos",
+      "today": "hoy {tokens}",
+      "note": "Las estimaciones de uso salen de los turnos que FlowState ejecut\u00f3 en este equipo (tokens seg\u00fan cada CLI)."
     }
   },
   "usage": {

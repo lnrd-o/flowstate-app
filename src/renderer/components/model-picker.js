@@ -84,8 +84,24 @@ export function mountModelPicker({ store, actions }) {
     if (!opts.length && !loading && !(list && list.error)) body.push(h('div', { class: 'mp__state muted', text: t('model.none') }));
     const groups = groupModelOptions(opts);
     const showHeads = groups.length > 1 || (groups[0] && groups[0].kind === 'opencode');
+    // Estimated usage per model: FlowState's own records of finished turns on this PC (tokens, turns, cost when reported).
+    const weekUse = (s.usage && s.usage.models && s.usage.models.week) || {};
+    const todayUse = (s.usage && s.usage.models && s.usage.models.today) || {};
+    const fmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n));
+    const useLine = (o) => {
+      const key = p.agent + '|' + (modelToStore(o.id, list) || 'default');
+      const w = weekUse[key];
+      if (!w || !w.turns) return null;
+      const d = todayUse[key];
+      const tok = (w.inputTokens || 0) + (w.outputTokens || 0);
+      const parts = [t('model.use.week', { tokens: fmt(tok), turns: w.turns })];
+      if (d && d.turns) parts.push(t('model.use.today', { tokens: fmt((d.inputTokens || 0) + (d.outputTokens || 0)) }));
+      if (w.costUsd) parts.push('USD ' + w.costUsd.toFixed(2));
+      return h('span', { class: 'mp__item-use xs faint truncate', text: parts.join(' - ') });
+    };
+    const PROVIDERS = { opencode: 'OpenCode Zen', 'opencode-go': 'OpenCode Go', anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', deepseek: 'DeepSeek', openrouter: 'OpenRouter' };
     for (const g of groups) {
-      if (showHeads && g.group) body.push(h('div', { class: 'mp__group', attrs: { role: 'presentation' }, text: g.provider ? t('model.groupOpencode', { provider: g.provider }) : t('model.group.' + g.kind) }));
+      if (showHeads && g.group) body.push(h('div', { class: 'mp__group', attrs: { role: 'presentation' }, text: g.provider ? (PROVIDERS[g.provider] || g.provider) : t('model.group.' + g.kind) }));
       for (const o of g.options) {
       const b = h('button', {
         class: 'menu__item mp__item' + (o.current ? ' is-current' : ''), type: 'button', disabled: o.disabled, attrs: { role: 'menuitemradio', 'aria-checked': String(o.current), tabindex: '-1' },
@@ -96,13 +112,15 @@ export function mountModelPicker({ store, actions }) {
         h('span', { class: 'mp__item-name truncate', text: o.label }),
         o.sub && o.sub !== o.label ? h('span', { class: 'mp__item-id mono truncate', text: o.sub }) : null,
         o.needsKey ? h('span', { class: 'mp__item-need truncate', text: t('model.addKey') }) : null,
-        o.description ? h('span', { class: 'mp__item-desc truncate', text: o.description }) : null),
+        o.description ? h('span', { class: 'mp__item-desc truncate', text: o.description }) : null,
+        useLine(o)),
       o.isDefault ? h('span', { class: 'badge badge--muted mp__badge', text: t('model.recommended') }) : null);
       items.push(b);
       body.push(b);
       }
     }
     panel.setAttribute('aria-label', t('model.label'));
+    if (Object.keys(weekUse).length) body.push(h('div', { class: 'mp__use-note xs faint', text: t('model.use.note') }));
     panel.replaceChildren(head, ...body);
     if (hadFocus) {
       const f = items.find((b) => b.getAttribute('aria-checked') === 'true') || panel.querySelector('button:not([disabled])');

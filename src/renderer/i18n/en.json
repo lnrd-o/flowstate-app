@@ -535,7 +535,8 @@
     "archiveCount": "{n} entries",
     "entryName": "Name",
     "entrySize": "Size",
-    "pdfHint": "If the PDF does not show here, open it with your default app."
+    "pdfHint": "If the PDF does not show here, open it with your default app.",
+    "notFound": "This file does not exist (yet)."
   },
   "preview": {
     "emptyTitle": "No file written yet",
@@ -1266,6 +1267,11 @@
       "low": "Fast",
       "medium": "Balanced",
       "high": "Thorough"
+    },
+    "use": {
+      "week": "7 days: {tokens} tokens, {turns} turns",
+      "today": "today {tokens}",
+      "note": "Usage estimates come from the turns FlowState ran on this PC (tokens as reported by each CLI)."
     }
   },
   "usage": {
