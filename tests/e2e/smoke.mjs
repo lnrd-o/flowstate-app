@@ -159,8 +159,10 @@ try {
   check('UI renders after reload', ui.items >= 2 && ui.title === 'FlowState');
   for (const theme of ['gold', 'light', 'dark']) {
     await ev(`await window.flowstate.settings.set({theme:${JSON.stringify(theme)}}); return 1`);
-    await send('Page.reload'); await sleep(1500);
-    check(`theme ${theme} applies`, (await ev(`return document.documentElement.dataset.theme`)) === theme);
+    await send('Page.reload');
+    let applied = '';
+    for (let i = 0; i < 60 && applied !== theme; i++) { await sleep(200); try { applied = await ev(`return document.documentElement.dataset.theme`); } catch { applied = ''; } } // poll: the page may still be reloading
+    check(`theme ${theme} applies`, applied === theme);
   }
 
   // 9. removal never deletes files
