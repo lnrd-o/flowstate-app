@@ -152,6 +152,8 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     notif.addEventListener('change', () => actions.updateSettings({ notifications: notif.checked }));
     const upd = h('input', { type: 'checkbox', id: 'set-autoupdate', checked: s.autoUpdate !== false });
     upd.addEventListener('change', () => actions.updateSettings({ autoUpdate: upd.checked }));
+    const autoInst = h('input', { type: 'checkbox', id: 'set-autoinstall', checked: s.autoInstallUpdates !== false });
+    autoInst.addEventListener('change', () => actions.updateSettings({ autoInstallUpdates: autoInst.checked }));
     const auto = h('input', { type: 'checkbox', id: 'set-autolaunch', checked: !!s.autoLaunch });
     auto.addEventListener('change', () => actions.updateSettings({ autoLaunch: auto.checked }));
     const redo = h('button', { class: 'btn', type: 'button', text: t('settings.restartWalkthrough') });
@@ -212,6 +214,7 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       h('label', { class: 'toggle', for: 'set-autolaunch' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('settings.autoLaunch') })),
       h('label', { class: 'toggle', for: 'set-notifications' }, notif, h('span', { class: 'toggle__track' }), h('span', { text: t('work.settings.notifications') })),
       h('label', { class: 'toggle', for: 'set-autoupdate' }, upd, h('span', { class: 'toggle__track' }), h('span', { text: t('work.settings.autoUpdate') })),
+      h('label', { class: 'toggle', for: 'set-autoinstall' }, autoInst, h('span', { class: 'toggle__track' }), h('span', { text: t('work.settings.autoInstall') })),
       h('div', null, redo));
 
     if (activeId) { const el = dlg.el.querySelector('#' + activeId); if (el) el.focus(); }

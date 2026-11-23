@@ -24,6 +24,8 @@ export function defaultSettings(locale = 'en') {
     acceptAllPayg: false,
     // Download new versions from GitHub Releases in the background (installed builds only).
     autoUpdate: true,
+    // Install a downloaded update by itself when nothing is running (15 s countdown with Cancel / Update now).
+    autoInstallUpdates: true,
     // DeepSeek usage/models panel (the API key itself is NOT a setting: it lives encrypted via svc/deepseek.js)
     deepseekEnabled: false,
     // Per-source switches (claude / agy / opencode / deepseek). deepseekEnabled is kept in sync with agentsEnabled.deepseek.
@@ -59,6 +61,7 @@ const TYPES = {
   acceptedModels: (v) => Array.isArray(v) && v.length <= 200 && v.every((x) => typeof x === 'string' && x.length > 0 && x.length <= 160),
   acceptAllPayg: (v) => typeof v === 'boolean',
   autoUpdate: (v) => typeof v === 'boolean',
+  autoInstallUpdates: (v) => typeof v === 'boolean',
   deepseekEnabled: (v) => typeof v === 'boolean',
   agentsEnabled: (v) => isAgentsEnabled(v),
 };

@@ -184,7 +184,7 @@ try {
   check('user messages have Copy, Edit, Send again and Resend-with-another-model', macts.split('|').length === 4, macts);
   await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
   await sleep(400);
-  check('Settings has Notifications and Auto-update switches', await app.ev(`return !!document.getElementById('set-notifications') && !!document.getElementById('set-autoupdate')`));
+  check('Settings has Notifications and Auto-update switches', await app.ev(`return !!document.getElementById('set-notifications') && !!document.getElementById('set-autoupdate') && !!document.getElementById('set-autoinstall')`));
   check('no renderer errors', app.problems.length === 0, app.problems.join(' | ').slice(0, 400));
 } catch (e) {
   check('e2e ran without exception', false, e.stack || String(e));

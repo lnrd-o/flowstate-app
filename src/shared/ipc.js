@@ -146,6 +146,7 @@ export const CH = Object.freeze({
   scheduleRunNow: 'schedule:run-now',          // (id) -> {ok, error?}
   updateStatus: 'update:status',               // () -> {status:'idle'|'checking'|'current'|'downloading'|'ready'|'error', version, percent?, error, supported}
   updateCheck: 'update:check',                 // () -> same
+  updateCancel: 'update:cancel',               // () -> boolean   stop the automatic install of the downloaded update (status goes back to 'ready')
   updateInstall: 'update:install',             // () -> boolean   quit and install a downloaded update
   evWorkflow: 'ev:workflow',                   // {kind:'open-project', projectId} | {kind:'quick-ask'}
   evSchedule: 'ev:schedule',                   // {tasks}
@@ -254,7 +255,7 @@ export const API_SHAPE = Object.freeze({
   term: ['start', 'input', 'resize', 'stop'],
   workflow: ['compareSheet', 'exportPdf'],
   schedule: ['list', 'save', 'remove', 'runNow'],
-  update: ['status', 'check', 'install'],
+  update: ['status', 'check', 'install', 'cancel'],
   threads: ['list', 'create', 'switch', 'rename', 'remove'],
   prompts: ['list', 'save', 'delete', 'export'],
   files: ['list', 'read', 'preview', 'reveal', 'open', 'watch', 'pick', 'import'],

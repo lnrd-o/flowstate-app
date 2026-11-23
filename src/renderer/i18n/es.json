@@ -1863,11 +1863,14 @@
     "update": {
       "ready": "FlowState {version} est\u00e1 listo.",
       "restart": "Reiniciar para actualizar",
-      "later": "M\u00e1s tarde"
+      "later": "M\u00e1s tarde",
+      "installing": "FlowState {version} est\u00e1 listo. Actualizando en {s} s...",
+      "now": "Actualizar ahora"
     },
     "settings": {
       "notifications": "Avisarme cuando un turno termine o necesite aprobaci\u00f3n (con FlowState en segundo plano)",
-      "autoUpdate": "Descargar actualizaciones autom\u00e1ticamente"
+      "autoUpdate": "Descargar actualizaciones autom\u00e1ticamente",
+      "autoInstall": "Instalar las actualizaciones autom\u00e1ticamente cuando no estoy trabajando (reinicia FlowState)"
     },
     "msg": {
       "actions": "Acciones del mensaje",

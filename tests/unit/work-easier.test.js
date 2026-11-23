@@ -133,3 +133,43 @@ test('approval policy per agent/mode and pay-as-you-go model acceptance', async 
   assert.deepEqual(acceptPatch({ acceptedModels: ['a'] }, 'b', false), { acceptedModels: ['a', 'b'] });
   assert.deepEqual(acceptPatch({}, 'b', true), { acceptAllPayg: true });
 });
+
+test('updater: downloads, waits for an idle moment, counts down and installs silently; Cancel keeps it for later', async () => {
+  const { create } = await import('../../src/main/svc/updater.js');
+  const { EventEmitter } = await import('node:events');
+  const mk = (running) => {
+    const up = new EventEmitter(); up.installs = []; up.checkForUpdates = async () => {}; up.quitAndInstall = (...a) => up.installs.push(a);
+    const pushed = [];
+    const state = { running };
+    return { up, pushed, state, make: (over = {}) => create({ electron: { app: { isPackaged: true } }, push: (ch, p) => pushed.push(p), settings: { get: () => ({ autoUpdate: true, ...over }) }, agents: { listRunning: () => (state.running ? [{}] : []) }, runner: { listActive: () => [] }, updaterImpl: up, idleMs: 20, countdownMs: 60, firstCheckMs: 1e9 }) };
+  };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  // busy first: nothing happens until the agent finishes, then countdown, then silent install + restart
+  const a = mk(true); const ua = await a.make();
+  a.up.emit('update-downloaded', { version: '9.9.9' });
+  await wait(100);
+  assert.equal(ua.status().status, 'ready'); assert.equal(a.up.installs.length, 0);
+  a.state.running = false;
+  await wait(60);
+  assert.equal(ua.status().status, 'installing');
+  assert.ok(a.pushed.some((p) => p.status === 'installing' && p.at > Date.now() - 5000));
+  await wait(200);
+  assert.deepEqual(a.up.installs, [[true, true]]); // silent, run after install
+  ua.dispose();
+  // cancel: stays ready, never installs by itself for that version
+  const b = mk(false); const ub = await b.make();
+  b.up.emit('update-downloaded', { version: '9.9.9' });
+  await wait(50);
+  assert.equal(ub.status().status, 'installing');
+  assert.equal(ub.cancel(), true);
+  await wait(250);
+  assert.equal(ub.status().status, 'ready'); assert.equal(b.up.installs.length, 0);
+  assert.equal(ub.install(), true); await wait(20); assert.equal(b.up.installs.length, 1); // 'Restart to update' still works
+  ub.dispose();
+  // switched off in settings: only the manual button
+  const c = mk(false); const uc = await c.make({ autoInstallUpdates: false });
+  c.up.emit('update-downloaded', { version: '9.9.9' });
+  await wait(200);
+  assert.equal(uc.status().status, 'ready'); assert.equal(c.up.installs.length, 0);
+  uc.dispose();
+});

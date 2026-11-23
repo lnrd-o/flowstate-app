@@ -1863,11 +1863,14 @@
     "update": {
       "ready": "FlowState {version} is ready.",
       "restart": "Restart to update",
-      "later": "Later"
+      "later": "Later",
+      "installing": "FlowState {version} is ready. Updating in {s} s...",
+      "now": "Update now"
     },
     "settings": {
       "notifications": "Notify me when a turn finishes or needs approval (while FlowState is in the background)",
-      "autoUpdate": "Download updates automatically"
+      "autoUpdate": "Download updates automatically",
+      "autoInstall": "Install updates automatically when I am not working (restarts FlowState)"
     },
     "msg": {
       "actions": "Message actions",

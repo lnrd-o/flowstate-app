@@ -32,7 +32,7 @@ const CH = {
   appInfo: 'app:info', appReady: 'app:ready', appFlushed: 'app:flushed',
   workflowCompareSheet: 'workflow:compare-sheet', workflowExportPdf: 'workflow:export-pdf',
   scheduleList: 'schedule:list', scheduleSave: 'schedule:save', scheduleRemove: 'schedule:remove', scheduleRunNow: 'schedule:run-now',
-  updateStatus: 'update:status', updateCheck: 'update:check', updateInstall: 'update:install',
+  updateStatus: 'update:status', updateCheck: 'update:check', updateInstall: 'update:install', updateCancel: 'update:cancel',
   termStart: 'term:start', termInput: 'term:input', termResize: 'term:resize', termStop: 'term:stop', evTerm: 'ev:term',
   evWorkflow: 'ev:workflow', evSchedule: 'ev:schedule', evUpdate: 'ev:update',
   evUsage: 'ev:usage', evTasks: 'ev:tasks', evMenu: 'ev:menu', evBeforeQuit: 'ev:before-quit',
@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('flowstate', {
   term: { start: call(CH.termStart), input: call(CH.termInput), resize: call(CH.termResize), stop: call(CH.termStop) },
   workflow: { compareSheet: call(CH.workflowCompareSheet), exportPdf: call(CH.workflowExportPdf) },
   schedule: { list: call(CH.scheduleList), save: call(CH.scheduleSave), remove: call(CH.scheduleRemove), runNow: call(CH.scheduleRunNow) },
-  update: { status: call(CH.updateStatus), check: call(CH.updateCheck), install: call(CH.updateInstall) },
+  update: { status: call(CH.updateStatus), check: call(CH.updateCheck), install: call(CH.updateInstall), cancel: call(CH.updateCancel) },
   // Absolute path of a dropped File (Electron 32+: File.path is gone)
   pathForFile: (f) => { try { return require('electron').webUtils.getPathForFile(f) || ''; } catch { return ''; } },
   versions: { list: call(CH.versionsList), save: call(CH.versionsSave), compare: call(CH.versionsCompare), restore: call(CH.versionsRestore), branch: call(CH.versionsBranch) },

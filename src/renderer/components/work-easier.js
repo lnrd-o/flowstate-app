@@ -429,7 +429,19 @@ export function installUpdateBanner({ api }) {
   const el = h('div', { class: 'update-banner', hidden: true, attrs: { role: 'status' } });
   document.body.appendChild(el);
   let dismissedVersion = null;
+  let tick = null;
   const paint = (st) => {
+    clearInterval(tick); tick = null;
+    if (st && st.status === 'installing') { // countdown, then FlowState restarts and installs by itself
+      el.hidden = false;
+      const text = h('span', { class: 'small' });
+      const upd = () => { text.textContent = t('work.update.installing', { version: st.version || '', s: Math.max(0, Math.ceil((st.at - Date.now()) / 1000)) }); };
+      upd(); tick = setInterval(upd, 500);
+      el.replaceChildren(icon('download', 'update-banner__ic'), text,
+        h('button', { class: 'btn btn--primary btn--sm', type: 'button', text: t('work.update.now'), on: { click: () => api.update.install() } }),
+        h('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: t('common.cancel'), on: { click: () => api.update.cancel() } }));
+      return;
+    }
     if (!st || st.status !== 'ready' || st.version === dismissedVersion) { el.hidden = true; return; }
     el.hidden = false;
     el.replaceChildren(icon('download', 'update-banner__ic'),

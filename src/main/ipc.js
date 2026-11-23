@@ -276,6 +276,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.updateStatus]: () => svc('updater').status(),
     [CH.updateCheck]: () => svc('updater').check(),
     [CH.updateInstall]: () => svc('updater').install(),
+    [CH.updateCancel]: () => svc('updater').cancel(),
     [CH.versionsList]: (_e, id, o) => { need(id); return svc('versions').list(id, isPlain(o) ? o : {}); },
     [CH.versionsSave]: (_e, id, o) => { need(id); if (!isPlain(o)) throw new TypeError('invalid request'); return svc('versions').save(id, o); },
     [CH.versionsCompare]: (_e, id, o) => { need(id); if (!isPlain(o)) throw new TypeError('invalid request'); return svc('versions').compare(id, o); },
