@@ -112,9 +112,9 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
     closeBtn.textContent = t('common.close');
 
     const lang = h('select', { class: 'select', id: 'set-language' },
-      h('option', { value: 'en', text: t('settings.languageEn') }), h('option', { value: 'es', text: t('settings.languageEs') }));
-    lang.value = s.language;
-    lang.addEventListener('change', () => actions.updateSettings({ language: lang.value }));
+      h('option', { value: 'auto', text: t('settings.languageAuto') }), h('option', { value: 'en', text: t('settings.languageEn') }), h('option', { value: 'es', text: t('settings.languageEs') }));
+    lang.value = s.languageAuto === false ? s.language : 'auto';
+    lang.addEventListener('change', () => actions.updateSettings(lang.value === 'auto' ? { languageAuto: true } : { language: lang.value, languageAuto: false }));
 
     const theme = h('select', { class: 'select', id: 'set-theme' },
       h('option', { value: 'dark', text: t('settings.themeDark') }), h('option', { value: 'light', text: t('settings.themeLight') }), h('option', { value: 'gold', text: t('settings.themeGold') }));

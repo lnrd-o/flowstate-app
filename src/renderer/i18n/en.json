@@ -179,7 +179,8 @@
     "accounts": "Accounts",
     "accountsHint": "Sign in to the agents you use. Credentials stay in each CLI's own store; FlowState never reads them.",
     "sources": "Sources",
-    "sourcesHint": "Turn each source on or off. A source that is off disappears from the agent switch and the model lists. Credentials stay in each CLI's own store; FlowState never reads them."
+    "sourcesHint": "Turn each source on or off. A source that is off disappears from the agent switch and the model lists. Credentials stay in each CLI's own store; FlowState never reads them.",
+    "languageAuto": "Automatic (follow the system language)"
   },
   "walkthrough": {
     "title": "Set up your project",

@@ -5,6 +5,8 @@ import { defaultAgentsEnabled, isAgentsEnabled, normalizeAgentsEnabled, hasEnabl
 export function defaultSettings(locale = 'en') {
   return {
     language: String(locale).toLowerCase().startsWith('es') ? 'es' : 'en',
+    // true = follow the system language (re-detected at every start); picking a language in Settings turns it off.
+    languageAuto: true,
     theme: 'dark',
     codeTheme: 'github-dark',
     claudePath: null,
@@ -40,6 +42,7 @@ export function readJson(file, fallback, fsx = fs) {
 
 const TYPES = {
   language: (v) => v === 'en' || v === 'es',
+  languageAuto: (v) => typeof v === 'boolean',
   theme: (v) => v === 'dark' || v === 'light' || v === 'gold',
   codeTheme: (v) => typeof v === 'string' && v.length > 0 && v.length < 64,
   claudePath: (v) => v === null || (typeof v === 'string' && path.isAbsolute(v)),
@@ -61,6 +64,9 @@ export function createSettings({ dir, locale = 'en', fsx = fs }) {
   let cache = { ...defaults };
   const stored = readJson(file, {}, fsx);
   for (const k of Object.keys(defaults)) if (k in stored && TYPES[k](stored[k])) cache[k] = stored[k];
+  // Language: an existing file without languageAuto keeps the language its user had (auto off); otherwise follow the system language.
+  if (!('languageAuto' in stored) && 'language' in stored && TYPES.language(stored.language)) cache.languageAuto = false;
+  if (cache.languageAuto) cache.language = defaults.language;
   // Migration: files without agentsEnabled derive it from the old deepseekEnabled flag. Never leave every source off.
   cache.agentsEnabled = normalizeAgentsEnabled(stored.agentsEnabled, TYPES.deepseekEnabled(stored.deepseekEnabled) ? stored.deepseekEnabled : undefined);
   if (!hasEnabledSource(cache.agentsEnabled)) cache.agentsEnabled = defaultAgentsEnabled();
@@ -77,6 +83,9 @@ export function createSettings({ dir, locale = 'en', fsx = fs }) {
         if (!TYPES[k](v)) throw new TypeError(`invalid value for setting ${k}`);
         next[k] = v;
       }
+      // Language: choosing one explicitly turns automatic off; turning automatic on re-detects the system language.
+      if ('languageAuto' in patch && patch.languageAuto === true) next.language = defaults.language;
+      else if ('language' in patch && patch.language !== cache.language && !('languageAuto' in patch)) next.languageAuto = false;
       // agentsEnabled (partial allowed) and deepseekEnabled stay one setting; the last enabled source cannot be switched off.
       if ('agentsEnabled' in patch) next.agentsEnabled = normalizeAgentsEnabled({ ...cache.agentsEnabled, ...patch.agentsEnabled });
       else if ('deepseekEnabled' in patch) next.agentsEnabled = { ...cache.agentsEnabled, deepseek: patch.deepseekEnabled };

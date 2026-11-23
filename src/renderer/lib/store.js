@@ -32,7 +32,7 @@ export function createStore(initial) {
 export function createInitialState() {
   return {
     settings: {
-      language: 'en', theme: 'dark', codeTheme: 'vs-dark', claudePath: null, agyPath: null,
+      language: 'en', languageAuto: true, theme: 'dark', codeTheme: 'vs-dark', claudePath: null, agyPath: null,
       lastProjectId: null, autoLaunch: false, walkthroughDone: true, developerMode: true, deepseekEnabled: false,
     },
     projects: [],

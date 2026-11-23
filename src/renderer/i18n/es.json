@@ -179,7 +179,8 @@
     "accounts": "Cuentas",
     "accountsHint": "Inicia sesi\u00f3n en los agentes que uses. Las credenciales quedan en el almac\u00e9n de cada CLI; FlowState nunca las lee.",
     "sources": "Fuentes",
-    "sourcesHint": "Activa o desactiva cada fuente. Una fuente desactivada desaparece del selector de agente y de las listas de modelos. Las credenciales quedan en el almac\u00e9n de cada CLI; FlowState nunca las lee."
+    "sourcesHint": "Activa o desactiva cada fuente. Una fuente desactivada desaparece del selector de agente y de las listas de modelos. Las credenciales quedan en el almac\u00e9n de cada CLI; FlowState nunca las lee.",
+    "languageAuto": "Autom\u00e1tico (idioma del sistema)"
   },
   "walkthrough": {
     "title": "Configura tu proyecto",

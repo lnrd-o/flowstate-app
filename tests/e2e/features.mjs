@@ -86,6 +86,25 @@ try {
   await app.ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1`);
   await sleep(300);
 
+  // Language: Automatic option in Settings, explicit choice turns it off, Automatic turns it back on
+  await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
+  await app.waitFor(`!!document.getElementById('set-language')`);
+  const langOpts = await app.ev(`return [...document.getElementById('set-language').options].map((o) => o.value).join(',')`);
+  check('Settings language select offers Automatic + English + Spanish', langOpts === 'auto,en,es', langOpts);
+  const L0 = await app.call('window.flowstate.settings.get()');
+  check('language is automatic by default on a new profile', L0.languageAuto === true, JSON.stringify([L0.language, L0.languageAuto]));
+  const other = L0.language === 'es' ? 'en' : 'es';
+  await app.ev(`const el = document.getElementById('set-language'); el.value = '${other}'; el.dispatchEvent(new Event('change', { bubbles: true })); return 1`);
+  await sleep(600);
+  const L1 = await app.call('window.flowstate.settings.get()');
+  check('choosing a language turns automatic off', L1.language === other && L1.languageAuto === false, JSON.stringify([L1.language, L1.languageAuto]));
+  await app.ev(`const el = document.getElementById('set-language'); el.value = 'auto'; el.dispatchEvent(new Event('change', { bubbles: true })); return 1`);
+  await sleep(600);
+  const L2 = await app.call('window.flowstate.settings.get()');
+  check('Automatic goes back to the system language', L2.languageAuto === true && L2.language === L0.language, JSON.stringify([L2.language, L2.languageAuto]));
+  await app.ev(`document.querySelector('.modal .dialog__footer .btn')?.click(); return 1`);
+  await sleep(300);
+
   // New project wizard: empty project card
   await app.ev(`document.querySelector('.new-project-btn').click(); return 1`);
   let empty = false;

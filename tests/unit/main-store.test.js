@@ -16,7 +16,7 @@ test('settings defaults and locale', () => {
   const d = tmp();
   const s = createSettings({ dir: d, locale: 'es-ES' });
   assert.deepEqual(s.get(), {
-    language: 'es', theme: 'dark', codeTheme: 'github-dark', claudePath: null, agyPath: null, opencodePath: null,
+    language: 'es', languageAuto: true, theme: 'dark', codeTheme: 'github-dark', claudePath: null, agyPath: null, opencodePath: null,
     lastProjectId: null, autoLaunch: false, walkthroughDone: false, developerMode: true, notifications: true, autoUpdate: true, deepseekEnabled: false,
     agentsEnabled: { claude: true, agy: true, opencode: true, deepseek: false },
   });
@@ -66,4 +66,26 @@ test('external URL allow-list', () => {
   assert.ok(!isAllowedExternal('https://evilgithub.com'));
   assert.ok(!isAllowedExternal('file:///c:/x'));
   assert.ok(!isAllowedExternal('javascript:alert(1)'));
+});
+
+test('language follows the system by default; an explicit choice turns automatic off; existing files keep their language', () => {
+  const d = tmp();
+  const s = createSettings({ dir: d, locale: 'es-MX' });
+  assert.deepEqual([s.get().language, s.get().languageAuto], ['es', true]);
+  assert.equal(s.set({ language: 'es' }).languageAuto, true); // same language: still automatic (setup wizard confirms the detected one)
+  const en = s.set({ language: 'en' });
+  assert.deepEqual([en.language, en.languageAuto], ['en', false]);
+  // next start on an English system: the explicit choice stays
+  assert.equal(createSettings({ dir: d, locale: 'en-US' }).get().language, 'en');
+  const back = createSettings({ dir: d, locale: 'es-ES' }).set({ languageAuto: true });
+  assert.deepEqual([back.language, back.languageAuto], ['es', true]);
+  // an old settings.json (no languageAuto) keeps the language the user already had
+  const d2 = tmp();
+  fs.writeFileSync(path.join(d2, 'settings.json'), JSON.stringify({ language: 'en' }));
+  const old = createSettings({ dir: d2, locale: 'es-ES' }).get();
+  assert.deepEqual([old.language, old.languageAuto], ['en', false]);
+  // automatic re-detects at every start
+  const d3 = tmp();
+  createSettings({ dir: d3, locale: 'en-US' }).set({ theme: 'light' });
+  assert.equal(createSettings({ dir: d3, locale: 'es-ES' }).get().language, 'es');
 });

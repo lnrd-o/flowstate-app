@@ -73,7 +73,7 @@ export async function launch({ profile, port, extraArgs = [], waitForIndex = tru
   /** App ready: backend answered and the shell (sidebar) is on screen. */
   const ready = async () => {
     await ev('try { await window.flowstate.app.ready(); } catch {} return 1');
-    await waitFor("!!document.querySelector('.sidebar__header')");
+    await waitFor("!!document.querySelector('.sidebar__header')", 45000);
   };
   /** Reload the renderer and wait until the new page is ready (no fixed sleeps). */
   const reload = async () => {
