@@ -252,6 +252,13 @@ export function opencodeFileChanges(id, kind, st) {
   return out;
 }
 
+/** Default OpenCode model: a plan-covered "opencode-go/" model when one exists (OpenCode Go subscription), else null (opencode's own default). */
+export function preferredOpencodeModel(models) {
+  const go = (Array.isArray(models) ? models : []).map((m) => m && m.id).filter((id) => typeof id === 'string' && id.startsWith('opencode-go/'));
+  if (!go.length) return null;
+  return go.find((id) => /flash/i.test(id) && !/preview/i.test(id)) || go.find((id) => !/free|preview|beta/i.test(id)) || go[0];
+}
+
 export function createOpencodeNormalizer() {
   let sessionSeen = null;
   let text = '';

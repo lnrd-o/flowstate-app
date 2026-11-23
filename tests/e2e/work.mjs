@@ -143,6 +143,46 @@ try {
   await sleep(200);
   await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
   await sleep(400);
+  // Side tabs are icon-only (name on hover), plus Context and Terminal tabs
+  await app.ev(`document.querySelector('.modal .dialog__footer .btn')?.click(); return 1`);
+  await sleep(300);
+  const tabs = await app.ev(`return [...document.querySelectorAll('.artifacts__header .pill-tab')].map((b) => b.id.replace('art-tab-', '') + ':' + (b.title ? 'T' : '-') + (b.textContent.trim() ? 'x' : '') + (b.querySelector('svg') ? 'i' : '')).join(',')`);
+  check('side tabs are icon-only with hover names (incl. Context and Terminal)', /context:Ti/.test(tabs) && /terminal:Ti/.test(tabs) && !/x/.test(tabs.replace(/[a-z]+:/g, '')), tabs);
+  await app.ev(`document.getElementById('art-tab-context').click(); return 1`);
+  let ctx = '';
+  for (let i = 0; i < 30 && !/(Project overview|Resumen del proyecto)/.test(ctx); i++) { await sleep(300); ctx = await app.ev(`return document.querySelector('.ctx-tab')?.innerText || ''`); }
+  check('Context tab shows the project overview and this conversation', /(Project overview|Resumen del proyecto)/.test(ctx) && /(This conversation|Esta conversaci)/.test(ctx), ctx.slice(0, 200));
+  await app.ev(`document.getElementById('art-tab-terminal').click(); return 1`);
+  await app.waitFor(`!!document.querySelector('.term-tab__host .xterm')`, 20000);
+  await sleep(1500);
+  await app.call(`window.flowstate.term.input(${P}, 'echo FS_TERM_OK_' + (6*7) + '\\r')`);
+  let tbuf = '';
+  for (let i = 0; i < 40 && !/FS_TERM_OK_42/.test(tbuf.replace(/echo FS_TERM_OK_[^\r\n]*/g, '')); i++) { await sleep(300); tbuf = (await app.call(`window.flowstate.term.start(${P}, {})`)).buffer || ''; }
+  check('Terminal tab runs commands in the project folder (shell answers)', /FS_TERM_OK_42/.test(tbuf.replace(/echo FS_TERM_OK_[^\r\n]*/g, '')), tbuf.slice(-200));
+  check('terminal starts in the project folder', tbuf.includes('work-project'), tbuf.slice(0, 200));
+  await app.call(`window.flowstate.term.stop(${P})`);
+  // Usage ring in the composer
+  check('usage ring is in the composer', await app.ev(`return !!document.querySelector('.composer .usage-ring') && !document.querySelector('.usage-ring__wrap').hidden`));
+  await app.ev(`document.querySelector('.usage-ring').click(); return 1`);
+  await sleep(300);
+  check('clicking the ring opens the usage popover', await app.ev(`const p = document.querySelector('.usage-pop'); return !!p && !p.hidden && p.innerText.length > 5`));
+  await app.ev(`document.querySelector('.usage-ring').click(); return 1`);
+  await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
+  await sleep(400);
+  // Resend with another model: dialog with grouped models, then Cancel (nothing is sent)
+  await app.ev(`document.querySelector('.modal .dialog__footer .btn')?.click(); return 1`);
+  await sleep(200);
+  await app.ev(`window.__flowstateActions.openResend('Update the sales totals'); return 1`);
+  await app.waitFor(`!!document.getElementById('resend-model')`, 8000);
+  const ropts = await app.ev(`const s = document.getElementById('resend-model'); return s.options.length + ' options, ' + s.querySelectorAll('optgroup').length + ' groups'`);
+  check('Resend dialog lists the default model plus the available models', /^[2-9]|^dd/.test(ropts), ropts);
+  await app.ev(`[...document.querySelectorAll('.modal')].pop().querySelector('.dialog__footer .btn').click(); return 1`);
+  await sleep(200);
+  // hover actions on the user message (Copy / Edit / Send again / Resend with another model)
+  const macts = await app.ev(`return [...document.querySelectorAll('.msg--user .msg__actions button')].map((b) => b.title).join('|')`);
+  check('user messages have Copy, Edit, Send again and Resend-with-another-model', macts.split('|').length === 4, macts);
+  await app.ev(`document.querySelector('.settings-btn').click(); return 1`);
+  await sleep(400);
   check('Settings has Notifications and Auto-update switches', await app.ev(`return !!document.getElementById('set-notifications') && !!document.getElementById('set-autoupdate')`));
   check('no renderer errors', app.problems.length === 0, app.problems.join(' | ').slice(0, 400));
 } catch (e) {

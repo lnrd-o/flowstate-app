@@ -150,6 +150,11 @@ export const CH = Object.freeze({
   evWorkflow: 'ev:workflow',                   // {kind:'open-project', projectId} | {kind:'quick-ask'}
   evSchedule: 'ev:schedule',                   // {tasks}
   evUpdate: 'ev:update',                       // update status (see updateStatus)
+  termStart: 'term:start',                     // (projectId, {cols, rows}) -> {ok, shell, buffer, alive} | {ok:false, error}   interactive shell in the project folder (svc/term.js)
+  termInput: 'term:input',                     // (projectId, data:string) -> boolean
+  termResize: 'term:resize',                   // (projectId, cols, rows) -> boolean
+  termStop: 'term:stop',                       // (projectId) -> {ok}
+  evTerm: 'ev:term',                           // {projectId, kind:'data'|'exit', data?, code?}
   evUsage: 'ev:usage',                       // UsageSnapshot (throttled to 1 per second)
   evTasks: 'ev:tasks',                       // TasksSnapshot (throttled to 2 per second)
   evMenu: 'ev:menu',                         // {id}   a handler:'renderer' menu action triggered from the NATIVE menu / accelerator
@@ -246,6 +251,7 @@ export const API_SHAPE = Object.freeze({
   health: ['check'],
   git: ['status', 'undoTurn'],
   versions: ['list', 'save', 'compare', 'restore', 'branch'],
+  term: ['start', 'input', 'resize', 'stop'],
   workflow: ['compareSheet', 'exportPdf'],
   schedule: ['list', 'save', 'remove', 'runNow'],
   update: ['status', 'check', 'install'],
@@ -270,5 +276,5 @@ export const API_SHAPE = Object.freeze({
   attachments: ['save', 'read'],
   app: ['info', 'ready', 'flushed'],
   subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod', 'onLogin', 'onWindow',
-    'onUsage', 'onTasks', 'onMenu', 'onBeforeQuit', 'onWorkflow', 'onSchedule', 'onUpdate'],
+    'onUsage', 'onTasks', 'onMenu', 'onBeforeQuit', 'onWorkflow', 'onSchedule', 'onUpdate', 'onTerm'],
 });

@@ -9,7 +9,7 @@
 //   service.dispose()                        on app quit
 // A service that fails to load or create is logged and skipped: the IPC layer then answers 'service not available: <name>'.
 
-export const SERVICE_NAMES = Object.freeze(['store', 'ui', 'usage', 'models', 'deepseek', 'attachments', 'tasks', 'menu', 'imports', 'boot', 'preview', 'versions', 'threads', 'workflow', 'schedule', 'updater']);
+export const SERVICE_NAMES = Object.freeze(['store', 'ui', 'usage', 'models', 'deepseek', 'attachments', 'tasks', 'menu', 'imports', 'boot', 'preview', 'versions', 'threads', 'workflow', 'schedule', 'updater', 'term']);
 
 export async function createServices(deps, { names = SERVICE_NAMES, importer = (n) => import(`./svc/${n}.js`), log = console } = {}) {
   const services = deps.services ?? {};

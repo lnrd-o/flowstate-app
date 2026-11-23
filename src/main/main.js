@@ -72,6 +72,7 @@ if (!app.requestSingleInstanceLock()) {
     const agents = createAgentManager({
       // DeepSeek route: the key is read from safeStorage here in main and goes ONLY into the child env (see agents/routes.js).
       routeEnv: async (project, route) => (route === 'deepseek' ? services.deepseek?.routeEnv?.(project.model) ?? { error: 'DeepSeek is not available' } : null),
+      defaultModel: async (agent) => services.models?.defaultModel?.(agent) ?? null,
       contextNote: async (project, text) => [await dashboards?.pythonNote(project.id, text), services?.imports?.layoutNote?.(project.id), services?.threads?.handoffNote?.(project)].filter(Boolean).join('\n\n') || null,
       projects, git, history,
       emit: (id, ev, meta) => { history.recordEvent(id, ev); ipc.pushAgentEvent(id, ev); runner?.onAgentEvent(id, ev); fanoutAgentEvent(services, id, ev, meta); },

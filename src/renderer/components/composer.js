@@ -4,6 +4,7 @@ import { t, getLanguage } from '../lib/i18n.js';
 import { pickLang, filterTemplates, render as renderTemplate, defaultValues } from '../lib/templates.js';
 import { activeProject, isDev } from '../lib/store.js';
 import { agentIcon, setIconState } from './agent-icon.js';
+import { mountUsageRing } from './usage-ring.js';
 import { createAttachments } from './attachments.js';
 import { mountModelPicker } from './model-picker.js';
 import { suggestionChips } from '../lib/images.js';
@@ -59,7 +60,9 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     Promise.resolve(actions.setMode ? actions.setMode(p.id, want) : actions.updateProject(p.id, { mode: want })).finally(() => render());
   });
   const autoBadge = h('span', { class: 'badge badge--amber composer__auto-badge', hidden: true, attrs: { role: 'status' } });
+  const ring = mountUsageRing({ store, actions });
   const send = h('button', { class: 'composer__send', type: 'button' });
+  const stopBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm composer__stop', type: 'button', hidden: true }, icon('stop'));
   const att = createAttachments({
     api, getProjectId: () => store.get().activeProjectId, notify: (m, k, ms) => toast(m, k, ms), onChange: () => render(),
   });
@@ -74,7 +77,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   const composer = h('div', { class: 'composer' },
     att.strip, agyHint,
     input,
-    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, planBtn, autoBadge, att.input), h('div', { class: 'composer__actions' }, attachBtn, send)));
+    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, planBtn, autoBadge, att.input), h('div', { class: 'composer__actions' }, ring.el, attachBtn, stopBtn, send)));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
   const hintText = h('span', { class: 'composer__hint-text' });
   const hintBtn = h('button', { class: 'btn btn--sm composer__signin', type: 'button', hidden: true });
@@ -135,7 +138,14 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     const chat = p && s.chats[p.id];
     const refs = p ? att.refs(p.id) : [];
     const text = input.value.trim() || (refs.length ? t('images.sugg.describe') : '');
-    if (!p || !text || (chat && chat.running) || sendBlockReason(p, s.health, s.signedIn, s.settings) || att.busy(p.id)) return;
+    if (!p || !text || sendBlockReason(p, s.health, s.signedIn, s.settings) || att.busy(p.id)) return;
+    if (chat && chat.running) { // the agent is working: wait in line (text only); it is sent when the agent finishes
+      input.value = ''; drafts.delete(p.id);
+      if (actions.draftChanged) actions.draftChanged(p.id, '');
+      autosize(); paintSend();
+      actions.enqueue(text);
+      return;
+    }
     input.value = '';
     drafts.delete(p.id);
     if (actions.draftChanged) actions.draftChanged(p.id, '');
@@ -167,7 +177,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   }
 
   input.addEventListener('input', () => {
-    autosize(); updateSlash();
+    autosize(); updateSlash(); paintSend();
     if (actions.draftChanged) { const p = activeProject(store.get()); if (p) actions.draftChanged(p.id, input.value); }
   });
   input.addEventListener('paste', (e) => { if (att.handlePaste(e)) e.preventDefault(); });
@@ -186,9 +196,28 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   send.addEventListener('click', () => {
     const s = store.get();
     const chat = s.chats[s.activeProjectId];
-    if (chat && chat.running) actions.stop();
+    if (chat && chat.running && !input.value.trim()) actions.stop();
     else submit();
   });
+  stopBtn.addEventListener('click', () => actions.stop());
+
+  /** Send button: Stop while running with an empty box; "Add to queue" while running with text; Send otherwise. */
+  function paintSend() {
+    const s = store.get();
+    const chat = s.chats[s.activeProjectId];
+    const running = !!(chat && chat.running);
+    const hasText = !!input.value.trim();
+    const queueing = running && hasText;
+    send.replaceChildren(icon(running && !hasText ? 'stop' : 'send'));
+    send.classList.toggle('composer__send--stop', running && !hasText);
+    send.classList.toggle('composer__send--queue', queueing);
+    const label = queueing ? t('work.queue.add') : running ? t('composer.stop') : t('composer.send');
+    send.setAttribute('aria-label', label);
+    send.title = label;
+    stopBtn.hidden = !queueing;
+    stopBtn.title = t('composer.stop');
+    stopBtn.setAttribute('aria-label', t('composer.stop'));
+  }
 
   function render() {
     const s = store.get();
@@ -236,13 +265,9 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     planBtn.title = t('work.plan.toggleTitle');
     planBtn.disabled = !p || running;
     modeSelect.setAttribute('aria-label', t('mode.label'));
-    send.replaceChildren(icon(running ? 'stop' : 'send'));
-    send.classList.toggle('composer__send--stop', running);
-    const label = running ? t('composer.stop') : t('composer.send');
-    send.setAttribute('aria-label', label);
-    send.title = label;
     const uploading = !!p && att.busy(p.id);
-    send.disabled = !running && (!!block || uploading);
+    paintSend();
+    send.disabled = (!running && (!!block || uploading)) || (running && !!input.value.trim() && !!block);
     attachBtn.setAttribute('aria-label', t('images.attach'));
     attachBtn.title = t('images.attach') + ' (' + t('images.attached', { count: p ? att.count(p.id) : 0, max: 5 }) + ')';
     attachBtn.disabled = !p || running;

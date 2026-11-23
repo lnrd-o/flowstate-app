@@ -17,6 +17,7 @@ import { openSettingsDialog } from './components/settings-dialog.js';
 import { openWalkthrough } from './components/walkthrough.js';
 import { openSetupWizard } from './components/setup-wizard.js';
 import { openLoginDialog } from './components/login-dialog.js';
+import { openResendDialog, turnEndedClean } from './components/queue-resend.js';
 import { installDropToStart, installQuickAsk, installUpdateBanner, openScheduleDialog, openAskAboutFile, askPrompt } from './components/work-easier.js';
 import { mountTitlebar } from './components/titlebar.js';
 import { applyStatus, applyHealth, applyLoginEvent } from './lib/login-state.js';
@@ -277,6 +278,65 @@ const actions = {
   },
   /** In-app sign-in (Claude URL + code, AGY terminal). */
   openLogin(agent) { openLoginDialog({ store, api, actions, agent }); },
+  /** Put a sent message back in the composer to change it (the CLI cannot rewrite history: it is sent again as a new message). */
+  editMessage(text) {
+    const p = activeProject(store.get());
+    if (!p || !ui.main) return;
+    ui.main.composer.setDraft(p.id, text);
+    const i = document.getElementById('composer-input');
+    if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+  },
+  /** Send the same message again (same model). */
+  resendMessage(text) {
+    const s = store.get();
+    const p = activeProject(s);
+    if (!p || (s.chats[p.id] && s.chats[p.id].running)) { toast(t('work.queue.busy'), 'warn'); return undefined; }
+    return actions.send(text);
+  },
+  /** Choose another model for this project, then send the message again. text omitted = the last message of the conversation. */
+  openResend(text) {
+    const s = store.get();
+    const p = activeProject(s);
+    if (!p) return;
+    const chat = s.chats[p.id];
+    const msg = text || (chat && chat.lastPrompt) || '';
+    if (!msg) return;
+    actions.loadModels(p.agent);
+    openResendDialog({ store, actions, text: stripRetryNote(msg) });
+  },
+  async resendWithModel(text, model) {
+    const s = store.get();
+    const p = activeProject(s);
+    if (!p || (s.chats[p.id] && s.chats[p.id].running)) { toast(t('work.queue.busy'), 'warn'); return undefined; }
+    if (model !== (p.model || '')) { if (!(await actions.updateProject(p.id, { model: model || null }))) return undefined; }
+    return actions.send(text);
+  },
+  /** Messages typed while the agent works wait here and are sent, in order, when it finishes cleanly. */
+  enqueue(text) {
+    const p = activeProject(store.get());
+    if (!p || !String(text || '').trim()) return;
+    const item = { id: 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: String(text) };
+    store.set((st) => ({ queue: { ...(st.queue || {}), [p.id]: [...((st.queue || {})[p.id] || []), item] } }));
+  },
+  dequeue(id) {
+    const p = activeProject(store.get());
+    if (!p) return;
+    store.set((st) => ({ queue: { ...(st.queue || {}), [p.id]: ((st.queue || {})[p.id] || []).filter((x) => x.id !== id) } }));
+  },
+  /** "Send now": stop what the agent is doing and send this queued message right away. */
+  async sendNow(id) {
+    const s = store.get();
+    const p = activeProject(s);
+    if (!p) return;
+    const item = ((s.queue || {})[p.id] || []).find((x) => x.id === id);
+    if (!item) return;
+    actions.dequeue(id);
+    if (s.chats[p.id] && s.chats[p.id].running) {
+      await actions.stop();
+      for (let i = 0; i < 100 && (store.get().chats[p.id] || {}).running; i++) await new Promise((r) => setTimeout(r, 100));
+    }
+    await actions.send(item.text);
+  },
   /** "Plan first": this turn runs in plan mode (nothing changes); its answer becomes an editable checklist with "Run plan". */
   async sendPlan(text, opts) {
     const s = store.get();
@@ -696,7 +756,7 @@ function buildShell() {
   const app = h('div', { class: 'app' }, rail, sidebar, main, splitter, artifacts);
   root.append(titlebar, bannerSlot, app);
   const deps = { store, api, actions, thumbs, menuDispatch: (item) => actions.menuDispatch(item) };
-  window.__flowstateActions = { openAskAboutFile: (rel) => actions.openAskAboutFile(rel) }; // file viewer button (mounted without actions)
+  window.__flowstateActions = { openAskAboutFile: (rel) => actions.openAskAboutFile(rel), enqueue: (text) => actions.enqueue(text), dequeue: (id) => actions.dequeue(id), openResend: (text) => actions.openResend(text) }; // file viewer button (mounted without actions)
   ui.rail = mountRail(rail, deps);
   ui.sidebar = mountSidebar(sidebar, deps);
   ui.main = mountMain(main, deps);
@@ -769,6 +829,19 @@ async function boot() {
   if (api.onWorkflow) api.onWorkflow((ev) => {
     if (ev && ev.kind === 'open-project' && ev.projectId) actions.selectProject(ev.projectId);
     else if (ev && ev.kind === 'quick-ask' && quick) quick.open();
+  });
+  // Queue: when the active project's turn ended cleanly (no error, limit, approval request or stop), send the next waiting message.
+  const draining = new Set();
+  store.subscribe((s) => {
+    const pid = s.activeProjectId;
+    const q = pid && (s.queue || {})[pid];
+    const c = pid && s.chats[pid];
+    if (!q || !q.length || !c || draining.has(pid)) return;
+    if (!turnEndedClean(c)) return; // paused (error, limit, approval or stop): the queue bar offers Send now / Remove
+    draining.add(pid);
+    const next = q[0];
+    actions.dequeue(next.id);
+    Promise.resolve(actions.send(next.text)).finally(() => setTimeout(() => draining.delete(pid), 300));
   });
   store.subscribe((s) => {
     const pending = s.planPending || {};

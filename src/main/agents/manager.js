@@ -12,7 +12,8 @@ import { loadAttachmentImages } from '../svc/attachments.js';
  *  projects {get, update}, resolveLauncher(agent) -> Promise<{command, baseArgs?}|null>, emit(projectId, event),
  *  git {autoCommit}, spawn, kill, history {recordUser}.
  */
-export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker(), routeEnv, contextNote }) {
+export function createAgentManager({ projects, resolveLauncher, emit, git, spawn, kill, adapters, history, changes = createChangeTracker(), routeEnv, contextNote, defaultModel }) {
+  // defaultModel(agent) -> Promise<string|null> : model for a project with none chosen (opencode: a plan-covered Go model).
   // contextNote(project, text) -> Promise<string|null> : short note appended to the prompt sent to the agent (never stored in history), e.g. which Python interpreter to use.
   // routeEnv(project, route) -> {env}|{error}|null : per-turn child env for a route (DeepSeek key from safeStorage). Main only; the key never leaves it.
   const ad = adapters ?? { claude: new ClaudeAdapter(), agy: new AgyAdapter({ warm: true }), opencode: new OpencodeAdapter() };
@@ -55,6 +56,7 @@ export function createAgentManager({ projects, resolveLauncher, emit, git, spawn
       if (running.has(projectId)) throw new Error('Agent already running for this project');
       const adapter = ad[project.agent];
       if (!adapter) throw new Error(`Unknown agent: ${project.agent}`);
+      if (!project.model && defaultModel && project.agent === 'opencode') { try { const dm = await defaultModel(project.agent); if (dm) project.model = dm; } catch { /* opencode's own default */ } }
       // Resume ids are not portable between routes: a session started on another route is dropped (fresh session + visible note).
       const route = routeOf(project);
       let routeNote = false;

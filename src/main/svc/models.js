@@ -3,6 +3,7 @@ import { runCommand } from '../run.js';
 import { EFFORTS } from '../agents/model-spec.js';
 import { DEEPSEEK_BUILTIN, isDeepseekModel } from '../agents/routes.js';
 import { isSourceEnabled } from '../../shared/sources.js';
+import { preferredOpencodeModel } from '../../shared/events.js';
 
 export const CLAUDE_ALIASES = Object.freeze([
   { id: 'default', name: 'Default (recommended)' },
@@ -64,6 +65,19 @@ export function deepseekModels(hasKey, fetched = []) {
   return [...ids].map(([id, name]) => ({ id, name, group: 'deepseek', ...(hasKey ? {} : { disabled: true, needsKey: true }) }));
 }
 
+/** `opencode auth list` -> provider ids with a stored credential. "OpenCode Go" -> opencode-go, "OpenCode Console/Zen" -> opencode, others slugified. */
+export function parseOpencodeAuthList(text) {
+  const out = [];
+  for (const line of String(text ?? '').replace(/\x1b\[[0-9;]*m/g, '').split(/\r?\n/)) {
+    const cols = line.trim().split(/\s{2,}/);
+    if (cols.length < 2 || !/^(stored|env|oauth|api|wellknown)/i.test(cols[cols.length - 1])) continue;
+    const name = cols[0].toLowerCase();
+    const id = /opencode\s*go/.test(name) ? 'opencode-go' : /opencode\s*(console|zen)?$/.test(name) ? 'opencode' : name.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 export function createModels({ health, run = runCommand, now = Date.now, getProject = () => null, services = {}, getSettings = null } = {}) {
   const off = (id) => !!getSettings && !isSourceEnabled(getSettings() || {}, id);
   let claudeSeen = null;
@@ -78,13 +92,21 @@ export function createModels({ health, run = runCommand, now = Date.now, getProj
     return { agent: 'agy', source: 'live', efforts: [...EFFORTS], ...parsed, models: (parsed.models ?? []).map((x) => ({ ...x, group: 'gemini' })) };
   }
 
+  /** Providers the user is signed in to, from `opencode auth list` rows ("OpenCode Go   OpenCode Go 2   stored"): ['opencode-go', 'opencode', ...]. */
+  async function opencodeCredentials(exe) {
+    try { return parseOpencodeAuthList((await run(exe, ['auth', 'list'], { timeout: 15000 })).stdout); } catch { return []; }
+  }
+
   async function opencodeList() {
     const exe = await health?.findOpencode?.();
     if (!exe) return { agent: 'opencode', source: 'live', models: [], efforts: [], error: 'not-found' };
     const r = await run(exe, ['models'], { timeout: 20000 });
     const parsed = parseOpencodeModels(r.stdout, r.stderr);
     if (parsed.error === 'no-models' && r.code !== 0) parsed.error = 'failed';
-    return { agent: 'opencode', source: 'live', efforts: [], ...parsed };
+    // Plan detection: only default to a Go model when the user actually has an OpenCode Go credential (else opencode's own default).
+    const credentials = await opencodeCredentials(exe);
+    const goModel = credentials.includes('opencode-go') ? preferredOpencodeModel(parsed.models) : null;
+    return { agent: 'opencode', source: 'live', efforts: [], ...parsed, credentials, ...(goModel ? { defaultModel: goModel } : {}) };
   }
 
   async function deepseekExtra() {
@@ -97,6 +119,11 @@ export function createModels({ health, run = runCommand, now = Date.now, getProj
   }
 
   return {
+    /** Model to use when a project has none chosen (opencode: a plan-covered Go model, so the turn is not billed as pay-as-you-go). */
+    async defaultModel(agent) {
+      if (agent !== 'opencode') return null;
+      try { return (await this.list('opencode'))?.defaultModel ?? null; } catch { return null; }
+    },
     async list(agent) {
       if ((agent === 'agy' || agent === 'opencode') && off(agent)) return { agent, source: 'live', models: [], efforts: [], error: 'disabled' }; // never spawn a disabled CLI
       if (agent === 'claude') return claudeList(claudeSeen, await deepseekExtra());

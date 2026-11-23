@@ -12,6 +12,8 @@ import { buildPlainSteps, buildPlainSummary } from './plain-view.js';
 import { agentIcon } from './agent-icon.js';
 import { buildLimitCard } from './limit-card.js';
 import { openLightbox } from './lightbox.js';
+import { copyText } from '../lib/clipboard.js';
+import { toast } from './modal.js';
 
 /** Simple mode: fold every markdown code block under a "Show code" disclosure. */
 function collapseCode(body) {
@@ -102,8 +104,10 @@ export function mountChat(root, { store, api, actions, thumbs }) {
       const body = h('div', { class: 'msg__body' });
       const tag = h('div', { class: 'msg__tag small muted', hidden: true });
       const gallery = h('div', { class: 'msg__images', hidden: true, attrs: { role: 'group' } });
-      const el = h('div', { class: 'msg msg--user' }, gallery, body, tag);
+      const acts = h('div', { class: 'msg__actions', attrs: { role: 'group', 'aria-label': t('work.msg.actions') } });
+      const el = h('div', { class: 'msg msg--user' }, gallery, body, tag, acts);
       let lastImages = '';
+      let lastText = null;
       return {
         el,
         update(x) {
@@ -128,6 +132,15 @@ export function mountChat(root, { store, api, actions, thumbs }) {
           body.textContent = shown;
           tag.hidden = shown === x.text;
           tag.textContent = t('approval.retryTag');
+          if (lastText !== shown) {
+            lastText = shown;
+            const b = (ic, key, fn) => h('button', { class: 'btn btn--ghost btn--icon btn--sm', type: 'button', title: t(key), attrs: { 'aria-label': t(key) }, on: { click: fn } }, icon(ic));
+            acts.replaceChildren(
+              b('copy', 'work.msg.copy', async () => { if (await copyText(shown)) toast(t('work.msg.copied'), 'success'); }),
+              b('edit', 'work.msg.edit', () => actions.editMessage(shown)),
+              b('refresh', 'work.msg.resend', () => actions.resendMessage(shown)),
+              b('sparkles', 'work.msg.otherModel', () => actions.openResend(shown)));
+          }
         },
       };
     }

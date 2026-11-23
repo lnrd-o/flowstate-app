@@ -52,6 +52,7 @@ export function buildLimitCard({ store, actions }) {
       h('p', { class: 'limit-card__msg', text: m.message }), h('footer', { class: 'limit-card__cite xs', text: t('usage.limit.from', { agent: name }) })) : null;
     const acts = h('div', { class: 'limit-card__actions' },
       h('button', { class: 'btn btn--primary btn--sm', type: 'button', text: t('usage.limit.switchTo', { agent: t('agent.' + m.switchTo) }), on: { click: () => actions.switchAgent(m.switchTo) } }),
+      h('button', { class: 'btn btn--sm', type: 'button', text: t('work.msg.otherModel'), on: { click: () => actions.openResend() } }),
       h('button', { class: 'btn btn--sm', type: 'button', text: t('usage.limit.openUsage'), on: { click: () => actions.openUsage() } }),
       h('span', { class: 'limit-card__help faint small', text: t('usage.limit.help') }));
     el.replaceChildren(...[head, quote, acts].filter(Boolean));

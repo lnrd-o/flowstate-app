@@ -64,5 +64,6 @@ export function groupModelOptions(opts) {
     if (!idx.has(g)) { const e = { group: g, kind: g.split(':')[0], provider: g.includes(':') ? g.slice(g.indexOf(':') + 1) : '', options: [] }; idx.set(g, e); out.push(e); }
     idx.get(g).options.push(o);
   }
-  return out.sort((a, b) => (GROUP_ORDER.indexOf(a.kind) + 1 || 99) - (GROUP_ORDER.indexOf(b.kind) + 1 || 99) || a.group.localeCompare(b.group));
+  const rank = (g) => (g.provider === 'opencode-go' ? 0 : g.provider === 'opencode' ? 2 : 1); // OpenCode Go (plan) first, Zen (pay-as-you-go) last
+  return out.sort((a, b) => (GROUP_ORDER.indexOf(a.kind) + 1 || 99) - (GROUP_ORDER.indexOf(b.kind) + 1 || 99) || rank(a) - rank(b) || a.group.localeCompare(b.group));
 }

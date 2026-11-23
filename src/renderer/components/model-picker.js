@@ -99,7 +99,9 @@ export function mountModelPicker({ store, actions }) {
       if (w.costUsd) parts.push('USD ' + w.costUsd.toFixed(2));
       return h('span', { class: 'mp__item-use xs faint truncate', text: parts.join(' - ') });
     };
-    const PROVIDERS = { opencode: 'OpenCode Zen', 'opencode-go': 'OpenCode Go', anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', deepseek: 'DeepSeek', openrouter: 'OpenRouter' };
+    const creds = (list && Array.isArray(list.credentials)) ? list.credentials : null;
+    const PLAN = (id) => (creds ? (creds.includes(id) ? t('model.plan.yours') : t('model.plan.none')) : '');
+    const PROVIDERS = { opencode: 'OpenCode Zen - ' + t('model.plan.payg'), 'opencode-go': 'OpenCode Go' + (creds ? ' - ' + PLAN('opencode-go') : ''), anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', deepseek: 'DeepSeek', openrouter: 'OpenRouter' };
     for (const g of groups) {
       if (showHeads && g.group) body.push(h('div', { class: 'mp__group', attrs: { role: 'presentation' }, text: g.provider ? (PROVIDERS[g.provider] || g.provider) : t('model.group.' + g.kind) }));
       for (const o of g.options) {

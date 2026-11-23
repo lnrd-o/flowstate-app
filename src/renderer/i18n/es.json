@@ -448,7 +448,9 @@
     "gitSimple": "Cambios",
     "notRepoSimple": "Tus cambios todav\u00eda no se est\u00e1n guardando con control de versiones.",
     "changesSimple": "{count} archivos cambiados hasta ahora",
-    "cleanSimple": "Todav\u00eda no hay cambios"
+    "cleanSimple": "Todav\u00eda no hay cambios",
+    "context": "Contexto",
+    "terminal": "Terminal"
   },
   "errors": {
     "generic": "Algo sali\u00f3 mal.",
@@ -1273,6 +1275,11 @@
       "week": "7 d\u00edas: {tokens} tokens, {turns} turnos",
       "today": "hoy {tokens}",
       "note": "Las estimaciones de uso salen de los turnos que FlowState ejecut\u00f3 en este equipo (tokens seg\u00fan cada CLI)."
+    },
+    "plan": {
+      "yours": "tu plan",
+      "none": "sin sesi\u00f3n",
+      "payg": "pago por uso"
     }
   },
   "usage": {
@@ -1860,6 +1867,51 @@
     "settings": {
       "notifications": "Avisarme cuando un turno termine o necesite aprobaci\u00f3n (con FlowState en segundo plano)",
       "autoUpdate": "Descargar actualizaciones autom\u00e1ticamente"
+    },
+    "msg": {
+      "actions": "Acciones del mensaje",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "edit": "Editar y enviar de nuevo",
+      "resend": "Enviar de nuevo",
+      "otherModel": "Reenviar con otro modelo..."
+    },
+    "resend": {
+      "title": "Reenviar con otro modelo",
+      "model": "Modelo",
+      "hint": "El modelo elegido pasa a ser el de este proyecto y el mensaje se env\u00eda de nuevo.",
+      "go": "Reenviar",
+      "default": "Modelo predeterminado"
+    },
+    "queue": {
+      "add": "Agregar a la cola (se env\u00eda cuando el agente termine)",
+      "waiting": "Esperando a que el agente termine ({n})",
+      "paused": "Cola en pausa ({n}): el \u00faltimo turno no termin\u00f3 bien",
+      "sendNow": "Enviar ahora",
+      "remove": "Quitar de la cola",
+      "busy": "Espera a que el agente termine primero."
     }
+  },
+  "ctx": {
+    "title": "Contexto",
+    "intro": "Lo que los agentes saben de este proyecto: las notas que FlowState guarda en .flowstate/context. Cualquier agente puede continuar el trabajo con ellas.",
+    "conversation": "Esta conversaci\u00f3n: {name}",
+    "project": "Resumen del proyecto",
+    "empty": "Todav\u00eda no hay nada escrito. Se llena despu\u00e9s del primer turno.",
+    "open": "Abrir el archivo"
+  },
+  "term": {
+    "restart": "Reiniciar",
+    "exited": "Terminal cerrada",
+    "unavailable": "No se pudo iniciar la terminal"
+  },
+  "ring": {
+    "title": "L\u00edmites de uso del plan",
+    "titleToday": "Uso de hoy",
+    "seeAll": "Ver todo",
+    "plan": "L\u00edmite de 5 horas: {percent}% usado",
+    "tokens": "Tokens hoy: {tokens}",
+    "tokensLabel": "Tokens hoy",
+    "noWindows": "Este agente no tiene ventanas de uso fijas; FlowState muestra lo que us\u00f3 hoy."
   }
 }

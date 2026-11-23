@@ -448,7 +448,9 @@
     "gitSimple": "Changes",
     "notRepoSimple": "Your changes are not being tracked yet.",
     "changesSimple": "{count} files changed so far",
-    "cleanSimple": "No changes yet"
+    "cleanSimple": "No changes yet",
+    "context": "Context",
+    "terminal": "Terminal"
   },
   "errors": {
     "generic": "Something went wrong.",
@@ -1273,6 +1275,11 @@
       "week": "7 days: {tokens} tokens, {turns} turns",
       "today": "today {tokens}",
       "note": "Usage estimates come from the turns FlowState ran on this PC (tokens as reported by each CLI)."
+    },
+    "plan": {
+      "yours": "your plan",
+      "none": "not signed in",
+      "payg": "pay as you go"
     }
   },
   "usage": {
@@ -1860,6 +1867,51 @@
     "settings": {
       "notifications": "Notify me when a turn finishes or needs approval (while FlowState is in the background)",
       "autoUpdate": "Download updates automatically"
+    },
+    "msg": {
+      "actions": "Message actions",
+      "copy": "Copy",
+      "copied": "Copied",
+      "edit": "Edit and send again",
+      "resend": "Send again",
+      "otherModel": "Resend with another model..."
+    },
+    "resend": {
+      "title": "Resend with another model",
+      "model": "Model",
+      "hint": "The selected model becomes this project's model, and the message is sent again.",
+      "go": "Resend",
+      "default": "Default model"
+    },
+    "queue": {
+      "add": "Add to queue (sent when the agent finishes)",
+      "waiting": "Waiting for the agent to finish ({n})",
+      "paused": "Queue paused ({n}): the last turn did not finish cleanly",
+      "sendNow": "Send now",
+      "remove": "Remove from queue",
+      "busy": "Wait for the agent to finish first."
     }
+  },
+  "ctx": {
+    "title": "Context",
+    "intro": "What the agents know about this project: the notes FlowState keeps in .flowstate/context. Any agent can continue the work from them.",
+    "conversation": "This conversation: {name}",
+    "project": "Project overview",
+    "empty": "Nothing written yet. It fills in after the first turn.",
+    "open": "Open the file"
+  },
+  "term": {
+    "restart": "Restart",
+    "exited": "Terminal closed",
+    "unavailable": "The terminal could not start"
+  },
+  "ring": {
+    "title": "Plan usage limits",
+    "titleToday": "Usage today",
+    "seeAll": "See all",
+    "plan": "5-hour limit: {percent}% used",
+    "tokens": "Tokens today: {tokens}",
+    "tokensLabel": "Tokens today",
+    "noWindows": "This agent has no fixed usage windows; FlowState shows what it used today."
   }
 }

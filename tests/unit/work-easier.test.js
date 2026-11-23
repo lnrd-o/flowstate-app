@@ -71,3 +71,25 @@ test('usage: per-model totals (today + 7 days) from finished turns', async () =>
   assert.equal(m.today[k].turns, 2);
   u.dispose();
 });
+
+test('queue: continues only after a clean turn; model groups put the plan-covered provider first; opencode plan detection', async () => {
+  const { turnEndedClean } = await import('../../src/renderer/components/queue-resend.js');
+  const { groupModelOptions } = await import('../../src/renderer/lib/models.js');
+  const { parseOpencodeAuthList } = await import('../../src/main/svc/models.js');
+  const { preferredOpencodeModel } = await import('../../src/shared/events.js');
+  const chat = (msgs, over = {}) => ({ running: false, turn: { id: 2, endedAt: 5 }, messages: msgs.map((m) => ({ turn: 2, ...m })), ...over });
+  assert.equal(turnEndedClean(chat([{ role: 'assistant' }])), true);
+  assert.equal(turnEndedClean(chat([{ role: 'error' }])), false);
+  assert.equal(turnEndedClean(chat([{ role: 'limit', status: 'rejected' }])), false);
+  assert.equal(turnEndedClean(chat([{ role: 'limit', status: 'warning' }])), true); // a usage warning does not pause the queue
+  assert.equal(turnEndedClean(chat([{ role: 'system', key: 'chat.stopped' }])), false);
+  assert.equal(turnEndedClean(chat([{ role: 'approval' }])), false);
+  assert.equal(turnEndedClean(chat([], { running: true })), false);
+  assert.equal(turnEndedClean(chat([{ role: 'error', turn: 1 }])), true); // an old turn's error does not count
+  const groups = groupModelOptions([{ id: 'opencode/a', group: 'opencode:opencode' }, { id: 'x/y', group: 'opencode:anthropic' }, { id: 'opencode-go/b', group: 'opencode:opencode-go' }]);
+  assert.deepEqual(groups.map((g) => g.provider), ['opencode-go', 'anthropic', 'opencode']);
+  assert.deepEqual(parseOpencodeAuthList('OpenCode Go       OpenCode Go 2               stored\nOpenCode Console  Personal                    stored\nAnthropic         key                         env'), ['opencode-go', 'opencode', 'anthropic']);
+  assert.deepEqual(parseOpencodeAuthList(''), []);
+  assert.equal(preferredOpencodeModel([{ id: 'opencode/big' }, { id: 'opencode-go/kimi-k3' }, { id: 'opencode-go/glm-5.3-flash' }]), 'opencode-go/glm-5.3-flash');
+  assert.equal(preferredOpencodeModel([{ id: 'opencode/big' }]), null);
+});

@@ -10,10 +10,14 @@ import { mountFilesTab } from './files-tab.js';
 import { mountDashboardTab } from './dashboard-tab.js';
 import { mountActivityTab } from './activity-tab.js';
 import { mountVersionsTab } from './versions-tab.js';
+import { mountTerminalTab } from './terminal-tab.js';
+import { mountContextTab } from './context-tab.js';
 
 export const WIDTH_KEY = 'flowstate.artifactsWidth';
 export const COLLAPSED_KEY = 'flowstate.artifactsCollapsed';
-const TABS = ['preview', 'files', 'activity', 'dashboard', 'versions', 'git'];
+const TABS = ['preview', 'files', 'context', 'terminal', 'activity', 'dashboard', 'versions', 'git'];
+// Tabs are icon-only (the name shows on hover / to screen readers).
+const TAB_ICONS = { preview: 'fileText', files: 'folder', context: 'layers', terminal: 'terminal', activity: 'zap', dashboard: 'chart', versions: 'branch', git: 'git' };
 
 /** Tabs shown for a mode: Simple hides the technical Activity tab. Pure. */
 export function tabsFor(dev) {
@@ -93,11 +97,12 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
     const agentRunning = !!(p && s.chats[p.id] && s.chats[p.id].running);
     for (const id of tabsFor(isDev(s))) {
       const on = s.artifactsTab === id;
+      const tabName = t(id === 'git' && !isDev(s) ? 'artifacts.gitSimple' : 'artifacts.' + id);
       const b = h('button', {
-        class: 'pill-tab' + (on ? ' is-active' : ''), type: 'button', id: 'art-tab-' + id,
-        attrs: { role: 'tab', 'aria-selected': String(on), 'aria-controls': 'art-panel-' + id, tabindex: on ? '0' : '-1' },
+        class: 'pill-tab pill-tab--icon' + (on ? ' is-active' : ''), type: 'button', id: 'art-tab-' + id, title: tabName,
+        attrs: { role: 'tab', 'aria-selected': String(on), 'aria-controls': 'art-panel-' + id, 'aria-label': tabName, tabindex: on ? '0' : '-1' },
         on: { click: () => selectTab(id) },
-      }, h('span', { class: 'truncate', text: t(id === 'git' && !isDev(s) ? 'artifacts.gitSimple' : 'artifacts.' + id) }),
+      }, icon(TAB_ICONS[id] || 'file'),
       id === 'activity' && agentRunning ? h('span', { class: 'tab-live', title: t('act.tab.working') }, h('span', { class: 'dot dot--agent dot--' + ((p && p.agent) || 'claude'), attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('act.tab.working') })) : null,
       id === 'dashboard' && dashRunning ? h('span', { class: 'tab-live', title: t('dashboard.running') }, h('span', { class: 'dot dot--green', attrs: { 'aria-hidden': 'true' } }), h('span', { class: 'sr-only', text: t('dashboard.running') })) : null);
       tabEls.set(id, b);
@@ -167,6 +172,8 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
   const dashTab = mountDashboardTab(panels.dashboard, { store, api, actions });
   const activityTab = mountActivityTab(panels.activity, { store, actions });
   const versionsTab = mountVersionsTab(panels.versions, { store, api, actions });
+  const terminalTab = mountTerminalTab(panels.terminal, { store, api });
+  const contextTab = mountContextTab(panels.context, { store, api, actions });
 
   function syncPreview() {
     const s = store.get();
@@ -197,6 +204,8 @@ export function mountArtifacts({ aside, splitter, app, store, api, actions }) {
       if (s.artifactsTab === 'dashboard') dashTab.render();
       if (s.artifactsTab === 'activity') activityTab.render();
       if (s.artifactsTab === 'versions') versionsTab.render();
+      if (s.artifactsTab === 'terminal') terminalTab.render();
+      if (s.artifactsTab === 'context') contextTab.render();
     }
     if (s.artifactsTab === 'preview') syncPreview();
   }

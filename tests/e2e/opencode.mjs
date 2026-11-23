@@ -61,7 +61,8 @@ try {
   let tab = false;
   for (let i = 0; i < 20 && !tab; i++) { await sleep(250); tab = await app.ev(`const t = document.getElementById('login-tab-opencode'); return !!t && t.getAttribute('aria-selected') === 'true'`); }
   check('sign-in dialog opens on the OpenCode tab', tab === true);
-  await app.ev(`[...document.querySelectorAll('.modal--login .login__pane button')].find((b) => !b.closest('[hidden]') && b.offsetParent)?.click(); return 1`);
+  await app.waitFor(`[...document.querySelectorAll('.modal--login .login__pane button')].some((b) => !b.closest('[hidden]') && b.offsetParent)`, 15000);
+  await app.ev(`[...document.querySelectorAll('.modal--login .login__pane button')].find((b) => !b.closest('[hidden]') && b.offsetParent).click(); return 1`);
   let text = '';
   for (let i = 0; i < 40 && !/provider|Anthropic|OpenCode|Select|login/i.test(text); i++) {
     await sleep(500);
