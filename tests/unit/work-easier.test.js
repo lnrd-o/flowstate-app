@@ -93,3 +93,43 @@ test('queue: continues only after a clean turn; model groups put the plan-covere
   assert.equal(preferredOpencodeModel([{ id: 'opencode/big' }, { id: 'opencode-go/kimi-k3' }, { id: 'opencode-go/glm-5.3-flash' }]), 'opencode-go/glm-5.3-flash');
   assert.equal(preferredOpencodeModel([{ id: 'opencode/big' }]), null);
 });
+
+test('attachable files: shared type list, project note for the agent', async () => {
+  const { DOC_EXT, isDocName, isImageName, extOf, attachNote, ATTACH_ACCEPT } = await import('../../src/shared/filetypes.js');
+  const { OFFICE_EXT, IMPORT_EXT } = await import('../../src/main/svc/imports.js');
+  for (const e of ['xlsx', 'pptx', 'docx', 'csv', 'txt', 'md', 'pdf', 'json']) assert.ok(DOC_EXT.includes(e) && IMPORT_EXT.includes(e), e);
+  assert.ok(OFFICE_EXT.includes('pptx'));
+  assert.equal(isDocName('Ventas 2026.XLSX'), true);
+  assert.equal(isDocName('virus.exe'), false);
+  assert.equal(isImageName('a.PNG'), true);
+  assert.equal(extOf('archivo'), '');
+  assert.match(ATTACH_ACCEPT, /\.pptx/);
+  assert.match(ATTACH_ACCEPT, /image\/png/);
+  assert.equal(attachNote([]), '');
+  const n = attachNote(['data/ventas.xlsx', 'data/deck.pptx', 'data/nota.md']);
+  assert.match(n, /data\/ventas\.xlsx, data\/deck\.pptx, data\/nota\.md/);
+  assert.match(n, /openpyxl/);
+  assert.match(n, /python-pptx/);
+  assert.match(n, /Never change the originals/);
+});
+
+test('approval policy per agent/mode and pay-as-you-go model acceptance', async () => {
+  const { policyOf, paygKind, modelNeedsAccept, acceptPatch } = await import('../../src/renderer/lib/policy.js');
+  assert.deepEqual(policyOf('claude', 'default'), { key: 'ask', tone: 'green' });
+  assert.deepEqual(policyOf('claude', 'acceptEdits'), { key: 'edits', tone: 'amber' });
+  assert.deepEqual(policyOf('claude', 'plan'), { key: 'plan', tone: 'green' });
+  assert.deepEqual(policyOf('claude', 'auto'), { key: 'all', tone: 'red' });
+  assert.deepEqual(policyOf('opencode', 'default'), { key: 'none', tone: 'amber' }); // opencode run never asks
+  assert.deepEqual(policyOf('opencode', 'plan'), { key: 'plan', tone: 'green' });
+  assert.deepEqual(policyOf('agy', 'default'), { key: 'edits', tone: 'amber' });
+  assert.equal(paygKind('opencode/beam-free'), 'zen');
+  assert.equal(paygKind('opencode-go/glm-5.3-flash'), null); // plan-covered: no OK needed
+  assert.equal(paygKind('deepseek-chat'), 'deepseek');
+  assert.equal(paygKind('opus'), null);
+  assert.equal(modelNeedsAccept('opencode/beam-free', {}), 'zen');
+  assert.equal(modelNeedsAccept('opencode/beam-free', { acceptedModels: ['opencode/beam-free'] }), null);
+  assert.equal(modelNeedsAccept('deepseek-chat', { acceptAllPayg: true }), null);
+  assert.equal(modelNeedsAccept('opencode-go/x', {}), null);
+  assert.deepEqual(acceptPatch({ acceptedModels: ['a'] }, 'b', false), { acceptedModels: ['a', 'b'] });
+  assert.deepEqual(acceptPatch({}, 'b', true), { acceptAllPayg: true });
+});

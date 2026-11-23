@@ -5,6 +5,9 @@ import { pickLang, filterTemplates, render as renderTemplate, defaultValues } fr
 import { activeProject, isDev } from '../lib/store.js';
 import { agentIcon, setIconState } from './agent-icon.js';
 import { mountUsageRing } from './usage-ring.js';
+import { attachNote } from '../../shared/filetypes.js';
+import { createPolicyChip } from './accept-ui.js';
+import { modelNeedsAccept } from '../lib/policy.js';
 import { createAttachments } from './attachments.js';
 import { mountModelPicker } from './model-picker.js';
 import { suggestionChips } from '../lib/images.js';
@@ -61,6 +64,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   });
   const autoBadge = h('span', { class: 'badge badge--amber composer__auto-badge', hidden: true, attrs: { role: 'status' } });
   const ring = mountUsageRing({ store, actions });
+  const policy = createPolicyChip({ onClick: () => { modeSelect.focus(); try { modeSelect.showPicker(); } catch { /* not supported */ } } });
   const send = h('button', { class: 'composer__send', type: 'button' });
   const stopBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm composer__stop', type: 'button', hidden: true }, icon('stop'));
   const att = createAttachments({
@@ -70,14 +74,14 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   // "Plan first": the next message only proposes a plan (plan mode); the answer becomes a checklist with "Run plan".
   const planBtn = h('button', { class: 'btn btn--ghost btn--sm composer__plan', type: 'button', attrs: { 'aria-pressed': 'false' } }, icon('list'), h('span', { class: 'composer__plan-t' }));
   planBtn.addEventListener('click', () => actions.setPlanFirst && actions.setPlanFirst(!store.get().planFirst));
-  const attachBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm composer__attach', type: 'button' }, icon('image'));
+  const attachBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm composer__attach', type: 'button' }, icon('upload'));
   attachBtn.addEventListener('click', () => att.pick());
   const chipsEl = h('div', { class: 'chips', attrs: { role: 'group' }, hidden: true });
   const agyHint = h('div', { class: 'att-hint faint xs', hidden: true });
   const composer = h('div', { class: 'composer' },
     att.strip, agyHint,
     input,
-    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, planBtn, autoBadge, att.input), h('div', { class: 'composer__actions' }, ring.el, attachBtn, stopBtn, send)));
+    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, policy.el, planBtn, autoBadge, att.input), h('div', { class: 'composer__actions' }, ring.el, attachBtn, stopBtn, send)));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
   const hintText = h('span', { class: 'composer__hint-text' });
   const hintBtn = h('button', { class: 'btn btn--sm composer__signin', type: 'button', hidden: true });
@@ -137,9 +141,15 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     const p = activeProject(s);
     const chat = p && s.chats[p.id];
     const refs = p ? att.refs(p.id) : [];
-    const text = input.value.trim() || (refs.length ? t('images.sugg.describe') : '');
+    const docs = p ? att.files(p.id) : [];
+    const base = input.value.trim() || (refs.length ? t('images.sugg.describe') : docs.length ? t('work.attach.default') : '');
+    const text = base ? base + attachNote(docs) : '';
     if (!p || !text || sendBlockReason(p, s.health, s.signedIn, s.settings) || att.busy(p.id)) return;
-    if (chat && chat.running) { // the agent is working: wait in line (text only); it is sent when the agent finishes
+    const needOk = modelNeedsAccept(p.model, s.settings); // pay-as-you-go model: ask first, then send
+    if (needOk) { actions.acceptModel(p.model, needOk).then((ok) => { if (ok) submit(); }); return; }
+    if (chat && chat.running) { // the agent is working: wait in line (text, with attached documents); it is sent when the agent finishes
+      if (refs.length) return; // inline images cannot wait in the queue
+      att.clear(p.id);
       input.value = ''; drafts.delete(p.id);
       if (actions.draftChanged) actions.draftChanged(p.id, '');
       autosize(); paintSend();
@@ -258,6 +268,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     autoBadge.title = t('mode.autoBadgeTitle');
     composer.classList.toggle('is-auto', isAuto);
     modeSelect.disabled = !p || running;
+    policy.render(p);
     const pf = !!s.planFirst;
     planBtn.classList.toggle('is-active', pf);
     planBtn.setAttribute('aria-pressed', String(pf));
@@ -268,8 +279,8 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     const uploading = !!p && att.busy(p.id);
     paintSend();
     send.disabled = (!running && (!!block || uploading)) || (running && !!input.value.trim() && !!block);
-    attachBtn.setAttribute('aria-label', t('images.attach'));
-    attachBtn.title = t('images.attach') + ' (' + t('images.attached', { count: p ? att.count(p.id) : 0, max: 5 }) + ')';
+    attachBtn.setAttribute('aria-label', t('work.attach.title'));
+    attachBtn.title = t('work.attach.title') + ' (' + t('images.attached', { count: p ? att.count(p.id) : 0, max: 5 }) + ')';
     attachBtn.disabled = !p || running;
     att.relabel();
     renderChips(p, chat, dev);

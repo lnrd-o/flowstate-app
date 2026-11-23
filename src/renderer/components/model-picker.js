@@ -4,6 +4,7 @@ import { h, icon, nextId } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { activeProject, isDev } from '../lib/store.js';
 import { filterModelsBySource } from '../../shared/sources.js';
+import { modelNeedsAccept } from '../lib/policy.js';
 import { currentModelLabel, displayEffort, effortValues, groupModelOptions, modelOptions, modelToStore, modelsNeedSignIn } from '../lib/models.js';
 
 export function mountModelPicker({ store, actions }) {
@@ -107,13 +108,21 @@ export function mountModelPicker({ store, actions }) {
       for (const o of g.options) {
       const b = h('button', {
         class: 'menu__item mp__item' + (o.current ? ' is-current' : ''), type: 'button', disabled: o.disabled, attrs: { role: 'menuitemradio', 'aria-checked': String(o.current), tabindex: '-1' },
-        on: { click: () => { if (o.disabled) return; setOpen(false); actions.updateProject(p.id, { model: modelToStore(o.id, list) }); } },
+        on: { click: async () => {
+          if (o.disabled) return;
+          setOpen(false);
+          const stored = modelToStore(o.id, list);
+          const needOk = modelNeedsAccept(stored, s.settings);
+          if (needOk && !(await actions.acceptModel(stored, needOk))) return;
+          actions.updateProject(p.id, { model: stored });
+        } },
       },
       h('span', { class: 'menu__check', attrs: { 'aria-hidden': 'true' }, text: o.current ? '\u2713' : '' }),
       h('span', { class: 'mp__item-main' },
         h('span', { class: 'mp__item-name truncate', text: o.label }),
         o.sub && o.sub !== o.label ? h('span', { class: 'mp__item-id mono truncate', text: o.sub }) : null,
         o.needsKey ? h('span', { class: 'mp__item-need truncate', text: t('model.addKey') }) : null,
+        modelNeedsAccept(modelToStore(o.id, list), s.settings) ? h('span', { class: 'mp__item-need truncate', text: t('accept.model.badge') }) : null,
         o.description ? h('span', { class: 'mp__item-desc truncate', text: o.description }) : null,
         useLine(o)),
       o.isDefault ? h('span', { class: 'badge badge--muted mp__badge', text: t('model.recommended') }) : null);

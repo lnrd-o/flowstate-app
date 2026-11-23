@@ -7,6 +7,7 @@ import { mountComposer } from './composer.js';
 import { mountThreadsBar } from './threads-bar.js';
 import { mountAfterTurnBar } from './work-easier.js';
 import { mountQueueBar } from './queue-resend.js';
+import { mountApprovalBar } from './accept-ui.js';
 import { mountPrompts } from './prompts.js';
 import { mountMethods } from './methods.js';
 import { mountRunPanel } from './run-panel.js';
@@ -36,7 +37,8 @@ export function mountMain(el, deps) {
   const threadsHost = h('div');
   const afterHost = h('div');
   const queueHost = h('div');
-  chatRoot.append(threadsHost, runHost, chatInner, afterHost, queueHost, composerWrap);
+  const approvalHost = h('div');
+  chatRoot.append(threadsHost, runHost, chatInner, afterHost, approvalHost, queueHost, composerWrap);
   const page = h('div', { class: 'page', hidden: true });
   const promptsHost = h('div', { class: 'prompts-host' });
   el.append(topbar, subbar, remoteCard, chatRoot, page);
@@ -50,6 +52,7 @@ export function mountMain(el, deps) {
   mountThreadsBar(threadsHost, deps);
   mountAfterTurnBar(afterHost, deps);
   mountQueueBar(queueHost, deps);
+  mountApprovalBar(approvalHost, deps);
   const chat = mountChat(chatInner, deps);
   const composer = mountComposer(composerWrap, deps);
 

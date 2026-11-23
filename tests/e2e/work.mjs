@@ -179,6 +179,7 @@ try {
   await app.ev(`[...document.querySelectorAll('.modal')].pop().querySelector('.dialog__footer .btn').click(); return 1`);
   await sleep(200);
   // hover actions on the user message (Copy / Edit / Send again / Resend with another model)
+  await app.waitFor(`document.querySelectorAll('.msg--user .msg__actions button').length >= 4`, 10000).catch(() => {});
   const macts = await app.ev(`return [...document.querySelectorAll('.msg--user .msg__actions button')].map((b) => b.title).join('|')`);
   check('user messages have Copy, Edit, Send again and Resend-with-another-model', macts.split('|').length === 4, macts);
   await app.ev(`document.querySelector('.settings-btn').click(); return 1`);

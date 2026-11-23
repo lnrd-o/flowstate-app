@@ -1193,7 +1193,8 @@
     "projectConfirm": "This switches the project to Auto-accept edits only: {agent} can then change files without asking each time, until you change the mode back. Your last request is sent again.",
     "projectConfirmOk": "Switch and retry",
     "dismissedNote": "You chose not to allow that action.",
-    "retryTag": "Sent again with your permission"
+    "retryTag": "Sent again with your permission",
+    "acceptAll": "Accept all ({n})"
   },
   "images": {
     "attach": "Attach image",
@@ -1890,6 +1891,14 @@
       "sendNow": "Send now",
       "remove": "Remove from queue",
       "busy": "Wait for the agent to finish first."
+    },
+    "attach": {
+      "title": "Attach files or images",
+      "default": "Look at the attached file(s) and tell me what is in them.",
+      "failed": "Could not add {name}",
+      "unsupported": "{name} is not a supported file type.",
+      "max": "You can attach up to {max} files per message.",
+      "big": "{name} is too large (max {max} MB)."
     }
   },
   "ctx": {
@@ -1913,5 +1922,35 @@
     "tokens": "Tokens today: {tokens}",
     "tokensLabel": "Tokens today",
     "noWindows": "This agent has no fixed usage windows; FlowState shows what it used today."
+  },
+  "accept": {
+    "bar": {
+      "one": "{agent} needs your OK for 1 action",
+      "many": "{agent} needs your OK for {n} actions",
+      "all": "Accept all",
+      "allTitle": "Allow everything that was blocked in this turn and continue",
+      "review": "Review"
+    },
+    "model": {
+      "title": "This model needs your OK",
+      "bodyZen": "This OpenCode Zen model is billed to your OpenCode credits (pay as you go). It is not covered by an OpenCode Go plan.",
+      "bodyDeepseek": "This DeepSeek model is billed to your DeepSeek API balance, per use.",
+      "hint": "You can accept this one model, or every pay-as-you-go model.",
+      "one": "Accept this model",
+      "all": "Accept all pay-as-you-go models",
+      "badge": "needs your OK (billed per use)"
+    }
+  },
+  "policy": {
+    "ask": "Asks first",
+    "askTitle": "{agent} asks for your OK before changing files or running commands.",
+    "edits": "Edits OK",
+    "editsTitle": "{agent} changes files without asking; commands and web access still need your OK.",
+    "none": "No prompts",
+    "noneTitle": "{agent} never asks: its tools simply run. Use Plan first to review before it acts.",
+    "plan": "Plan only",
+    "planTitle": "Plan only: {agent} can read but changes nothing.",
+    "all": "Accepts all",
+    "allTitle": "Everything is accepted without asking (protected actions such as deleting or installing still ask for Claude)."
   }
 }

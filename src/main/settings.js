@@ -19,6 +19,9 @@ export function defaultSettings(locale = 'en') {
     developerMode: true,
     // Desktop notifications when a turn finishes / needs approval while FlowState is in the background.
     notifications: true,
+    // Pay-as-you-go models (OpenCode Zen, DeepSeek) need an explicit OK before first use: accepted one by one, or all at once.
+    acceptedModels: [],
+    acceptAllPayg: false,
     // Download new versions from GitHub Releases in the background (installed builds only).
     autoUpdate: true,
     // DeepSeek usage/models panel (the API key itself is NOT a setting: it lives encrypted via svc/deepseek.js)
@@ -53,6 +56,8 @@ const TYPES = {
   walkthroughDone: (v) => typeof v === 'boolean',
   developerMode: (v) => typeof v === 'boolean',
   notifications: (v) => typeof v === 'boolean',
+  acceptedModels: (v) => Array.isArray(v) && v.length <= 200 && v.every((x) => typeof x === 'string' && x.length > 0 && x.length <= 160),
+  acceptAllPayg: (v) => typeof v === 'boolean',
   autoUpdate: (v) => typeof v === 'boolean',
   deepseekEnabled: (v) => typeof v === 'boolean',
   agentsEnabled: (v) => isAgentsEnabled(v),

@@ -87,3 +87,22 @@
 .usage-pop__title { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
 .usage-pop__line { display: flex; align-items: baseline; gap: var(--space-2); }
 .usage-pop__line > :nth-child(2) { margin-left: auto; }
+
+/* document chips in the composer */
+.att--file { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; max-width: 240px; width: auto; height: auto; border: 1px solid var(--border-strong); border-radius: var(--radius, 8px); background: var(--surface-2, var(--bg)); }
+.att--file .att__remove { position: static; opacity: 1; margin-left: 2px; }
+.att__filename { min-width: 0; font-size: 12px; }
+.att__fileic { width: 16px; height: 16px; flex: 0 0 auto; }
+
+/* approval bar, policy chip, pay-as-you-go accept dialog */
+.approval-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--amber, #d29922); background: color-mix(in srgb, var(--amber, #d29922) 12%, transparent); flex: 0 0 auto; }
+.approval-bar[hidden] { display: none; }
+.approval-bar__ic { color: var(--amber, #d29922); }
+.approval-bar__text { flex: 1 1 auto; font-weight: 600; }
+.policy-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border-strong); background: transparent; color: var(--text); font-size: 12px; cursor: pointer; }
+.policy-chip[hidden] { display: none; }
+.policy-chip svg { width: 13px; height: 13px; }
+.policy-chip--green { border-color: var(--green, #3fb950); }
+.policy-chip--amber { border-color: var(--amber, #d29922); }
+.policy-chip--red { border-color: var(--red, #f85149); color: var(--red, #f85149); }
+.accept-model { display: flex; flex-direction: column; gap: var(--space-2); }

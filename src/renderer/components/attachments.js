@@ -3,6 +3,7 @@
 import { h, icon } from '../lib/dom.js';
 import { t } from '../lib/i18n.js';
 import { IMAGE_ACCEPT, MAX_IMAGES, MAX_IMAGE_BYTES, parseDataUrl, pastedName, validateBatch } from '../lib/images.js';
+import { ATTACH_ACCEPT, MAX_ATTACH, MAX_DOC_BYTES, isDocName, extOf } from '../../shared/filetypes.js';
 import { openLightbox } from './lightbox.js';
 
 /**
@@ -15,7 +16,7 @@ export function createAttachments({ api, getProjectId, notify, onChange }) {
   let dragDepth = 0;
 
   const strip = h('div', { class: 'att-strip', hidden: true, attrs: { role: 'list' } });
-  const input = h('input', { type: 'file', accept: IMAGE_ACCEPT, multiple: true, class: 'att-input', attrs: { tabindex: '-1', 'aria-hidden': 'true' } });
+  const input = h('input', { type: 'file', accept: ATTACH_ACCEPT, multiple: true, class: 'att-input', attrs: { tabindex: '-1', 'aria-hidden': 'true' } });
   const overlayTitle = h('div', { class: 'drop-overlay__title' });
   const overlayText = h('div', { class: 'drop-overlay__text' });
   const overlay = h('div', { class: 'drop-overlay', hidden: true, attrs: { 'aria-hidden': 'true' } }, icon('upload', 'icon--lg'), overlayTitle, overlayText);
@@ -30,6 +31,13 @@ export function createAttachments({ api, getProjectId, notify, onChange }) {
     strip.hidden = !items.length;
     strip.setAttribute('aria-label', t('images.strip'));
     strip.replaceChildren(...items.map((it, i) => {
+      if (it.kind === 'file') { // a document: file chip (icon + name + extension), copied into the project
+        const rm = h('button', { class: 'att__remove', type: 'button', attrs: { 'aria-label': t('images.remove', { name: it.name }), title: t('images.remove', { name: it.name }) }, on: { click: () => remove(it.key) } }, icon('x'));
+        const busyF = it.status === 'uploading';
+        return h('div', { class: 'att att--file att--' + it.status, attrs: { role: 'listitem', title: it.rel || it.name }, dataset: { key: it.key } },
+          icon('fileText', 'att__fileic'), h('span', { class: 'att__filename truncate', text: it.name }), h('span', { class: 'att__ext xs faint', text: extOf(it.name).toUpperCase() }),
+          busyF ? h('span', { class: 'spinner' }) : null, it.status === 'error' ? h('span', { class: 'att__error', title: it.error || '', attrs: { role: 'img', 'aria-label': t('images.failed', { name: it.name }) } }, icon('alert')) : null, rm);
+      }
       const imgEl = h('img', { class: 'att__img', src: it.thumb || '', alt: t('images.alt', { n: i + 1, name: it.name }), draggable: false });
       const open = h('button', {
         class: 'att__open', type: 'button', disabled: !it.thumb,
@@ -89,11 +97,40 @@ export function createAttachments({ api, getProjectId, notify, onChange }) {
     }
   }
 
-  /** Validate, show thumbnails and upload. opts.pasted names clipboard images. */
+  /** A document (xlsx, pptx, docx, csv, txt, md, pdf ...): copied into the project's data folder by path; the chip keeps the project-relative path. */
+  async function addDoc(file, pid) {
+    const key = 'a' + (++seq);
+    byProject.set(pid, [...list(pid), { key, kind: 'file', name: file.name, size: file.size, status: 'uploading', progress: 0, rel: null }]);
+    changed();
+    try {
+      const abs = api.pathForFile ? api.pathForFile(file) : '';
+      if (!abs) throw new Error('path');
+      const r = await api.files.import(pid, abs);
+      if (!r || !r.rel) throw new Error('import');
+      update(pid, key, { status: 'done', rel: r.rel, name: r.name || file.name });
+    } catch (e) {
+      update(pid, key, { status: 'error', error: (e && e.message) || '' });
+      notify(t('work.attach.failed', { name: file.name }), 'error');
+    }
+  }
+
+  /** Validate, show thumbnails and upload. Images go inline (paste, drop, picker); documents are copied into the project. opts.pasted names clipboard images. */
   function addFiles(files, opts) {
     const pid = getProjectId();
     if (!pid || !api.attachments || !api.attachments.save) return;
-    const incoming = Array.from(files || []);
+    const all = Array.from(files || []);
+    const docs = all.filter((f) => !/^image\//i.test(f.type) && isDocName(f.name));
+    const rest = all.filter((f) => !docs.includes(f));
+    const unsupported = rest.filter((f) => !/^image\//i.test(f.type));
+    if (unsupported.length) notify(t('work.attach.unsupported', { name: unsupported[0].name }), 'warn', 6000);
+    let room = Math.max(0, MAX_ATTACH - list(pid).length);
+    for (const f of docs) {
+      if (room <= 0) { notify(t('work.attach.max', { max: MAX_ATTACH }), 'warn', 6000); break; }
+      if (f.size > MAX_DOC_BYTES) { notify(t('work.attach.big', { name: f.name, max: Math.round(MAX_DOC_BYTES / 1048576) }), 'warn', 6000); continue; }
+      room -= 1;
+      addDoc(f, pid);
+    }
+    const incoming = rest.filter((f) => /^image\//i.test(f.type));
     const { accepted, errors } = validateBatch(incoming, list(pid).length);
     for (const e of errors.slice(0, 3)) notify(t(e.key, e.vars), 'warn', 6000);
     if (errors.length > 3) notify(t('images.err.count', { name: '+' + (errors.length - 3), max: MAX_IMAGES }), 'warn', 6000);
@@ -155,7 +192,9 @@ export function createAttachments({ api, getProjectId, notify, onChange }) {
     count: (pid) => list(pid).length,
     busy: (pid) => list(pid).some((x) => x.status === 'reading' || x.status === 'uploading'),
     /** [{ rel }] of the attachments that finished uploading (what agent.send expects). */
-    refs: (pid) => list(pid).filter((x) => x.status === 'done' && x.rel).map((x) => ({ rel: x.rel })),
+    refs: (pid) => list(pid).filter((x) => x.kind !== 'file' && x.status === 'done' && x.rel).map((x) => ({ rel: x.rel })),
+    /** Project-relative paths of the documents attached (already copied into the project). */
+    files: (pid) => list(pid).filter((x) => x.kind === 'file' && x.status === 'done' && x.rel).map((x) => x.rel),
     /** Thumbnails by rel for the optimistic user bubble. */
     thumbs: (pid) => new Map(list(pid).filter((x) => x.rel && x.thumb).map((x) => [x.rel, x.thumb])),
     clear(pid) { byProject.set(pid, []); if (pid === getProjectId()) changed(); },

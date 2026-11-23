@@ -18,6 +18,8 @@ import { openWalkthrough } from './components/walkthrough.js';
 import { openSetupWizard } from './components/setup-wizard.js';
 import { openLoginDialog } from './components/login-dialog.js';
 import { openResendDialog, turnEndedClean } from './components/queue-resend.js';
+import { openAcceptModelDialog } from './components/accept-ui.js';
+import { acceptPatch } from './lib/policy.js';
 import { installDropToStart, installQuickAsk, installUpdateBanner, openScheduleDialog, openAskAboutFile, askPrompt } from './components/work-easier.js';
 import { mountTitlebar } from './components/titlebar.js';
 import { applyStatus, applyHealth, applyLoginEvent } from './lib/login-state.js';
@@ -278,6 +280,13 @@ const actions = {
   },
   /** In-app sign-in (Claude URL + code, AGY terminal). */
   openLogin(agent) { openLoginDialog({ store, api, actions, agent }); },
+  /** Pay-as-you-go model: ask for the user's OK (this model / all such models) and remember it in settings. -> Promise<boolean> */
+  async acceptModel(model, kind) {
+    const r = await openAcceptModelDialog({ model, kind });
+    if (!r) return false;
+    await actions.updateSettings(acceptPatch(store.get().settings, model, r === 'all'));
+    return true;
+  },
   /** Put a sent message back in the composer to change it (the CLI cannot rewrite history: it is sent again as a new message). */
   editMessage(text) {
     const p = activeProject(store.get());

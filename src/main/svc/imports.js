@@ -5,11 +5,12 @@ import nodeOs from 'node:os';
 import { resolveInside } from '../files.js';
 import { folderNameFromTitle, uniqueFolderName } from '../../shared/folder-name.js';
 import { layoutFor, detectLayout, layoutNote } from '../../shared/layout.js';
+import { DOC_EXT, IMAGE_EXT } from '../../shared/filetypes.js';
 
 export const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
-export const OFFICE_EXT = Object.freeze(['xlsx', 'xlsm', 'xls', 'csv', 'tsv', 'txt', 'json', 'md', 'docx', 'pdf', 'html', 'htm', 'xml']);
+export const OFFICE_EXT = DOC_EXT; // every common document type (see shared/filetypes.js)
 export const DATA_EXT = Object.freeze(['csv', 'tsv', 'txt', 'json', 'xlsx', 'xls']);
-export const IMAGE_EXT = Object.freeze(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+export { IMAGE_EXT };
 export const IMPORT_EXT = Object.freeze([...OFFICE_EXT, ...IMAGE_EXT]);
 export const DATA_DIR = 'data';
 const WIN_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;

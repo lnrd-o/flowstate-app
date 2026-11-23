@@ -105,7 +105,7 @@ export function buildApprovalCard() {
       const actions = h('div', { class: 'approval-card__actions' });
       primaryBtn = null;
       if (plan.mode === 'once') {
-        primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', text: multi ? t('approval.allowSelected') : t('approval.allowOnce'), on: { click: () => ctx.approve.once(m.id, plan.rules, plan.unprotect) } });
+        primaryBtn = h('button', { class: 'btn btn--primary', type: 'button', text: multi ? (selected.size === items.length ? t('approval.acceptAll', { n: items.length }) : t('approval.allowSelected')) : t('approval.allowOnce'), on: { click: () => ctx.approve.once(m.id, plan.rules, plan.unprotect) } });
         if (plan.protectedSelected) {
           // Protections stay on in Auto-accept: "for this project" would only be refused again, so only "once" is offered.
           parts.push(h('div', { class: 'approval-card__note small', attrs: { role: 'note' } }, icon('lock'), t('approval.protectedNote')));
