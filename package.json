@@ -1,7 +1,7 @@
 {
   "name": "flowstate",
   "productName": "FlowState",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "FlowState - a desktop GUI for Claude Code and Antigravity CLIs",
   "author": {
     "name": "FlowState contributors",
@@ -30,6 +30,8 @@
     "e2e:versions": "node tests/e2e/versions.mjs",
     "e2e:features": "node tests/e2e/features.mjs",
     "e2e:opencode": "node tests/e2e/opencode.mjs",
+    "e2e:work": "node tests/e2e/work.mjs",
+    "e2e:plan": "node tests/e2e/plan-real.mjs",
     "vendor": "node scripts/vendor.js",
     "icon": "node scripts/make-icon.mjs",
     "dist": "electron-builder --win --x64 --publish never",
@@ -53,6 +55,7 @@
     "marked": "^18.2.1"
   },
   "dependencies": {
-    "@lydell/node-pty": "^1.2.0-beta.18"
+    "@lydell/node-pty": "^1.2.0-beta.18",
+    "electron-updater": "^6.8.11"
   }
 }

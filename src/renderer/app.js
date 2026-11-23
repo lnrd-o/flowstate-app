@@ -17,6 +17,7 @@ import { openSettingsDialog } from './components/settings-dialog.js';
 import { openWalkthrough } from './components/walkthrough.js';
 import { openSetupWizard } from './components/setup-wizard.js';
 import { openLoginDialog } from './components/login-dialog.js';
+import { installDropToStart, installQuickAsk, installUpdateBanner, openScheduleDialog, openAskAboutFile, askPrompt } from './components/work-easier.js';
 import { mountTitlebar } from './components/titlebar.js';
 import { applyStatus, applyHealth, applyLoginEvent } from './lib/login-state.js';
 import { normalizePlatform } from './lib/titlebar-state.js';
@@ -276,6 +277,24 @@ const actions = {
   },
   /** In-app sign-in (Claude URL + code, AGY terminal). */
   openLogin(agent) { openLoginDialog({ store, api, actions, agent }); },
+  /** "Plan first": this turn runs in plan mode (nothing changes); its answer becomes an editable checklist with "Run plan". */
+  async sendPlan(text, opts) {
+    const s = store.get();
+    const p = activeProject(s);
+    if (!p) return;
+    const chat = s.chats[p.id];
+    store.set((st) => ({ planPending: { ...(st.planPending || {}), [p.id]: { afterTurn: chat ? chat.turn.id : 0 } } }));
+    await actions.send(text + '\n\n[Plan first: propose a short numbered plan of concrete steps. Do not change any file yet.]', { ...(opts || {}), mode: 'plan' });
+  },
+  clearPlan(pid) { store.set((st) => { const plans = { ...(st.plans || {}) }; delete plans[pid]; return { plans }; }); },
+  setPlanFirst(on) { store.set({ planFirst: !!on }); },
+  /** Ask about a project file: a ready prompt (explain / errors / chart / summarize) or a draft in the composer (custom). */
+  askAboutFile(rel, kind) {
+    if (kind === 'custom') { if (ui.main) { const p = activeProject(store.get()); if (p) ui.main.composer.setDraft(p.id, `About ${rel}: `); } return; }
+    actions.send(askPrompt(kind, rel));
+  },
+  openAskAboutFile(rel) { openAskAboutFile({ actions, rel }); },
+  openSchedule() { openScheduleDialog({ store, api, actions }); },
   /** Download the official OpenCode CLI (opencode.ai, about 120 MB) into ~/.opencode/bin, then offer its sign-in. */
   async installOpencode() {
     if (!api.prereq || !api.prereq.installOpencode) return false;
@@ -422,7 +441,7 @@ const actions = {
     try {
       const allow = opts && Array.isArray(opts.allow) && opts.allow.length ? opts.allow : null;
       const unprotect = opts && Array.isArray(opts.unprotect) && opts.unprotect.length ? opts.unprotect : null;
-      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}), ...(unprotect ? { unprotect } : {}), ...(images.length ? { images } : {}) });
+      await api.agent.send({ projectId: p.id, text, ...(allow ? { allow } : {}), ...(unprotect ? { unprotect } : {}), ...(images.length ? { images } : {}), ...(opts && opts.mode === 'plan' ? { mode: 'plan' } : {}) });
     } catch (e) {
       store.updateChat(p.id, (c) => failTurn(c, (e && e.message) || t('errors.spawnFailed', { agent: t('agent.' + p.agent) })));
     }
@@ -676,6 +695,7 @@ function buildShell() {
   const app = h('div', { class: 'app' }, rail, sidebar, main, splitter, artifacts);
   root.append(titlebar, bannerSlot, app);
   const deps = { store, api, actions, thumbs, menuDispatch: (item) => actions.menuDispatch(item) };
+  window.__flowstateActions = { openAskAboutFile: (rel) => actions.openAskAboutFile(rel) }; // file viewer button (mounted without actions)
   ui.rail = mountRail(rail, deps);
   ui.sidebar = mountSidebar(sidebar, deps);
   ui.main = mountMain(main, deps);
@@ -740,6 +760,23 @@ async function boot() {
 
   actions.refreshUsage();
   if (api.onUsage) api.onUsage((u) => store.set({ usage: u }));
+  // "Work easier": drop a file anywhere, quick ask (Ctrl+Space), update banner, notification clicks, plan capture
+  try { installDropToStart({ store, api, actions }); } catch { /* optional */ }
+  let quick = null;
+  try { quick = installQuickAsk({ store, actions }); } catch { /* optional */ }
+  try { installUpdateBanner({ api }); } catch { /* optional */ }
+  if (api.onWorkflow) api.onWorkflow((ev) => {
+    if (ev && ev.kind === 'open-project' && ev.projectId) actions.selectProject(ev.projectId);
+    else if (ev && ev.kind === 'quick-ask' && quick) quick.open();
+  });
+  store.subscribe((s) => {
+    const pending = s.planPending || {};
+    for (const pid of Object.keys(pending)) {
+      const c = s.chats[pid];
+      if (!c || c.running || !c.turn || c.turn.id <= pending[pid].afterTurn || !c.turn.endedAt) continue;
+      store.set((st) => { const pp = { ...(st.planPending || {}) }; delete pp[pid]; return { planPending: pp, plans: { ...(st.plans || {}), [pid]: { turnId: c.turn.id } } }; });
+    }
+  });
   actions.refreshTasks();
   if (api.onTasks) api.onTasks((snap) => store.set({ tasks: snap }));
   if (settings.deepseekEnabled) actions.refreshDeepseek(false);

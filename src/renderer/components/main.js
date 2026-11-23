@@ -5,6 +5,7 @@ import { activeProject, isDev } from '../lib/store.js';
 import { mountChat } from './chat.js';
 import { mountComposer } from './composer.js';
 import { mountThreadsBar } from './threads-bar.js';
+import { mountAfterTurnBar } from './work-easier.js';
 import { mountPrompts } from './prompts.js';
 import { mountMethods } from './methods.js';
 import { mountRunPanel } from './run-panel.js';
@@ -32,7 +33,8 @@ export function mountMain(el, deps) {
   const chatInner = h('div', { class: 'chat__list' });
   const composerWrap = h('div', { class: 'composer-wrap' });
   const threadsHost = h('div');
-  chatRoot.append(threadsHost, runHost, chatInner, composerWrap);
+  const afterHost = h('div');
+  chatRoot.append(threadsHost, runHost, chatInner, afterHost, composerWrap);
   const page = h('div', { class: 'page', hidden: true });
   const promptsHost = h('div', { class: 'prompts-host' });
   el.append(topbar, subbar, remoteCard, chatRoot, page);
@@ -44,6 +46,7 @@ export function mountMain(el, deps) {
   const tasksPanel = mountTasksPanel(tasksHost, deps);
 
   mountThreadsBar(threadsHost, deps);
+  mountAfterTurnBar(afterHost, deps);
   const chat = mountChat(chatInner, deps);
   const composer = mountComposer(composerWrap, deps);
 

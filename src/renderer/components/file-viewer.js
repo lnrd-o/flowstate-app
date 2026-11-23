@@ -22,7 +22,10 @@ export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyTex
   const revealBtn = btn('folder', 'files.reveal', () => act('reveal'));
   const openBtn = btn('external', 'files.open', () => act('open'));
   const refreshBtn = btn('refresh', 'artifacts.refresh', () => load(true));
-  const bar = h('div', { class: 'fv__bar' }, h('div', { class: 'fv__title row' }, name, meta), h('div', { class: 'fv__actions row wrap gap-1' }, revealBtn, openBtn, refreshBtn));
+  // Ask about this file: explain / find errors / chart / summarize / custom (renderer action, see components/work-easier.js)
+  const askBtn = btn('sparkles', 'work.ask.button', () => { if (rel && window.__flowstateActions && window.__flowstateActions.openAskAboutFile) window.__flowstateActions.openAskAboutFile(rel); });
+  askBtn.disabled = true;
+  const bar = h('div', { class: 'fv__bar' }, h('div', { class: 'fv__title row' }, name, meta), h('div', { class: 'fv__actions row wrap gap-1' }, askBtn, revealBtn, openBtn, refreshBtn));
   const content = h('div', { class: 'fv__content' });
   const el = h('div', { class: 'fv' }, bar, content);
   attachLinkHandler(content);
@@ -79,9 +82,9 @@ export function createFileViewer({ api, emptyIcon = 'file', emptyTitle, emptyTex
     el,
     show(pid, relPath) {
       if (pid === projectId && relPath === rel) return;
-      projectId = pid; rel = relPath || null; load(false);
+      projectId = pid; rel = relPath || null; askBtn.disabled = !rel; load(false);
     },
-    clear() { projectId = null; rel = null; token++; renderEmpty(); },
+    clear() { projectId = null; rel = null; askBtn.disabled = true; token++; renderEmpty(); },
     refresh() { return load(false); },
     update() { labels(); if (!rel) renderEmpty(); else { lastKey = ''; load(false); } },
     current: () => rel,

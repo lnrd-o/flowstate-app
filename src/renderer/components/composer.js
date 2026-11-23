@@ -64,6 +64,9 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     api, getProjectId: () => store.get().activeProjectId, notify: (m, k, ms) => toast(m, k, ms), onChange: () => render(),
   });
   const picker = mountModelPicker({ store, actions });
+  // "Plan first": the next message only proposes a plan (plan mode); the answer becomes a checklist with "Run plan".
+  const planBtn = h('button', { class: 'btn btn--ghost btn--sm composer__plan', type: 'button', attrs: { 'aria-pressed': 'false' } }, icon('list'), h('span', { class: 'composer__plan-t' }));
+  planBtn.addEventListener('click', () => actions.setPlanFirst && actions.setPlanFirst(!store.get().planFirst));
   const attachBtn = h('button', { class: 'btn btn--ghost btn--icon btn--sm composer__attach', type: 'button' }, icon('image'));
   attachBtn.addEventListener('click', () => att.pick());
   const chipsEl = h('div', { class: 'chips', attrs: { role: 'group' }, hidden: true });
@@ -71,7 +74,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   const composer = h('div', { class: 'composer' },
     att.strip, agyHint,
     input,
-    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, autoBadge, att.input), h('div', { class: 'composer__actions' }, attachBtn, send)));
+    h('div', { class: 'composer__toolbar' }, h('div', { class: 'composer__tools' }, segmented, picker.el, picker.effort, modeSelect, planBtn, autoBadge, att.input), h('div', { class: 'composer__actions' }, attachBtn, send)));
   const hint = h('div', { class: 'composer__hint', attrs: { role: 'status' } });
   const hintText = h('span', { class: 'composer__hint-text' });
   const hintBtn = h('button', { class: 'btn btn--sm composer__signin', type: 'button', hidden: true });
@@ -139,7 +142,8 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     autosize();
     if (refs.length && thumbs) for (const [rel, url] of att.thumbs(p.id)) thumbs.put(p.id, rel, url);
     att.clear(p.id);
-    actions.send(text, refs.length ? { images: refs } : undefined);
+    const o = refs.length ? { images: refs } : undefined;
+    if (s.planFirst && actions.sendPlan) actions.sendPlan(text, o); else actions.send(text, o);
   }
 
   /** Insert a suggestion chip's prompt (never sends). */
@@ -225,6 +229,12 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
     autoBadge.title = t('mode.autoBadgeTitle');
     composer.classList.toggle('is-auto', isAuto);
     modeSelect.disabled = !p || running;
+    const pf = !!s.planFirst;
+    planBtn.classList.toggle('is-active', pf);
+    planBtn.setAttribute('aria-pressed', String(pf));
+    planBtn.lastChild.textContent = t('work.plan.toggle');
+    planBtn.title = t('work.plan.toggleTitle');
+    planBtn.disabled = !p || running;
     modeSelect.setAttribute('aria-label', t('mode.label'));
     send.replaceChildren(icon(running ? 'stop' : 'send'));
     send.classList.toggle('composer__send--stop', running);
@@ -249,7 +259,7 @@ export function mountComposer(root, { store, api, actions, thumbs }) {
   const isEmpty = (st) => !(st.chats[st.activeProjectId] && st.chats[st.activeProjectId].messages.length);
   store.subscribe((s, prev) => {
     if (s.projects !== prev.projects || s.activeProjectId !== prev.activeProjectId || s.health !== prev.health || s.signedIn !== prev.signedIn
-      || isRunning(s) !== isRunning(prev) || isEmpty(s) !== isEmpty(prev) || s.models !== prev.models || s.modelsLoading !== prev.modelsLoading || s.settings !== prev.settings) render();
+      || isRunning(s) !== isRunning(prev) || isEmpty(s) !== isEmpty(prev) || s.models !== prev.models || s.modelsLoading !== prev.modelsLoading || s.settings !== prev.settings || s.planFirst !== prev.planFirst) render();
   });
   render();
   return {

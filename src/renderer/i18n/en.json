@@ -1699,5 +1699,160 @@
       "unknown": "That conversation no longer exists.",
       "generic": "Could not change the conversation."
     }
+  },
+  "work": {
+    "exported": "Saved {file}",
+    "plan": {
+      "include": "Include step {n}",
+      "step": "Step {n}",
+      "run": "Run plan",
+      "addStep": "Add a step",
+      "title": "Proposed plan",
+      "hint": "Untick or edit steps, then run it. Nothing has been changed yet.",
+      "noSteps": "Read the plan above, then run it.",
+      "discard": "Discard",
+      "toggle": "Plan first",
+      "toggleTitle": "Your next message only proposes a plan (nothing changes); you review the steps and then run them."
+    },
+    "bar": {
+      "fileOne": "1 file changed",
+      "files": "{n} files changed",
+      "commandOne": "1 command run",
+      "commands": "{n} commands run",
+      "done": "Done: {what}.",
+      "doneText": "Done.",
+      "undo": "Undo",
+      "undoConfirm": "Undo the changes of this turn? The files go back to how they were before it.",
+      "compare": "Compare {file}",
+      "export": "Export:",
+      "recipe": "Save as recipe"
+    },
+    "cmp": {
+      "loading": "Comparing...",
+      "title": "What changed in {file}",
+      "err": {
+        "unsupported": "Only Excel (.xlsx, .xlsm) and CSV/TSV files can be compared.",
+        "no-history": "There is no earlier version to compare with (turn on automatic versions in the project).",
+        "unreadable": "The file could not be read.",
+        "error": "The comparison failed."
+      },
+      "added": "new",
+      "removed": "removed",
+      "same": "This sheet did not change.",
+      "sheet": {
+        "added": "This sheet is new.",
+        "removed": "This sheet was removed."
+      },
+      "summary": "{n} cells changed. Rows: {before} before, {after} now.",
+      "truncated": "(only the first changes are shown)",
+      "cell": "Cell",
+      "before": "Before",
+      "after": "Now",
+      "created": "This file is new: everything is shown as added.",
+      "deleted": "This file was deleted.",
+      "fromTo": {
+        "working": "Last saved version compared with the current file.",
+        "commit": "Version before the last turn compared with the current one."
+      },
+      "noChanges": "No cell values changed."
+    },
+    "ask": {
+      "title": "Ask about this file",
+      "button": "Ask",
+      "explain": "Explain it",
+      "errors": "Find errors",
+      "chart": "Make charts",
+      "summarize": "Summarize",
+      "custom": "Write my own question"
+    },
+    "drop": {
+      "title": "Drop to start",
+      "sub": "FlowState will ask what to do with the file",
+      "noPath": "Could not read where that file is.",
+      "added": "Added {file} to the project.",
+      "current": "Use \"{name}\"",
+      "new": "New project",
+      "willCreate": "A new project will be created for this file.",
+      "act": {
+        "analyze": "Analyze it",
+        "clean": "Clean & summarize",
+        "dashboard": "Build a dashboard",
+        "summarize": "Summarize it",
+        "extract": "Extract its data",
+        "improve": "Improve it",
+        "describe": "Describe it",
+        "explain": "Explain it"
+      },
+      "justAdd": "Just add it to the project",
+      "dialog": "What should FlowState do with this file?"
+    },
+    "quick": {
+      "label": "Quick ask",
+      "placeholder": "Ask about {name}...",
+      "noProject": "Open a project first",
+      "hint": "Enter to send - Esc to close - Ctrl+Space here, Ctrl+Shift+Space from anywhere",
+      "thinking": "Working on it...",
+      "busy": "Wait for the current answer to finish."
+    },
+    "sched": {
+      "menu": "Scheduled tasks...",
+      "title": "Scheduled tasks",
+      "everyHour": "every hour at :{min}",
+      "everyDay": "every day at {time}",
+      "everyWeek": "{days} at {time}",
+      "add": "New scheduled task",
+      "enabled": "Enabled",
+      "lastOk": "Last run: {when}",
+      "lastFail": "Last run failed: {error}",
+      "never": "Not run yet",
+      "next": "next {when}",
+      "paused": "paused",
+      "runNow": "Run now",
+      "started": "Started.",
+      "notStarted": "Not started: {error}",
+      "edit": "Edit",
+      "delete": "Delete",
+      "intro": "Run a request or a saved recipe in a project on a timer, for example \"every Monday at 9:00 update the sales dashboard\".",
+      "none": "No scheduled tasks yet.",
+      "kindPrompt": "A request (text)",
+      "kindRecipe": "A saved recipe",
+      "promptPh": "Example: Update the dashboard with the newest file in the data folder and summarize what changed.",
+      "pickRecipe": "Pick a recipe",
+      "freq": {
+        "hourly": "Every hour",
+        "daily": "Every day",
+        "weekly": "Some days of the week"
+      },
+      "save": "Save",
+      "name": "Name",
+      "project": "Project",
+      "what": "What to run",
+      "prompt": "Request",
+      "recipe": "Recipe",
+      "freqLabel": "How often",
+      "minute": "Minute (HH:MM, only the minutes count)",
+      "time": "Time",
+      "days": "Days",
+      "catchUp": "If FlowState was closed at that time, run it when it opens (up to 24 h late)",
+      "whileOpen": "Tasks run while FlowState is open. Turn on \"Start FlowState when I sign in\" in Settings so it is always running.",
+      "day": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      }
+    },
+    "update": {
+      "ready": "FlowState {version} is ready.",
+      "restart": "Restart to update",
+      "later": "Later"
+    },
+    "settings": {
+      "notifications": "Notify me when a turn finishes or needs approval (while FlowState is in the background)",
+      "autoUpdate": "Download updates automatically"
+    }
   }
 }

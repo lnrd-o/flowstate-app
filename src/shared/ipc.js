@@ -138,6 +138,18 @@ export const CH = Object.freeze({
   windowSetTheme: 'window:set-theme',        // ({color:string '#rrggbb', symbolColor:string '#rrggbb', height:number}) -> void   recolours the native window-controls overlay (win/linux) live when the theme changes
   windowAction: 'window:action',             // ('minimize'|'toggle-maximize'|'close') -> void
   // push channels (main -> renderer)
+  workflowCompareSheet: 'workflow:compare-sheet', // (projectId, rel) -> {ok, path, from, to, sheets:[{name,status,changes:[{cell,r,c,before,after,kind}],beforeRows,afterRows,truncated}], created, deleted} | {ok:false, reason}
+  workflowExportPdf: 'workflow:export-pdf',     // (projectId, {html, title}) -> {ok, rel}   prints sanitized HTML to <outputs>/<title>_<stamp>.pdf
+  scheduleList: 'schedule:list',               // () -> ScheduledTask[]   (svc/schedule.js)
+  scheduleSave: 'schedule:save',               // (task) -> ScheduledTask   create or update (id)
+  scheduleRemove: 'schedule:remove',           // (id) -> {ok}
+  scheduleRunNow: 'schedule:run-now',          // (id) -> {ok, error?}
+  updateStatus: 'update:status',               // () -> {status:'idle'|'checking'|'current'|'downloading'|'ready'|'error', version, percent?, error, supported}
+  updateCheck: 'update:check',                 // () -> same
+  updateInstall: 'update:install',             // () -> boolean   quit and install a downloaded update
+  evWorkflow: 'ev:workflow',                   // {kind:'open-project', projectId} | {kind:'quick-ask'}
+  evSchedule: 'ev:schedule',                   // {tasks}
+  evUpdate: 'ev:update',                       // update status (see updateStatus)
   evUsage: 'ev:usage',                       // UsageSnapshot (throttled to 1 per second)
   evTasks: 'ev:tasks',                       // TasksSnapshot (throttled to 2 per second)
   evMenu: 'ev:menu',                         // {id}   a handler:'renderer' menu action triggered from the NATIVE menu / accelerator
@@ -234,6 +246,9 @@ export const API_SHAPE = Object.freeze({
   health: ['check'],
   git: ['status', 'undoTurn'],
   versions: ['list', 'save', 'compare', 'restore', 'branch'],
+  workflow: ['compareSheet', 'exportPdf'],
+  schedule: ['list', 'save', 'remove', 'runNow'],
+  update: ['status', 'check', 'install'],
   threads: ['list', 'create', 'switch', 'rename', 'remove'],
   prompts: ['list', 'save', 'delete', 'export'],
   files: ['list', 'read', 'preview', 'reveal', 'open', 'watch', 'pick', 'import'],
@@ -255,5 +270,5 @@ export const API_SHAPE = Object.freeze({
   attachments: ['save', 'read'],
   app: ['info', 'ready', 'flushed'],
   subscriptions: ['onAgentEvent', 'onHealth', 'onFiles', 'onDashboard', 'onInstall', 'onRemote', 'onMethod', 'onLogin', 'onWindow',
-    'onUsage', 'onTasks', 'onMenu', 'onBeforeQuit'],
+    'onUsage', 'onTasks', 'onMenu', 'onBeforeQuit', 'onWorkflow', 'onSchedule', 'onUpdate'],
 });

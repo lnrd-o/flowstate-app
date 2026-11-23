@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, dialog, shell, session, safeStorage, screen, net } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, dialog, shell, session, safeStorage, screen, net, Notification, globalShortcut } from 'electron';
 import { createServices, fanoutAgentEvent, disposeServices } from './services.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -123,7 +123,7 @@ if (!app.requestSingleInstanceLock()) {
         app, dir, settings, projects, agents, history, git, health, poller, files, dashboards, remote, runner, login,
         methodologies, prereq, prompts, getProject, getWindow: () => win, services,
         push: (ch, payload) => ipc.push(ch, payload),
-        electron: { app, BrowserWindow, Menu, dialog, shell, safeStorage, screen, net, session },
+        electron: { app, BrowserWindow, Menu, dialog, shell, safeStorage, screen, net, session, Notification, globalShortcut },
       });
     } catch (e) { console.error('[services] startup failed:', e?.message ?? e); }
 

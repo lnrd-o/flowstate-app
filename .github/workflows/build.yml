@@ -23,6 +23,8 @@ jobs:
             build: npm run dist:win
             artifacts: |
               dist/*.exe
+              dist/*.exe.blockmap
+              dist/latest.yml
           - name: macos-arm64
             os: macos-latest
             build: npm run dist:mac -- --arm64
@@ -40,6 +42,7 @@ jobs:
             os: ubuntu-latest
             build: npm run dist:linux
             artifacts: |
+              dist/latest-linux.yml
               dist/*.AppImage
               dist/*.deb
               dist/*.tar.gz

@@ -1,0 +1,50 @@
+/* "Work easier" features: after-turn bar, plan card, quick ask, drop overlay, sheet compare, schedule, update banner. Theme tokens only. */
+.after-turn { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border); background: var(--surface-1, var(--bg)); flex: 0 0 auto; }
+.after-turn[hidden] { display: none; }
+.after-turn__line { display: flex; align-items: center; gap: var(--space-2); }
+.after-turn__ok { color: var(--green, #3fb950); }
+.after-turn__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.after-turn__group { display: inline-flex; align-items: center; gap: 2px; padding-left: var(--space-2); border-left: 1px solid var(--border); }
+
+.plan-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.plan-card__head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.plan-card__list { margin: 0; padding-left: var(--space-5, 20px); display: flex; flex-direction: column; gap: var(--space-1); max-height: 260px; overflow: auto; }
+.plan-card__item { display: flex; align-items: center; gap: var(--space-2); }
+.plan-card__step { flex: 1 1 auto; min-width: 0; }
+.plan-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.composer__plan.is-active { background: var(--accent-soft, var(--surface-2)); color: var(--text); border-color: var(--accent, var(--border-strong)); }
+
+.quick-ask { position: fixed; top: 12vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 32px)); z-index: 60;
+  background: var(--surface-1, var(--bg)); border: 1px solid var(--border-strong); border-radius: var(--radius-lg, 12px); box-shadow: var(--shadow-lg, 0 12px 40px rgba(0,0,0,.35)); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.quick-ask[hidden] { display: none; }
+.quick-ask__row { display: flex; align-items: center; gap: var(--space-2); }
+.quick-ask__input { flex: 1 1 auto; font-size: 15px; }
+.quick-ask__answer { max-height: 45vh; overflow: auto; }
+.quick-ask__answer:empty { display: none; }
+
+.drop-start { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); pointer-events: none; }
+.drop-start[hidden] { display: none; }
+.drop-start__card { border: 2px dashed var(--accent, var(--border-strong)); border-radius: var(--radius-lg, 12px); padding: var(--space-6, 32px) var(--space-8, 48px); background: var(--surface-1, var(--bg)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.drop-start__ic { width: 32px; height: 32px; }
+.drop-dlg, .ask-file { display: flex; flex-direction: column; gap: var(--space-3); }
+.drop-dlg__where { align-self: flex-start; flex-wrap: wrap; }
+
+.sheet-cmp { display: flex; flex-direction: column; gap: var(--space-3); }
+.sheet-cmp__tabs { flex-wrap: wrap; }
+.sheet-cmp__n { margin-left: 6px; }
+.sheet-cmp__table-wrap { max-height: 55vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius, 8px); }
+.sheet-cmp__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sheet-cmp__table th, .sheet-cmp__table td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; word-break: break-word; }
+.sheet-cmp__table th { position: sticky; top: 0; background: var(--surface-2, var(--bg)); }
+.sheet-cmp__old { color: var(--red, #f85149); }
+.sheet-cmp__new { color: var(--green, #3fb950); }
+.sheet-cmp__row--added .sheet-cmp__old, .sheet-cmp__row--removed .sheet-cmp__new { color: var(--text-faint, #888); }
+
+.sched { display: flex; flex-direction: column; gap: var(--space-3); }
+.sched__row { align-items: center; gap: var(--space-2); }
+.sched__prompt { width: 100%; resize: vertical; }
+
+.update-banner { position: fixed; left: 16px; bottom: 16px; z-index: 65; display: flex; align-items: center; gap: var(--space-2); max-width: calc(100vw - 32px);
+  background: var(--surface-1, var(--bg)); border: 1px solid var(--border-strong); border-radius: var(--radius-lg, 12px); padding: var(--space-2) var(--space-3); box-shadow: var(--shadow-lg, 0 12px 40px rgba(0,0,0,.35)); }
+.update-banner[hidden] { display: none; }

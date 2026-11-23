@@ -148,6 +148,10 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       h('label', { class: 'toggle', for: 'set-devmode' }, devBox, h('span', { class: 'toggle__track' }), h('span', { class: 'strong', text: t('devmode.title') })),
       h('div', { class: 'field__hint', text: t('devmode.hint') }));
 
+    const notif = h('input', { type: 'checkbox', id: 'set-notifications', checked: s.notifications !== false });
+    notif.addEventListener('change', () => actions.updateSettings({ notifications: notif.checked }));
+    const upd = h('input', { type: 'checkbox', id: 'set-autoupdate', checked: s.autoUpdate !== false });
+    upd.addEventListener('change', () => actions.updateSettings({ autoUpdate: upd.checked }));
     const auto = h('input', { type: 'checkbox', id: 'set-autolaunch', checked: !!s.autoLaunch });
     auto.addEventListener('change', () => actions.updateSettings({ autoLaunch: auto.checked }));
     const redo = h('button', { class: 'btn', type: 'button', text: t('settings.restartWalkthrough') });
@@ -206,6 +210,8 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
       field(t('settings.agyPath'), pathInput('set-agy-path', 'agyPath'), t('settings.pathHint')),
       field(t('settings.opencodePath'), pathInput('set-opencode-path', 'opencodePath'), t('settings.pathHint')),
       h('label', { class: 'toggle', for: 'set-autolaunch' }, auto, h('span', { class: 'toggle__track' }), h('span', { text: t('settings.autoLaunch') })),
+      h('label', { class: 'toggle', for: 'set-notifications' }, notif, h('span', { class: 'toggle__track' }), h('span', { text: t('work.settings.notifications') })),
+      h('label', { class: 'toggle', for: 'set-autoupdate' }, upd, h('span', { class: 'toggle__track' }), h('span', { text: t('work.settings.autoUpdate') })),
       h('div', null, redo));
 
     if (activeId) { const el = dlg.el.querySelector('#' + activeId); if (el) el.focus(); }

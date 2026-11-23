@@ -79,3 +79,10 @@ linux:
     - target: tar.gz
       arch: [x64]
   artifactName: FlowState-${version}-linux-${arch}.${ext}
+
+# Auto-update (electron-updater): electron-builder writes latest*.yml next to the installers; the release workflow uploads them.
+publish:
+  provider: github
+  owner: lnrd-o
+  repo: flowstate-app
+  releaseType: release

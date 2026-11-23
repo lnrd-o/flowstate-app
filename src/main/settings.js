@@ -15,6 +15,10 @@ export function defaultSettings(locale = 'en') {
     walkthroughDone: false,
     // Developer mode: show code, diffs, commands and exact details in approvals. Off = simple, plain-language view.
     developerMode: true,
+    // Desktop notifications when a turn finishes / needs approval while FlowState is in the background.
+    notifications: true,
+    // Download new versions from GitHub Releases in the background (installed builds only).
+    autoUpdate: true,
     // DeepSeek usage/models panel (the API key itself is NOT a setting: it lives encrypted via svc/deepseek.js)
     deepseekEnabled: false,
     // Per-source switches (claude / agy / opencode / deepseek). deepseekEnabled is kept in sync with agentsEnabled.deepseek.
@@ -45,6 +49,8 @@ const TYPES = {
   autoLaunch: (v) => typeof v === 'boolean',
   walkthroughDone: (v) => typeof v === 'boolean',
   developerMode: (v) => typeof v === 'boolean',
+  notifications: (v) => typeof v === 'boolean',
+  autoUpdate: (v) => typeof v === 'boolean',
   deepseekEnabled: (v) => typeof v === 'boolean',
   agentsEnabled: (v) => isAgentsEnabled(v),
 };

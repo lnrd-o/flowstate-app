@@ -24,6 +24,7 @@ export function openProjectMenu(anchor, projectId, { store, actions }) {
       if (store.get().activeProjectId !== project.id) await actions.selectProject(project.id);
       store.set({ artifactsTab: 'versions', artifactsCollapsed: false });
     } },
+    { label: t('work.sched.menu'), onClick: () => actions.openSchedule() },
     { label: t('menu.projectSettings'), onClick: () => actions.openProjectSettings(project.id) },
     { label: t('menu.projectData'), onClick: () => actions.openProjectData(project.id) },
     { sep: true },

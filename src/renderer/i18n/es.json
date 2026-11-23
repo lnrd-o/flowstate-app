@@ -1699,5 +1699,160 @@
       "unknown": "Esa conversaci\u00f3n ya no existe.",
       "generic": "No se pudo cambiar la conversaci\u00f3n."
     }
+  },
+  "work": {
+    "exported": "Se guard\u00f3 {file}",
+    "plan": {
+      "include": "Incluir el paso {n}",
+      "step": "Paso {n}",
+      "run": "Ejecutar el plan",
+      "addStep": "Agregar un paso",
+      "title": "Plan propuesto",
+      "hint": "Desmarca o edita pasos y luego ejec\u00fatalo. Todav\u00eda no se cambi\u00f3 nada.",
+      "noSteps": "Lee el plan de arriba y luego ejec\u00fatalo.",
+      "discard": "Descartar",
+      "toggle": "Planear primero",
+      "toggleTitle": "Tu siguiente mensaje solo propone un plan (no cambia nada); revisas los pasos y luego los ejecutas."
+    },
+    "bar": {
+      "fileOne": "1 archivo cambiado",
+      "files": "{n} archivos cambiados",
+      "commandOne": "1 comando ejecutado",
+      "commands": "{n} comandos ejecutados",
+      "done": "Listo: {what}.",
+      "doneText": "Listo.",
+      "undo": "Deshacer",
+      "undoConfirm": "\u00bfDeshacer los cambios de este turno? Los archivos vuelven a como estaban antes.",
+      "compare": "Comparar {file}",
+      "export": "Exportar:",
+      "recipe": "Guardar como receta"
+    },
+    "cmp": {
+      "loading": "Comparando...",
+      "title": "Qu\u00e9 cambi\u00f3 en {file}",
+      "err": {
+        "unsupported": "Solo se pueden comparar archivos de Excel (.xlsx, .xlsm) y CSV/TSV.",
+        "no-history": "No hay una versi\u00f3n anterior para comparar (activa las versiones autom\u00e1ticas en el proyecto).",
+        "unreadable": "No se pudo leer el archivo.",
+        "error": "La comparaci\u00f3n fall\u00f3."
+      },
+      "added": "nueva",
+      "removed": "eliminada",
+      "same": "Esta hoja no cambi\u00f3.",
+      "sheet": {
+        "added": "Esta hoja es nueva.",
+        "removed": "Esta hoja se elimin\u00f3."
+      },
+      "summary": "{n} celdas cambiaron. Filas: {before} antes, {after} ahora.",
+      "truncated": "(solo se muestran los primeros cambios)",
+      "cell": "Celda",
+      "before": "Antes",
+      "after": "Ahora",
+      "created": "Este archivo es nuevo: todo se muestra como agregado.",
+      "deleted": "Este archivo se elimin\u00f3.",
+      "fromTo": {
+        "working": "\u00daltima versi\u00f3n guardada comparada con el archivo actual.",
+        "commit": "Versi\u00f3n antes del \u00faltimo turno comparada con la actual."
+      },
+      "noChanges": "No cambi\u00f3 ning\u00fan valor de celda."
+    },
+    "ask": {
+      "title": "Preguntar sobre este archivo",
+      "button": "Preguntar",
+      "explain": "Expl\u00edcalo",
+      "errors": "Busca errores",
+      "chart": "Haz gr\u00e1ficas",
+      "summarize": "Res\u00famelo",
+      "custom": "Escribir mi propia pregunta"
+    },
+    "drop": {
+      "title": "Suelta para empezar",
+      "sub": "FlowState te preguntar\u00e1 qu\u00e9 hacer con el archivo",
+      "noPath": "No se pudo saber d\u00f3nde est\u00e1 ese archivo.",
+      "added": "Se agreg\u00f3 {file} al proyecto.",
+      "current": "Usar \"{name}\"",
+      "new": "Proyecto nuevo",
+      "willCreate": "Se crear\u00e1 un proyecto nuevo para este archivo.",
+      "act": {
+        "analyze": "Anal\u00edzalo",
+        "clean": "Limpia y resume",
+        "dashboard": "Crea un dashboard",
+        "summarize": "Res\u00famelo",
+        "extract": "Extrae sus datos",
+        "improve": "Mej\u00f3ralo",
+        "describe": "Descr\u00edbelo",
+        "explain": "Expl\u00edcalo"
+      },
+      "justAdd": "Solo agr\u00e9galo al proyecto",
+      "dialog": "\u00bfQu\u00e9 debe hacer FlowState con este archivo?"
+    },
+    "quick": {
+      "label": "Pregunta r\u00e1pida",
+      "placeholder": "Pregunta sobre {name}...",
+      "noProject": "Abre un proyecto primero",
+      "hint": "Enter para enviar - Esc para cerrar - Ctrl+Espacio aqu\u00ed, Ctrl+May\u00fas+Espacio desde cualquier lugar",
+      "thinking": "Trabajando...",
+      "busy": "Espera a que termine la respuesta actual."
+    },
+    "sched": {
+      "menu": "Tareas programadas...",
+      "title": "Tareas programadas",
+      "everyHour": "cada hora al minuto {min}",
+      "everyDay": "todos los d\u00edas a las {time}",
+      "everyWeek": "{days} a las {time}",
+      "add": "Nueva tarea programada",
+      "enabled": "Activa",
+      "lastOk": "\u00daltima ejecuci\u00f3n: {when}",
+      "lastFail": "La \u00faltima ejecuci\u00f3n fall\u00f3: {error}",
+      "never": "A\u00fan no se ha ejecutado",
+      "next": "pr\u00f3xima {when}",
+      "paused": "en pausa",
+      "runNow": "Ejecutar ahora",
+      "started": "Iniciada.",
+      "notStarted": "No se inici\u00f3: {error}",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "intro": "Ejecuta una petici\u00f3n o una receta guardada en un proyecto con horario, por ejemplo \"cada lunes a las 9:00 actualiza el dashboard de ventas\".",
+      "none": "A\u00fan no hay tareas programadas.",
+      "kindPrompt": "Una petici\u00f3n (texto)",
+      "kindRecipe": "Una receta guardada",
+      "promptPh": "Ejemplo: Actualiza el dashboard con el archivo m\u00e1s reciente de la carpeta de datos y resume qu\u00e9 cambi\u00f3.",
+      "pickRecipe": "Elige una receta",
+      "freq": {
+        "hourly": "Cada hora",
+        "daily": "Todos los d\u00edas",
+        "weekly": "Algunos d\u00edas de la semana"
+      },
+      "save": "Guardar",
+      "name": "Nombre",
+      "project": "Proyecto",
+      "what": "Qu\u00e9 ejecutar",
+      "prompt": "Petici\u00f3n",
+      "recipe": "Receta",
+      "freqLabel": "Con qu\u00e9 frecuencia",
+      "minute": "Minuto (HH:MM, solo cuentan los minutos)",
+      "time": "Hora",
+      "days": "D\u00edas",
+      "catchUp": "Si FlowState estaba cerrado a esa hora, ejec\u00fatala al abrirlo (hasta 24 h tarde)",
+      "whileOpen": "Las tareas se ejecutan mientras FlowState est\u00e1 abierto. Activa \"Iniciar FlowState al iniciar sesi\u00f3n\" en Ajustes para que siempre est\u00e9 en marcha.",
+      "day": {
+        "0": "Dom",
+        "1": "Lun",
+        "2": "Mar",
+        "3": "Mi\u00e9",
+        "4": "Jue",
+        "5": "Vie",
+        "6": "S\u00e1b"
+      }
+    },
+    "update": {
+      "ready": "FlowState {version} est\u00e1 listo.",
+      "restart": "Reiniciar para actualizar",
+      "later": "M\u00e1s tarde"
+    },
+    "settings": {
+      "notifications": "Avisarme cuando un turno termine o necesite aprobaci\u00f3n (con FlowState en segundo plano)",
+      "autoUpdate": "Descargar actualizaciones autom\u00e1ticamente"
+    }
   }
 }

@@ -194,6 +194,18 @@ export function createMockApi() {
       undoTurn: async () => ({ ok: true, message: 'Reverted 1 commit' }),
     },
     versions: mockVersions(),
+    workflow: {
+      compareSheet: async (_id, rel) => ({ ok: true, path: rel, from: 'HEAD~1', to: 'HEAD', created: false, deleted: false, sheets: [{ name: 'Sheet1', status: 'changed', beforeRows: 3, afterRows: 4, truncated: false, changes: [{ cell: 'B2', r: 1, c: 1, before: '100', after: '150', kind: 'changed' }, { cell: 'A4', r: 3, c: 0, before: '', after: 'mar', kind: 'added' }] }] }),
+      exportPdf: async (_id, o) => ({ ok: true, rel: 'outputs/' + String((o && o.title) || 'report').replace(/W+/g, '_') + '.pdf' }),
+    },
+    schedule: (() => { let tasks = []; return {
+      list: async () => tasks,
+      save: async (t) => { const x = { ...t, id: t.id || String(Date.now()), nextAt: Date.now() + 3600e3, projectName: 'demo' }; tasks = [...tasks.filter((y) => y.id !== x.id), x]; return x; },
+      remove: async (id) => { tasks = tasks.filter((y) => y.id !== id); return { ok: true }; },
+      runNow: async () => ({ ok: true }),
+    }; })(),
+    update: { status: async () => ({ status: 'idle', supported: false }), check: async () => ({ status: 'current', supported: false }), install: async () => false },
+    pathForFile: () => '',
     threads: (() => {
       let st = { active: '00000000', threads: [{ id: '00000000', title: 'Main', agent: 'claude', model: null, turns: 3, updatedAt: Date.now(), main: true, contextPath: '.flowstate/context/main.md' }], projectContextPath: '.flowstate/context/PROJECT.md' };
       const ok = () => ({ ok: true, ...st });

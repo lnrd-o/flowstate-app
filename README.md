@@ -33,7 +33,7 @@ terminal launching, process-group kill) is unit-tested with injected platform da
 [docs/building.md](docs/building.md) for the first-launch steps (SmartScreen, Gatekeeper, `chmod +x`) and how to build or release.
 
 ## Features
-- **Agents:** Claude / AGY switch per project, streaming chat, markdown + highlighted code (7 code themes). Each agent has its own identity: Claude in orange with an animated burst, AGY with a flowing rainbow sparkle.
+- **Agents:** Claude / Antigravity / OpenCode switch per project, streaming chat, markdown + highlighted code (7 code themes). Each agent has its own identity: Claude in orange with an animated burst, AGY with a flowing rainbow sparkle.
 - **What the agent did:** rich cards with real diffs (computed by FlowState, since AGY only reports file paths), command output with exit codes, thinking time, a turn summary and an Activity timeline.
 - **Developer / Simple mode:** Developer shows code, diffs, commands and exact details; Simple shows plain-language steps ("Created hello.py", "Tested your project, it worked"). One click in the top bar.
 - **Approvals:** blocked actions show exactly what they are; "Allow this once" lets Claude run just that one command for one turn (never saved), no need to switch the whole project to auto-edit.
@@ -49,6 +49,19 @@ terminal launching, process-group kill) is unit-tested with injected platform da
 - **Artifacts pane:** Files (live tree + previews), Preview (last file the agent wrote), Dashboard (per-project Python venv + Streamlit), Git.
 - **Remote control:** per-project toggle (claude: the project folder must be trusted once via `claude`).
 - **Methodologies:** record from a session, edit as a graph, run with checkpoints, start new projects from one.
+- **Sources:** Claude Code, Antigravity, OpenCode (found automatically, also inside the OpenCode desktop app; one-click install from opencode.ai; sign-in in the built-in terminal) and DeepSeek models, each with an on/off switch in Settings.
+- **Conversations:** several conversations per project, each with its own agent and history; Markdown context notes let any provider continue the work.
+- **Work easier:**
+  - **Drop a file anywhere** (Excel, CSV, PDF, Word, PowerPoint, images): FlowState asks what to do (analyze, clean, dashboard, summarize ...), copies it into the project's data folder and starts.
+  - **Quick ask:** Ctrl+Space inside FlowState, Ctrl+Shift+Space from anywhere in Windows.
+  - **After each turn:** what changed, **Undo**, **Compare** changed spreadsheets cell by cell, **Export** the answer to PDF, Word or PowerPoint, **Save as recipe** (a reusable one-click methodology).
+  - **Plan first:** the agent proposes the steps without changing anything; untick or edit them, then **Run plan**.
+  - **Ask about this file** from the file viewer: explain, find errors, make charts, summarize.
+  - **Notifications** when a turn finishes or needs approval while FlowState is in the background.
+  - **Scheduled tasks:** run a request or a recipe on a timer (every hour, every day, some weekdays).
+- **Auto-update:** installed builds download new versions from GitHub Releases in the background and offer "Restart to update".
+- **Project folders:** new projects get `data/` + `outputs/` (`datos/` + `salidas/` in Spanish); code stays in the root.
+- **Safety:** "Always ask" protections stay on even in Auto-accept (sensitive files, deleting, installing, network commands, git remote, outside the project).
 
 ## Layout
 ```
