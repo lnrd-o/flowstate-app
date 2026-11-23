@@ -174,8 +174,12 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
           const known = st.signedIn[id];
           const c = statusChip(known);
           chip = h('span', { class: 'badge badge--' + c.tone }, h('span', { class: 'badge__dot' }), t(c.key));
-          if (id === 'opencode') { if (known !== true) acts.push(h('span', { class: 'xs faint', text: t('sources.opencodeHint') })); }
-          else if (known === true) acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('login.signOut'), on: { click: () => (id === 'claude' ? actions.signOut(id) : actions.openLogin(id)) } }));
+          if (id === 'opencode') {
+            const found = !!(st.health && st.health.opencode && st.health.opencode.found);
+            if (!st.health) acts.push(h('span', { class: 'xs faint', text: t('sources.checking') })); // first health check still running
+            else if (!found) acts.push(h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('sources.installOpencode'), on: { click: () => actions.installOpencode() } }));
+            else acts.push(h('button', { class: 'btn btn--sm' + (known === true ? '' : ' btn--primary'), type: 'button', text: known === true ? t('login.opencodeAddProvider') : t('banner.signIn'), on: { click: () => actions.openLogin('opencode') } }));
+          } else if (known === true) acts.push(h('button', { class: 'btn btn--sm', type: 'button', text: t('login.signOut'), on: { click: () => (id === 'claude' ? actions.signOut(id) : actions.openLogin(id)) } }));
           else acts.push(h('button', { class: 'btn btn--sm btn--primary', type: 'button', text: t('banner.signIn'), on: { click: () => actions.openLogin(id) } }));
         }
         return h('div', { class: 'list-row' + (on ? '' : ' is-off') },
@@ -212,10 +216,12 @@ export function openSettingsDialog({ store, actions, onWalkthrough }) {
   let lastSigned = store.get().signedIn;
   let lastDs = store.get().deepseek;
   let lastEnabled = store.get().settings.agentsEnabled;
+  let lastHealth = store.get().health;
   const unsubStore = store.subscribe((st) => {
     if (st.signedIn !== lastSigned) { lastSigned = st.signedIn; render(); }
     else if (st.deepseek !== lastDs) { lastDs = st.deepseek; render(); }
     else if (st.settings.agentsEnabled !== lastEnabled) { lastEnabled = st.settings.agentsEnabled; render(); }
+    else if (st.health !== lastHealth) { lastHealth = st.health; render(); } // e.g. OpenCode found after the first check
   });
   unsub = () => { unsubLang(); unsubStore(); };
   return dlg;

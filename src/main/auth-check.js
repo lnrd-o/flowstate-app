@@ -36,6 +36,10 @@ export function isOpencodeLoggedInOutput(text) {
   const t = stripAnsi(String(text ?? ''));
   const nums = [...t.matchAll(/(\d+)\s+(?:credentials?|environment variables?)/gi)].map((m) => Number(m[1]));
   if (nums.length) return nums.some((n) => n > 0);
+  // opencode 2.x prints one row per credential: "<Provider>  <Name>  stored" (or "env" for environment keys).
+  const rows = t.split(/\r?\n/).filter((l) => /\S\s{2,}\S.*\s(stored|env|oauth|api)\s*$/i.test(l));
+  if (rows.length) return true;
+  if (/no\s+(credentials|providers)|not\s+logged\s+in/i.test(t)) return false; // empty output = unknown (null), e.g. the command failed
   return null;
 }
 

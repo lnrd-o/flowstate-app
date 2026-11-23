@@ -58,7 +58,7 @@ export function parseResetFromText(text, now = Date.now()) {
 }
 
 const TOOL_KINDS = {
-  command: /^(bash|powershell|run_command|command_status|send_command_input|execute_command)$/i,
+  command: /^(bash|powershell|shell|run_command|command_status|send_command_input|execute_command)$/i,
   edit: /^(edit|multiedit|notebookedit|edit_file|replace_file_content|multi_replace_file_content|sed_file|apply_patch|patch)$/i,
   write: /^(write|write_file|write_to_file|create_file)$/i,
   read: /^(read|view_file|read_file|read_url_content|read_resource|webfetch)$/i,
@@ -211,7 +211,8 @@ export function normalizeAgy(j) {
 
 
 /**
- * opencode `run --format json` (UNVERIFIED: opencode is not installed here; built from its documented behaviour, see docs/spikes.md).
+ * opencode `run --format json` (verified on opencode 2.2.0; see docs/spikes.md). The stream can end with a `text` part and no final
+ * step_finish: the adapter then calls normalizer.finish() for the closing result.
  * One JSON object per line: {type:'step_start'|'text'|'reasoning'|'tool_use'|'step_finish'|'error', sessionID, part:{...}}.
  *  text        part.text                                   -> text
  *  reasoning   part.text                                   -> thinking
@@ -220,6 +221,37 @@ export function normalizeAgy(j) {
  *  error       error.{name,data.message} | message          -> error (or limit when the text says quota/balance/rate limit)
  * Stateful (usage sum, accumulated text, session announced once): create one per turn.
  */
+/**
+ * file-change events for a completed opencode edit/write. opencode reports a tool only once it has finished, so FlowState cannot
+ * snapshot the file before it changes; instead: edit -> state.metadata.metadata.files[] {file, patch, status, additions, deletions};
+ * write -> the written content (new file = every line added).
+ */
+export function opencodeFileChanges(id, kind, st) {
+  const out = [];
+  const rel = (f) => String(f).replace(/\\/g, '/').replace(/^\.\//, '');
+  const files = st?.metadata?.metadata?.files;
+  if (Array.isArray(files) && files.length) {
+    for (const f of files.slice(0, 50)) {
+      if (!f || typeof f.file !== 'string') continue;
+      const patch = typeof f.patch === 'string' ? f.patch : '';
+      const at = patch.indexOf('@@');
+      const op = f.status === 'added' ? 'create' : f.status === 'deleted' ? 'delete' : 'modify';
+      out.push({ type: 'file-change', id: out.length ? `${id}#${out.length + 1}` : id, path: rel(f.file), op,
+        added: Number(f.additions) || 0, removed: Number(f.deletions) || 0, diff: at >= 0 ? patch.slice(at) : '', truncated: false });
+    }
+    return out;
+  }
+  const input = st?.input ?? {};
+  const p = input.path ?? input.filePath ?? input.file_path;
+  if (kind === 'write' && typeof p === 'string' && typeof input.content === 'string') {
+    const lines = input.content.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
+    const created = /created/i.test(String(st.output ?? ''));
+    const diff = input.content.length > 200 * 1024 ? '' : `@@ -0,0 +1,${lines.length} @@\n${lines.map((l) => `+${l}`).join('\n')}\n`;
+    out.push({ type: 'file-change', id, path: rel(p), op: created ? 'create' : 'modify', added: lines.length, removed: 0, diff, truncated: !diff });
+  }
+  return out;
+}
+
 export function createOpencodeNormalizer() {
   let sessionSeen = null;
   let text = '';
@@ -231,7 +263,8 @@ export function createOpencodeNormalizer() {
     if (typeof e === 'string') return e;
     return String(e?.data?.message ?? e?.message ?? e?.name ?? 'opencode error');
   };
-  return function normalizeOpencode(j) {
+  let resultSent = false;
+  function normalizeOpencode(j) {
     const out = [];
     if (!j || typeof j !== 'object') return out;
     if (startedAt == null) startedAt = Date.now();
@@ -268,6 +301,7 @@ export function createOpencodeNormalizer() {
             ev.commandOutput = String(output).replace(/\r\n/g, '\n').replace(/\n+$/, '');
           }
           out.push(ev);
+          if (st.status === 'completed' && (kind === 'edit' || kind === 'write')) out.push(...opencodeFileChanges(id, kind, st));
         }
         break;
       }
@@ -280,6 +314,7 @@ export function createOpencodeNormalizer() {
         usage.cache_creation_input_tokens += num(tk.cache?.write);
         cost += num(p.cost);
         if (p.reason !== 'tool-calls') {
+          resultSent = true;
           out.push({ type: 'result', ok: true, text, costUsd: cost || undefined, durationMs: Date.now() - startedAt, usage: { ...usage } });
         }
         break;
@@ -293,7 +328,14 @@ export function createOpencodeNormalizer() {
       default: break; // step_start and unknown types carry nothing to show
     }
     return out;
+  }
+  /** Closing result when the process ended cleanly without a final step_finish (null if one was already sent). */
+  normalizeOpencode.finish = () => {
+    if (resultSent) return null;
+    resultSent = true;
+    return { type: 'result', ok: true, text, costUsd: cost || undefined, durationMs: startedAt == null ? 0 : Date.now() - startedAt, usage: { ...usage } };
   };
+  return normalizeOpencode;
 }
 
 export const NORMALIZERS = Object.freeze({ claude: normalizeClaude, agy: normalizeAgy, opencode: createOpencodeNormalizer() });

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { CH } from '../shared/ipc.js';
+import { createOpencodeInstaller } from './opencode-install.js';
 import { ID_RE, KEY_RE, LIMITS } from '../shared/methodology.js';
 
 const isStr = (v) => typeof v === 'string' && v.length > 0;
@@ -188,6 +189,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     },
     [CH.dashboardStart]: (_e, id, app) => { need(id); if (!isStr(app) || !isRel(app)) throw new TypeError('app path required'); return dashboards.start(id, app); },
     [CH.dashboardStop]: (_e, id) => { need(id); dashboards.stop(id); },
+    [CH.prereqInstallOpencode]: () => { opencodeInstaller ??= createOpencodeInstaller(); return opencodeInstaller.install(); },
     [CH.prereqInstall]: (_e, id) => { if (!isStr(id) || id.length > 16) throw new TypeError('prerequisite id required'); return prereq.install(id); },
     [CH.authLogin]: (_e, agent) => { if (!isAgent(agent)) throw new TypeError('invalid agent'); return auth.login(agent); },
     [CH.remoteStatus]: (_e, id) => { need(id); return remote.status(id); },
@@ -196,6 +198,7 @@ export function registerIpc({ ipcMain, getWindow, dialog, settings, projects, ag
     [CH.historyGet]: (_e, id) => { need(id); return history.get(id); },
     [CH.historyClear]: (_e, id) => { need(id); history.clear(id); },
   });
+  let opencodeInstaller = null; // created on first use (user clicked "Install OpenCode")
   const handlers = {
     [CH.settingsGet]: () => settings.get(),
     [CH.settingsSet]: (_e, patch) => {

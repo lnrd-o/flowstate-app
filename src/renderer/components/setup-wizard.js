@@ -125,7 +125,8 @@ export function openSetupWizard({ store, api, actions }) {
     const rows = helperRows(signed).map((r) => {
       if (r.id === 'opencode' && !(oc && oc.found)) { // optional third helper: not installed -> install hint, no sign-in button
         return h('div', { class: 'list-row' }, h('div', { class: 'list-row__main list-row__main--wrap' }, h('div', { class: 'list-row__title', text: t('agent.opencode') }),
-          h('div', { class: 'list-row__sub list-row__sub--wrap', text: t('walkthrough.hint.opencode') })));
+          h('div', { class: 'list-row__sub list-row__sub--wrap', text: t('walkthrough.hint.opencode') })),
+          h('button', { class: 'btn btn--sm', type: 'button', text: t('sources.installOpencode'), on: { click: async () => { await actions.installOpencode(); render(); } } }));
       }
       const c = statusChip(r.signed);
       return h('div', { class: 'list-row' },

@@ -198,9 +198,18 @@ export function createHealth({
         const hit = findNamed(fsx, pkg, 'opencode.exe', { maxDepth: 4, platform });
         if (hit) out.push(hit);
       }
+      // OpenCode desktop app: the CLI ships inside it as resources\opencode-cli.exe (never the *.update-* staging copies).
+      if (env.LOCALAPPDATA) out.push(j(env.LOCALAPPDATA, 'Programs', 'ai.opencode.desktop', 'resources', 'opencode-cli.exe'));
     } else {
       if (home) out.push(j(home, '.opencode', 'bin', 'opencode'), j(home, '.local', 'bin', 'opencode'), j(home, '.npm-global', 'bin', 'opencode'));
       out.push('/usr/local/bin/opencode', '/opt/homebrew/bin/opencode');
+      // Desktop app bundles (macOS .app / Linux install folders)
+      if (platform === 'darwin') {
+        out.push('/Applications/OpenCode.app/Contents/Resources/opencode-cli');
+        if (home) out.push(j(home, 'Applications', 'OpenCode.app', 'Contents', 'Resources', 'opencode-cli'));
+      } else {
+        out.push('/opt/OpenCode/resources/opencode-cli', '/usr/lib/opencode/resources/opencode-cli');
+      }
     }
     return out;
   }

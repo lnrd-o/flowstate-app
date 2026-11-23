@@ -44,8 +44,12 @@ export function terminalTheme() {
 export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
   if (current) { current.setTab(agent); return current; }
 
-  let tab = agent === 'agy' ? 'agy' : 'claude';
-  const views = { claude: createLoginView(), agy: createLoginView() };
+  const PTY_AGENTS = ['agy', 'opencode']; // sign in through their own interactive terminal (PTY + xterm.js)
+  const isPty = (a) => PTY_AGENTS.includes(a);
+  const normTab = (a) => (a === 'agy' || a === 'opencode' ? a : 'claude');
+  let tab = normTab(agent);
+  let termOwner = isPty(tab) ? tab : 'agy'; // which PTY agent the (single) terminal belongs to
+  const views = { claude: createLoginView(), agy: createLoginView(), opencode: createLoginView() };
   const opts = { kind: 'claudeai', email: '' };
   let codeBusy = false;
   let buf = '';
@@ -90,7 +94,7 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
   }
 
   function cancelAll() {
-    for (const a of ['claude', 'agy']) {
+    for (const a of ['claude', 'agy', 'opencode']) {
       if (isActive(a)) { try { Promise.resolve(api.login.cancel(a)).catch(() => {}); } catch { /* ignore */ } views[a] = cancelLogin(views[a]); }
     }
   }
@@ -147,9 +151,9 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
 
   // ---------- events ----------
   function onEvent(ev) {
-    if (!ev || (ev.agent !== 'claude' && ev.agent !== 'agy')) return;
+    if (!ev || (ev.agent !== 'claude' && !isPty(ev.agent))) return;
     const a = ev.agent;
-    if (ev.kind === 'data' && a === 'agy') {
+    if (ev.kind === 'data' && a === termOwner) {
       buf = appendBuffer(buf, ev.data);
       if (term) term.term.write(String(ev.data));
     }
@@ -158,14 +162,14 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
     if (ev.kind === 'error' || (ev.kind === 'done' && ev.ok === false)) codeBusy = false;
     if (ev.kind === 'status' || ev.kind === 'done') refreshStatus();
     if (prev.phase !== 'success' && views[a].phase === 'success') onSuccess(a);
-    if (ev.kind === 'done' || ev.kind === 'error') { if (a === 'agy') disposeTermLater(); }
+    if (ev.kind === 'done' || ev.kind === 'error') { if (a === termOwner) disposeTermLater(); }
     if (ev.kind === 'data') { if (prev.phase === 'starting') render(); return; }
     render();
   }
 
   function disposeTermLater() {
     // keep the terminal visible after done so the user can read the final output only while not successful
-    if (views.agy.phase === 'success' || views.agy.phase === 'error') disposeTerm();
+    if (views[termOwner].phase === 'success' || views[termOwner].phase === 'error') disposeTerm();
   }
 
   // ---------- Claude ----------
@@ -264,52 +268,56 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
     const doFit = () => {
       try {
         fit.fit();
-        if (isActive('agy')) api.login.resize('agy', tm.cols, tm.rows);
+        if (isActive(termOwner)) api.login.resize(termOwner, tm.cols, tm.rows);
       } catch { /* host not laid out yet */ }
     };
     const ro = new ResizeObserver(() => doFit());
     ro.observe(termHost);
-    tm.onData((d) => { if (isActive('agy')) api.login.input('agy', d); });
+    tm.onData((d) => { if (isActive(termOwner)) api.login.input(termOwner, d); });
     term = { term: tm, fit, ro };
     doFit();
     if (buf) tm.write(buf);
     tm.focus();
   }
 
-  async function startAgy() {
+  async function startPty(a) {
     clearTimeout(closeTimer);
+    // only one terminal at a time: stop the other PTY agent's sign-in first
+    for (const o of PTY_AGENTS) if (o !== a && isActive(o)) { try { Promise.resolve(api.login.cancel(o)).catch(() => {}); } catch { /* ignore */ } views[o] = cancelLogin(views[o]); }
+    termOwner = a;
     buf = '';
-    views.agy = startLogin(views.agy);
+    views[a] = startLogin(views[a]);
     disposeTerm();
     render();
-    try { await mountTerm(); } catch { views.agy = startResult(views.agy, { ok: false, error: 'terminal-unavailable' }); render(); return; }
+    try { await mountTerm(); } catch { views[a] = startResult(views[a], { ok: false, error: 'terminal-unavailable' }); render(); return; }
     if (closed || !term) return;
     let res;
-    try { res = await api.login.start('agy', { cols: term.term.cols, rows: term.term.rows }); } catch (e) { res = { ok: false, error: (e && e.message) || '' }; }
-    views.agy = startResult(views.agy, res);
-    if (views.agy.phase === 'error') disposeTerm();
+    try { res = await api.login.start(a, { cols: term.term.cols, rows: term.term.rows }); } catch (e) { res = { ok: false, error: (e && e.message) || '' }; }
+    views[a] = startResult(views[a], res);
+    if (views[a].phase === 'error') disposeTerm();
     render();
     if (term) term.term.focus();
   }
 
-  function renderAgy() {
-    const v = views.agy;
+  function renderPty(a) {
+    const v = views[a];
     const kids = [];
-    if (v.phase === 'success') { agyBox.replaceChildren(successCard('agy')); return; }
+    const K = a === 'opencode' ? 'opencode' : 'agy'; // i18n key prefix: login.agyIntro / login.opencodeIntro ...
+    if (v.phase === 'success') { agyBox.replaceChildren(successCard(a)); return; }
     if (v.phase === 'idle' || v.phase === 'error') {
       if (v.phase === 'error') kids.push(errorBox(errText(v.error)));
-      kids.push(h('p', { class: 'login__intro', text: signedIn('agy') ? t('login.agySignedIn') : t('login.agyIntro') }));
-      if (signedIn('agy')) {
-        kids.push(h('div', { class: 'login-note' }, icon('info', 'login-note__icon'), h('span', { text: t('login.agyLogoutNote') })));
-        kids.push(h('div', null, h('button', { class: 'btn', type: 'button', text: t('login.openTerminalLogout'), on: { click: startAgy } })));
+      kids.push(h('p', { class: 'login__intro', text: signedIn(a) ? t('login.' + K + 'SignedIn') : t('login.' + K + 'Intro') }));
+      if (signedIn(a)) {
+        kids.push(h('div', { class: 'login-note' }, icon('info', 'login-note__icon'), h('span', { text: t('login.' + K + 'LogoutNote') })));
+        kids.push(h('div', null, h('button', { class: 'btn', type: 'button', text: a === 'opencode' ? t('login.opencodeAddProvider') : t('login.openTerminalLogout'), on: { click: () => startPty(a) } })));
       } else {
-        kids.push(h('div', null, h('button', { class: 'btn btn--primary', type: 'button', text: v.phase === 'error' ? t('login.tryAgain') : t('login.openTerminal'), on: { click: startAgy } })));
+        kids.push(h('div', null, h('button', { class: 'btn btn--primary', type: 'button', text: v.phase === 'error' ? t('login.tryAgain') : t('login.openTerminal'), on: { click: () => startPty(a) } })));
       }
     } else {
       if (v.url) kids.push(urlBar(v.url, 'login-url--bar'));
       kids.push(termHost);
       kids.push(h('div', { class: 'faint small', text: t('login.terminalHint') }));
-      if (!term) mountTerm().catch(() => { views.agy = startResult(views.agy, { ok: false, error: 'terminal-unavailable' }); render(); });
+      if (!term && a === termOwner) mountTerm().catch(() => { views[a] = startResult(views[a], { ok: false, error: 'terminal-unavailable' }); render(); });
     }
     const hadFocus = !!term && termHost.contains(document.activeElement);
     agyBox.replaceChildren(...kids);
@@ -318,13 +326,20 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
   }
 
   // ---------- chrome ----------
+  /** OpenCode only when it is installed (or this dialog was opened for it). */
+  function visibleTabs() {
+    const hl = store.get().health;
+    const oc = (hl && hl.opencode && hl.opencode.found) || agent === 'opencode' || tab === 'opencode';
+    return ['claude', 'agy', ...(oc ? ['opencode'] : [])];
+  }
+
   function renderTabs() {
-    tabsEl.replaceChildren(...['claude', 'agy'].map((a) => {
+    tabsEl.replaceChildren(...visibleTabs().map((a) => {
       const b = h('button', {
         class: 'pill-tab login__tab' + (tab === a ? ' is-active' : ''), type: 'button', id: 'login-tab-' + a,
         attrs: { role: 'tab', 'aria-selected': String(tab === a), tabindex: tab === a ? '0' : '-1' },
         on: { click: () => setTab(a) },
-      }, h('span', { text: t('login.tab' + (a === 'claude' ? 'Claude' : 'Agy')) }), chip(a));
+      }, h('span', { text: t('login.tab' + (a === 'claude' ? 'Claude' : a === 'opencode' ? 'Opencode' : 'Agy')) }), chip(a));
       return b;
     }));
   }
@@ -344,8 +359,8 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
   }
 
   function setTab(a) {
-    tab = a === 'agy' ? 'agy' : 'claude';
-    if (tab === 'claude' && term) { /* keep the pty session, drop only the widget */ disposeTerm(); }
+    tab = normTab(a);
+    if (tab !== termOwner && term) { /* keep the pty session, drop only the widget */ disposeTerm(); }
     clearTimeout(closeTimer);
     render();
   }
@@ -355,12 +370,12 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
     dlg.setTitle(t('login.title'));
     renderTabs();
     claudeBox.hidden = tab !== 'claude';
-    agyBox.hidden = tab !== 'agy';
+    agyBox.hidden = !isPty(tab);
     panel.setAttribute('aria-labelledby', 'login-tab-' + tab);
     // Only repaint the visible pane (the other one may host the live terminal).
-    if (tab === 'claude') renderClaude(); else renderAgy();
+    if (tab === 'claude') renderClaude(); else renderPty(tab);
     renderFooter();
-    if (tab === 'agy' && term === null && !isActive('agy')) termHost.replaceChildren();
+    if (isPty(tab) && term === null && !isActive(tab)) termHost.replaceChildren();
   }
 
   const api4 = { setTab: (a) => { setTab(a); }, el: dlg.el, close: dlg.close };
@@ -371,7 +386,9 @@ export function openLoginDialog({ store, api, actions, agent = 'claude' }) {
   tabsEl.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
-    const n = tab === 'claude' ? 'agy' : 'claude';
+    const list = visibleTabs();
+    const i = list.indexOf(tab);
+    const n = list[(i + (e.key === 'ArrowRight' ? 1 : list.length - 1)) % list.length];
     setTab(n);
     const el = tabsEl.querySelector('#login-tab-' + n);
     if (el) el.focus();

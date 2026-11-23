@@ -4,8 +4,9 @@ import { createOpencodeNormalizer, NORMALIZERS } from '../../shared/events.js';
 /** plan -> opencode's read-only `plan` agent; everything else -> the default `build` agent (`opencode run` has no permission-mode flag). */
 export const opencodeAgentFor = (mode) => (mode === 'plan' ? 'plan' : null);
 
-// UNVERIFIED against a real opencode (not installed): flags follow its documented CLI (`opencode run [message..] --format json
-// --session <id> --model provider/model --agent <name>`). See docs/spikes.md.
+// Verified on opencode 2.2.0 (desktop app's bundled opencode-cli.exe): `opencode run --format json [--session <id>] [--model provider/model]
+// [--agent plan] [--auto] -- <message>`. Tools run without prompting in `run`; --auto also approves anything not explicitly denied.
+// See docs/spikes.md.
 export class OpencodeAdapter extends AgentAdapter {
   constructor() { super('opencode', NORMALIZERS.opencode); }
 
@@ -17,6 +18,7 @@ export class OpencodeAdapter extends AgentAdapter {
       ...(project.sessionId ? ['--session', project.sessionId] : []),
       ...(model ? ['--model', model] : []),
       ...(agent ? ['--agent', agent] : []),
+      ...(project.mode === 'auto' ? ['--auto'] : []),
       '--', text,
     ];
   }
@@ -29,7 +31,17 @@ export class OpencodeAdapter extends AgentAdapter {
   /** Fresh stateful normalizer per turn (usage sums, accumulated text). */
   run(opts) {
     const self = Object.create(this);
-    self.normalize = createOpencodeNormalizer();
-    return AgentAdapter.prototype.run.call(self, opts);
+    const norm = createOpencodeNormalizer();
+    self.normalize = norm;
+    const h = AgentAdapter.prototype.run.call(self, opts);
+    // opencode may exit cleanly without a final step_finish: close the turn with a result so the UI and auto-commit see it end.
+    const done = h.done.then((r) => {
+      if (r.resultSeen || r.stopped || r.code !== 0) return r;
+      const ev = norm.finish();
+      if (!ev) return r;
+      try { opts.emit(ev); } catch { /* ignore */ }
+      return { ...r, resultSeen: true, ok: true };
+    });
+    return { ...h, done };
   }
 }

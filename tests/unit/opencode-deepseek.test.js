@@ -197,3 +197,35 @@ test('manager: deepseek without a key rejects the send before spawning', async (
   await assert.rejects(() => m.send({ projectId: 'p1', text: 'x' }), /no-key/);
   assert.equal(m.status('p1').running, false);
 });
+
+test('opencode 2.x: auth list rows, shell tool kind, closing result without step_finish, edit/write file changes', async () => {
+  const { isOpencodeLoggedInOutput } = await import('../../src/main/auth-check.js');
+  const { createOpencodeNormalizer, opencodeFileChanges, classifyTool } = await import('../../src/shared/events.js');
+  assert.equal(isOpencodeLoggedInOutput('OpenCode Go       OpenCode Go 2               stored\nOpenCode Console  Personal                    stored'), true);
+  assert.equal(isOpencodeLoggedInOutput('No credentials found'), false);
+  assert.equal(classifyTool('opencode', 'shell'), 'command');
+  const n = createOpencodeNormalizer();
+  n({ type: 'text', sessionID: 's1', part: { type: 'text', text: 'DONE' } });
+  const fin = n.finish();
+  assert.equal(fin.type, 'result');
+  assert.equal(fin.text, 'DONE');
+  assert.equal(n.finish(), null);
+  const edit = opencodeFileChanges('t1', 'edit', { metadata: { metadata: { files: [{ file: 'a.txt', patch: 'Index: a.txt\n--- a.txt\n+++ a.txt\n@@ -1 +1 @@\n-x\n+y\n', status: 'modified', additions: 1, deletions: 1 }] } } });
+  assert.deepEqual(edit[0], { type: 'file-change', id: 't1', path: 'a.txt', op: 'modify', added: 1, removed: 1, diff: '@@ -1 +1 @@\n-x\n+y\n', truncated: false });
+  const write = opencodeFileChanges('t2', 'write', { input: { path: 'dir\\hi.txt', content: 'hola\n' }, output: 'Created file successfully' });
+  assert.equal(write[0].path, 'dir/hi.txt');
+  assert.equal(write[0].op, 'create');
+  assert.equal(write[0].diff, '@@ -0,0 +1,1 @@\n+hola\n');
+});
+
+test('opencode installer: only https opencode.ai downloads, install path under ~/.opencode/bin', async () => {
+  const { allowedDownloadUrl, opencodeInstallPath, createOpencodeInstaller } = await import('../../src/main/opencode-install.js');
+  assert.equal(allowedDownloadUrl('https://opencode.ai/files/bin/2.3.2/opencode-windows-x64.zip'), true);
+  assert.equal(allowedDownloadUrl('http://opencode.ai/x.zip'), false);
+  assert.equal(allowedDownloadUrl('https://evil.example/opencode.ai.zip'), false);
+  assert.equal(allowedDownloadUrl('https://opencode.ai.evil.com/x.zip'), false);
+  assert.match(opencodeInstallPath('win32', 'C:\\Users\\me'), /\.opencode[\\/]bin[\\/]opencode\.exe$/);
+  const r = await createOpencodeInstaller({ platform: 'sunos', arch: 'x64' }).install();
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'unsupported');
+});

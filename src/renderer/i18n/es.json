@@ -967,7 +967,12 @@
       "terminalUnavailable": "La terminal integrada no est\u00e1 disponible en este sistema. Ejecuta agy en tu propia terminal para iniciar sesi\u00f3n y luego vuelve a comprobar.",
       "useTerminal": "Antigravity cierra sesi\u00f3n desde su propia terminal: escribe /logout all\u00ed.",
       "notSignedIn": "El inicio de sesi\u00f3n no se complet\u00f3. Intenta de nuevo."
-    }
+    },
+    "tabOpencode": "OpenCode",
+    "opencodeIntro": "Esto abre la terminal de OpenCode con \"opencode auth login\". Elige un proveedor con las flechas, pulsa Enter y sigue los pasos (puede abrirse el navegador o pedirte una clave API). FlowState nunca ve la clave.",
+    "opencodeSignedIn": "OpenCode tiene credenciales guardadas. Puedes agregar otro proveedor desde su terminal.",
+    "opencodeLogoutNote": "Para quitar un proveedor, ejecuta \"opencode auth logout\" en una terminal.",
+    "opencodeAddProvider": "Agregar o cambiar proveedor"
   },
   "act": {
     "title": {
@@ -1671,7 +1676,13 @@
       "agy": "Antigravity",
       "opencode": "OpenCode",
       "deepseek": "DeepSeek (clave API)"
-    }
+    },
+    "checking": "Comprobando...",
+    "installOpencode": "Instalar OpenCode",
+    "installOpencodeConfirm": "FlowState descargar\u00e1 la CLI oficial de OpenCode desde opencode.ai (unos 120 MB) y la instalar\u00e1 en tu carpeta de usuario (.opencode\\bin). \u00bfContinuar?",
+    "installingOpencode": "Descargando e instalando OpenCode...",
+    "installedOpencode": "OpenCode instalado.",
+    "installOpencodeFailed": "No se pudo instalar OpenCode: {error}"
   },
   "threads": {
     "label": "Conversaci\u00f3n",

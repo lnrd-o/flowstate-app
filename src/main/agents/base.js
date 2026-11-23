@@ -70,6 +70,8 @@ export class AgentAdapter {
     const stderrLines = [];
 
     const opts = childSpawnOptions();
+    // PWD must match cwd: some CLIs (opencode) take their working folder from $PWD, which otherwise is FlowState's own folder.
+    opts.env = { ...(opts.env ?? process.env), PWD: project.path };
     // env: per-turn extra variables (e.g. a route's API key) merged into THIS child's environment only.
     if (env) opts.env = mergeEnv(opts.env, env);
     const child = spawn(command, args, { cwd: project.path, ...opts, stdio: ['pipe', 'pipe', 'pipe'] });

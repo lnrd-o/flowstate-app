@@ -212,6 +212,7 @@ export function createPhase2({ projects, emitAgent, flags }) {
         stop: async (pid) => { const s = dstate(pid); s.running = false; s.url = null; },
       },
       prereq: {
+        installOpencode: async () => { await new Promise((r) => later(800, r)); return { ok: true, path: 'C:\\Users\\me\\.opencode\\bin\\opencode.exe', bytes: 125643832 }; },
         install: async (id) => {
           const lines = ['Found ' + id + ' (winget)', 'Downloading installer ...', 'Successfully verified installer hash', 'Starting package install ...', 'Successfully installed'];
           for (const l of lines) await new Promise((r) => later(450, r)).then(() => fire('install', { id, kind: 'log', text: l }));

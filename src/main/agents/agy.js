@@ -97,6 +97,7 @@ export class AgyAdapter extends AgentAdapter {
 
   spawnEntry({ project, launcher, spawn, kill, env, sig }) {
     const opts = childSpawnOptions();
+    opts.env = { ...(opts.env ?? process.env), PWD: project.path }; // keep $PWD = cwd (see base.js)
     if (env) opts.env = mergeEnv(opts.env, env);
     const args = [...(launcher.baseArgs ?? []), ...this.buildWarmArgs(project)];
     const child = spawn(launcher.command, args, { cwd: project.path, ...opts, stdio: ['pipe', 'pipe', 'pipe'] });

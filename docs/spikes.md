@@ -90,3 +90,17 @@ Last 24h [dot] 1140 requests [dot] 9 sessions
 per stdin line `{"event":"user","message":{"content":"..."}}`; the second turn in the same process took ~22 s instead of ~40 s.
 FlowState keeps one such warm process per project folder (`AgyAdapter({warm:true})`), reused while the conversation, model and mode
 are unchanged, closed after 15 idle minutes, on Stop and on quit.
+
+## OpenCode (verified on opencode 2.2.0 desktop CLI and 2.3.2 standalone, Windows)
+
+* Discovery: PATH, `~/.opencode/bin/opencode.exe` (official installer and FlowState's "Install OpenCode"), npm, and the desktop app's
+  bundled CLI `%LOCALAPPDATA%\Programs\ai.opencode.desktop\resources\opencode-cli.exe`.
+* `opencode auth list` prints one row per credential ("<Provider>  <Name>  stored"); `opencode models` prints `provider/model` lines.
+* `opencode run --format json [--session ses_...] [-m provider/model] [--agent plan] [--auto] -- <message>`: NDJSON parts
+  `step_start`, `tool_use` (reported only once finished, with state.input/output; edit carries metadata.metadata.files[].patch),
+  `step_finish` (tokens/cost), `text`, `error` (e.g. `provider.quota` 402). The stream may end with `text` and no final
+  `step_finish`, so the adapter emits the closing result on a clean exit.
+* opencode takes its working folder from `$PWD`, not the process cwd: every agent child now gets `PWD=<project>`.
+* Sign-in: `opencode auth login` in the in-app PTY terminal (Sources > OpenCode or the sign-in dialog's OpenCode tab).
+* Install: `https://opencode.ai/update/api/latest/cli/opencode/opencode-windows-x64.zip` (302 to opencode.ai/files/bin/<ver>/...),
+  about 120 MB; opencode.exe is extracted to `~/.opencode/bin` (src/main/opencode-install.js).

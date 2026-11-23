@@ -64,6 +64,7 @@ export const CH = Object.freeze({
   dashboardStart: 'dashboard:start',         // (projectId, appRel) -> {url}   `.venv\Scripts\python -m streamlit run <app> --server.address 127.0.0.1 --server.headless true --browser.gatherUsageStats false`
   dashboardStop: 'dashboard:stop',           // (projectId) -> void
   // prerequisites / auth
+  prereqInstallOpencode: 'prereq:install-opencode', // () -> {ok, path, bytes} | {ok:false, error, manual?}   downloads the official opencode zip from opencode.ai into ~/.opencode/bin (src/main/opencode-install.js)
   prereqInstall: 'prereq:install',           // (id:'git'|'node'|'python') -> {ok, log}   winget install, per-user/silent; progress via evInstall
   authLogin: 'auth:login',                   // (agent) -> {ok}   opens a visible console window running `<cli> auth login` (claude) / `agy` login flow; never touches credentials
   // remote control
@@ -237,7 +238,7 @@ export const API_SHAPE = Object.freeze({
   prompts: ['list', 'save', 'delete', 'export'],
   files: ['list', 'read', 'preview', 'reveal', 'open', 'watch', 'pick', 'import'],
   dashboard: ['status', 'setup', 'start', 'stop'],
-  prereq: ['install'],
+  prereq: ['install', 'installOpencode'],
   auth: ['login'],
   remote: ['status', 'start', 'stop'],
   history: ['get', 'clear'],

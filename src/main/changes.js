@@ -119,6 +119,7 @@ export function createChangeTracker({ readFile = defaultReadFile, realpath = def
         let turn = turns.get(key);
         if (ev.type === 'tool-use') {
           if (ev.kind !== 'edit' && ev.kind !== 'write') return [];
+          if (project.agent === 'opencode') return []; // opencode reports finished edits with their own patch (shared/events.js opencodeFileChanges)
           if (!turn) { turn = { snaps: new Map(), bytes: 0 }; turns.set(key, turn); }
           onToolUse(project, ev, turn);
           return [];

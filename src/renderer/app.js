@@ -276,6 +276,21 @@ const actions = {
   },
   /** In-app sign-in (Claude URL + code, AGY terminal). */
   openLogin(agent) { openLoginDialog({ store, api, actions, agent }); },
+  /** Download the official OpenCode CLI (opencode.ai, about 120 MB) into ~/.opencode/bin, then offer its sign-in. */
+  async installOpencode() {
+    if (!api.prereq || !api.prereq.installOpencode) return false;
+    const ok = await confirmDialog({ title: t('sources.installOpencode'), message: t('sources.installOpencodeConfirm'), confirmLabel: t('sources.installOpencode') });
+    if (!ok) return false;
+    toast(t('sources.installingOpencode'), undefined, 8000);
+    let r;
+    try { r = await api.prereq.installOpencode(); } catch (e) { r = { ok: false, error: (e && e.message) || '' }; }
+    if (!r || !r.ok) { toast(t('sources.installOpencodeFailed', { error: (r && r.error) || '' }), 'error', 8000); return false; }
+    toast(t('sources.installedOpencode'), 'success');
+    await actions.recheckHealth();
+    try { actions.applyLoginStatus(await api.login.status()); } catch { /* ignore */ }
+    if (store.get().signedIn.opencode !== true) actions.openLogin('opencode');
+    return true;
+  },
   signIn(agent) { actions.openLogin(agent); },
   applyLoginStatus(status) { store.set((s) => ({ signedIn: applyStatus(s.signedIn, status) })); },
   async refreshLoginStatus() {
